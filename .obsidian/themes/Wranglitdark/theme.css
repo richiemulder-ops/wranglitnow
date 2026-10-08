@@ -1,0 +1,1212 @@
+/* ============================================================================
+   WRANGLITDARK — Obsidian theme for the Wranglit scaffold
+   v1.0.0
+   ----------------------------------------------------------------------------
+   Colour, type and icons. NO GEOMETRY. That rule is load-bearing, not stylistic.
+
+   Obsidian's app.js measures the file tree and writes the result back onto
+   every row as an inline `padding-inline-start: <n>px !important`. A layout
+   declaration anywhere in the sidebar chain poisons that measurement and the
+   indent compounds by ~17px on every rebuild until the tree runs off the pane.
+
+   Never add to this file, on ANY element in the sidebar / file-explorer chain:
+       padding  margin  position  top/left/right/bottom  width  height
+       min-width  max-width  display  flex  grid  transform  box-sizing
+       overflow  gap  inset  float  contain
+       --size-*  --nav-item-padding  --nav-item-children-*  --indent-size
+       --file-margins  --line-width  --sidebar-*  --header-height
+
+   Colour-valued variables that merely start with a layout-ish prefix are fine
+   and are used below: --nav-item-color, --tab-background-active and
+   --indentation-guide-color change no boxes.
+
+   Second trap, equally load-bearing: never use `mask-image` on a CONTAINER.
+   A mask clips everything the element paints, children included — masking the
+   file-tree container renders the sidebar as an empty pane. Where a graphic
+   must tint per mode, bake the tint into two background-image data URIs.
+
+   Tokens are owned by Team Knowledge/Guidelines/GL-003-design-system.md.
+   That file is the source; this one is a consumer. Change GL-003 first.
+   ========================================================================= */
+
+
+/* ============================================================================
+   1. BRAND TOKENS — the Wranglit palette (GL-003 section 2)
+   ========================================================================= */
+
+.theme-light,
+.theme-dark {
+  /* ---------- Brand core ---------- */
+  --ch-white:       #FFFFFF;   /* the light canvas, always */
+  --ch-grey:        #F5F5F7;   /* secondary surface tint */
+  --ch-navy:        #0C0C0E;   /* ink — near-black, kept on the legacy name
+                                  so every downstream rule still resolves */
+  --ch-green:       #EA580C;   /* the brand orange — accent, never sentiment */
+  --ch-green-2:     #FFF4ED;   /* palest tint, selected/active states */
+
+  /* ---------- Orange scale (GL-003 2.1) ----------
+     Measured, not estimated:
+       orange-700 on white  7.31  AAA  -> body links
+       orange-600 on white  5.18  AA   -> UI labels
+       orange-500 on white  3.56  FAIL -> fills and large display only
+       ink-950 on orange-500 5.49 AA   -> text on an orange fill is BLACK
+       white on orange-500  3.56  FAIL -> never white on the brand orange
+       orange-400 on ink-800 6.18 AA   -> accent on the dark chrome       */
+  --ch-green-50:    #FFF4ED;
+  --ch-green-100:   #FFE6D5;
+  --ch-green-200:   #FFC9AA;
+  --ch-green-300:   #FDA474;
+  --ch-green-400:   #FB7435;   /* accent on dark surfaces */
+  --ch-green-500:   #EA580C;   /* = --ch-green, the brand */
+  --ch-green-600:   #C2410C;   /* hover/press; UI text on white */
+  --ch-green-700:   #9A3412;   /* body text and links on white */
+
+  /* ---------- Ink scale (GL-003 2.2) ---------- */
+  --ch-navy-900:    #0C0C0E;
+  --ch-navy-800:    #131316;
+  --ch-navy-700:    #0C0C0E;   /* = --ch-navy, body text on white 19.5:1 */
+  --ch-navy-600:    #26262D;
+  --ch-navy-500:    #55555F;   /* muted text on white, 7.37:1 */
+  --ch-navy-400:    #7A7A85;   /* faint text, works on both modes */
+  --ch-navy-300:    #A5A5AE;   /* muted text on dark, 8.00:1 */
+  --ch-navy-200:    #CECED4;
+  --ch-navy-100:    #E7E7EA;   /* body text on dark, 15.84:1 */
+  --ch-navy-50:     #F5F5F7;
+
+  /* The dark chrome. Sidebar, ribbon and titlebar sit here in BOTH modes. */
+  --ch-chrome:      #1C1C21;
+  --ch-chrome-alt:  #26262D;
+
+  /* ---------- Status (GL-003 2.3) — never the brand orange ---------- */
+  --ch-status-ok:        #15803D;
+  --ch-status-ok-bg:     #DCFCE7;
+  --ch-status-ok-fg:     #166534;
+  --ch-status-warn:      #A16207;
+  --ch-status-warn-bg:   #FEF3C7;
+  --ch-status-warn-fg:   #854D0E;
+  --ch-status-error:     #B91C1C;
+  --ch-status-error-bg:  #FEE2E2;
+  --ch-status-error-fg:  #991B1B;
+  --ch-status-info:      #1D4ED8;
+  --ch-status-info-bg:   #DBEAFE;
+  --ch-status-info-fg:   #1E40AF;
+
+  /* ---------- Data-viz series: one hue, stepped (GL-003 section 7) ----------
+     Never introduce an unrelated hue to add a series. Five or more series
+     means the chart is wrong — split it or aggregate it. */
+  --ch-data-1:  #EA580C;
+  --ch-data-2:  #9A3412;
+  --ch-data-3:  #FDA474;
+  --ch-data-4:  #431407;
+  --ch-data-5:  #FB7435;
+  --ch-data-6:  #FFC9AA;
+
+  /* ---------- Radii (GL-003 section 4) ---------- */
+  --ch-r-xs:  4px;    /* pills, tags, code spans */
+  --ch-r-sm:  6px;    /* form controls, checkboxes */
+  --ch-r-md:  10px;   /* alerts, tinted callout panels */
+  --ch-r-lg:  14px;   /* cards */
+
+  /* ---------- Motion ---------- */
+  --ch-ease:      cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ch-dur-fast:  120ms;
+  --ch-dur-base:  220ms;
+
+  /* ---------- Folder band palette (see section 6) ----------
+     A warm sweep down the sidebar, anchored on the brand orange at the top
+     and cooling to violet at the bottom. The ORDER IS ALPHABETICAL, because
+     that is how the file tree sorts and therefore the only axis the eye
+     actually travels.
+
+     Measured on the dark chrome (#1C1C21), not assumed — every band clears
+     the 4.5:1 AA floor:
+         Actions 7.87   Deliverables 6.98   Expansions 6.23   PKM 5.83
+         Team 5.65      Team Inbox 5.61     Team Knowledge 5.66
+         copilot 5.77
+
+     Adding a folder that sorts mid-list will land between its neighbours'
+     hues — regenerate the whole ramp rather than appending a colour on the
+     end, and re-measure.
+
+     ONE definition serves both modes: the sidebar is dark in both. */
+  --ch-folder-actions:              #E8A33C;   /* Actions */
+  --ch-folder-deliverables:         #E59355;   /* Deliverables */
+  --ch-folder-expansions:           #E2836E;   /* Expansions */
+  --ch-folder-pkm:                  #DD7A87;   /* PKM */
+  --ch-folder-team:                 #D4789F;   /* Team */
+  --ch-folder-team-inbox:           #C47DB4;   /* Team Inbox */
+  --ch-folder-team-knowledge:       #AE86C4;   /* Team Knowledge */
+  --ch-folder-copilot:              #9490CE;   /* copilot */
+  /* Retained so a vault that still has these folders renders sanely. */
+  --ch-folder-backups:              #9490CE;
+  --ch-folder-docs:                 #AE86C4;
+  --ch-folder-github:               #C47DB4;
+  --ch-folder-scripts:              #D4789F;
+
+  /* ---------- Type stacks (GL-003 section 3) ----------
+     System stack, no webfonts. A knowledge vault should not wait on a font
+     request to render its own notes. */
+  --ch-font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Display',
+                     'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --ch-font-sans:    -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text',
+                     'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* ============================================================================
+   2. TYPEFACE STACKS
+   ========================================================================= */
+
+.theme-light,
+.theme-dark {
+  /* System stack only, no webfonts. A knowledge vault should not wait on a
+     font request to render its own notes. See GL-003 section 3. */
+  --ch-font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text',
+                  'Segoe UI', 'Helvetica Neue', 'Calibri', Arial, sans-serif;
+}
+
+/* ============================================================================
+   3. LIGHT MODE — Obsidian variable mapping (colour only)
+   ========================================================================= */
+
+.theme-light {
+  /* ---------- Surfaces ---------- */
+  --background-primary:          var(--ch-white);
+  --background-primary-alt:      var(--ch-grey);
+  --background-secondary:        var(--ch-navy-50);
+  --background-secondary-alt:    var(--ch-navy-100);
+  --background-modifier-hover:   rgba(12, 12, 14, 0.04);
+  --background-modifier-active-hover: rgba(234, 88, 12, 0.20);
+  --background-modifier-border:  var(--ch-navy-100);
+  --background-modifier-border-hover:  var(--ch-navy-200);
+  --background-modifier-border-focus:  var(--ch-green-600);
+  --background-modifier-box-shadow:    rgba(12, 12, 14, 0.08);
+  --background-modifier-form-field:    var(--ch-white);
+  --background-modifier-form-highlight: var(--ch-navy-100);
+  --background-modifier-error:         var(--ch-status-error-bg);
+  --background-modifier-error-hover:   #FBD5D5;
+  --background-modifier-success:       var(--ch-status-ok-bg);
+  --background-modifier-message:       var(--ch-navy-700);
+
+  /* Selection and the active line. Both are green — this is the accent doing
+     its sanctioned accent job. Kept pale so navy body text over the top
+     still clears AA by a wide margin (see the contrast notes in the report). */
+  --text-selection:              rgba(234, 88, 12, 0.34);
+  --text-highlight-bg:           var(--ch-green-100);
+  --text-highlight-bg-active:    rgba(234, 88, 12, 0.48);
+
+  /* ---------- Text ---------- */
+  --text-normal:                 var(--ch-navy-700);   /* 17.3:1 on white */
+  --text-muted:                  var(--ch-navy-500);   /* 10.1:1 on white */
+  --text-faint:                  var(--ch-navy-400);   /*  5.7:1 on white */
+  --text-on-accent:              var(--ch-navy-700);   /* navy on green fill */
+  --text-on-accent-inverted:     var(--ch-white);
+  --text-error:                  var(--ch-status-error-fg);
+  --text-warning:                var(--ch-status-warn-fg);
+  --text-success:                var(--ch-status-ok-fg);
+
+  /* Accent text is green-700, NOT green-600.
+     GL-003 names --fg-accent (green-600 #C2410C) as the green for type. On
+     white that measures 3.93:1 — it clears AA for large text and UI, but not
+     the 4.5:1 body threshold, and a wikilink is body-sized. Substituted one
+     step down the same ramp: green-700 #9A3412 at 6.05:1. Same hue family,
+     same intent, passes. See the report for the full reasoning. */
+  --text-accent:                 var(--ch-green-700);
+  --text-accent-hover:           var(--ch-green-600);
+
+  /* ---------- Interactive ---------- */
+  --interactive-normal:          var(--ch-navy-50);
+  --interactive-hover:           var(--ch-navy-100);
+  --interactive-accent:          var(--ch-green);
+  --interactive-accent-hover:    var(--ch-green-400);  /* hover darkens */
+  --interactive-success:         var(--ch-status-ok);
+
+  /* ---------- Chrome ---------- */
+  --titlebar-background:         var(--ch-navy-700);
+  --titlebar-background-focused: var(--ch-navy-700);
+  --titlebar-text-color:         rgba(255, 255, 255, 0.70);
+  --titlebar-text-color-focused: var(--ch-white);
+  --titlebar-border-width:       0;
+
+  --ribbon-background:           var(--ch-navy-700);
+  --ribbon-background-collapsed: var(--ch-navy-700);
+
+  --tab-text-color:              var(--ch-navy-400);
+  --tab-text-color-active:       var(--ch-navy-700);
+  --tab-text-color-focused-active-current: var(--ch-navy-700);
+  --tab-background-active:       var(--ch-white);
+  --tab-outline-color:           var(--ch-navy-100);
+  --tab-divider-color:           var(--ch-navy-100);
+
+  /* Links. orange-700 measures 7.31:1 on white (AAA). The brand orange
+     itself is 3.56:1 and fails as body text — never use it here. */
+  --link-color:                  var(--ch-green-700);
+  --link-color-hover:            var(--ch-green-600);
+  --link-external-color:         var(--ch-green-700);
+  --link-external-color-hover:   var(--ch-green-600);
+  --link-unresolved-color:       var(--ch-navy-400);
+
+  --nav-item-color:              var(--ch-navy-500);
+  --nav-item-color-hover:        var(--ch-navy-700);
+  --nav-item-color-active:       var(--ch-navy-700);
+  --nav-item-background-hover:   rgba(12, 12, 14, 0.04);
+  --nav-item-background-active:  var(--ch-green-2);
+  --nav-indentation-guide-color: var(--ch-navy-100);
+
+  --divider-color:               var(--ch-navy-100);
+  --divider-color-hover:         var(--ch-green);
+  --scrollbar-thumb-bg:          rgba(12, 12, 14, 0.16);
+  --scrollbar-active-thumb-bg:   rgba(12, 12, 14, 0.30);
+  --scrollbar-bg:                transparent;
+
+  /* ---------- Headings ---------- */
+  --h1-color: var(--ch-navy-700);
+  --h2-color: var(--ch-navy-700);
+  --h3-color: var(--ch-navy-700);
+  --h4-color: var(--ch-navy-700);
+  --h5-color: var(--ch-navy-500);
+  --h6-color: var(--ch-navy-400);
+
+  /* ---------- Tables ---------- */
+  --table-header-background:       var(--ch-navy-50);
+  --table-header-background-hover: var(--ch-navy-100);
+  --table-header-color:            var(--ch-navy-500);
+  --table-row-background-hover:    #FFF4ED;    /* GL-003 section 7 hover */
+  --table-row-alt-background:      var(--ch-grey);
+  --table-border-color:            var(--ch-navy-100);
+  --table-column-alt-background:   var(--ch-grey);
+  --table-selection:               rgba(234, 88, 12, 0.22);
+  --table-selection-border-color:  var(--ch-green-600);
+
+  /* ---------- Code ---------- */
+  --code-background:  var(--ch-navy-50);
+  --code-normal:      var(--ch-navy-700);
+  --code-comment:     var(--ch-navy-400);
+  --code-keyword:     var(--ch-green-700);
+  --code-string:      var(--ch-status-info);
+  --code-value:       var(--ch-navy-600);
+  --code-function:    var(--ch-navy-600);
+  --code-property:    var(--ch-status-info-fg);
+  --code-operator:    var(--ch-navy-500);
+  --code-tag:         var(--ch-green-700);
+  --code-punctuation: var(--ch-navy-400);
+
+  /* ---------- Tags ---------- */
+  --tag-color:            var(--ch-green-700);      /* 5.3:1 on the tint */
+  --tag-background:       var(--ch-green-50);
+  --tag-background-hover: var(--ch-green-100);
+  --tag-border-color:     var(--ch-green-200);
+  --tag-border-color-hover: var(--ch-green-400);
+
+  /* ---------- Checkboxes ---------- */
+  --checkbox-color:         var(--ch-green-600);
+  --checkbox-color-hover:   var(--ch-green-500);
+  --checkbox-border-color:  var(--ch-navy-200);
+  --checkbox-border-color-hover: var(--ch-green-600);
+  --checkbox-marker-color:  var(--ch-white);
+  --checklist-done-color:   var(--ch-navy-400);
+
+  /* ---------- Graph view: monochromatic, navy -> green only ----------
+     No amber, no red, no blue. Status hues are semantic flags and are not
+     permitted as node colours (GL-003 section 2). */
+  --graph-line:      var(--ch-navy-100);
+  --graph-node:      var(--ch-navy-500);
+  --graph-node-tag:  var(--ch-green-600);
+  --graph-node-attachment: var(--ch-navy-300);
+  --graph-node-unresolved: var(--ch-navy-200);
+  --graph-node-focused:    var(--ch-navy-700);
+
+  /* ---------- Misc ---------- */
+  --blockquote-border-color: var(--ch-green);
+  --blockquote-color:        var(--ch-navy-500);
+  --hr-color:                var(--ch-navy-100);
+  --embed-border-left:       2px solid var(--ch-navy-100);
+  --icon-color:              var(--ch-navy-400);
+  --icon-color-hover:        var(--ch-navy-700);
+  --icon-color-active:       var(--ch-navy-700);
+  --icon-color-focused:      var(--ch-navy-700);
+  --link-external-color:       var(--ch-green-700);
+  --link-external-color-hover: var(--ch-green-600);
+  --link-unresolved-color:     var(--ch-navy-400);
+  --link-unresolved-opacity:   0.7;
+  --metadata-label-text-color: var(--ch-navy-400);
+  --metadata-input-text-color: var(--ch-navy-700);
+  --indentation-guide-color:   rgba(12, 12, 14, 0.10);
+  --indentation-guide-color-active: rgba(12, 12, 14, 0.24);
+  --collapse-icon-color:       var(--ch-navy-300);
+  --shadow-s: 0 2px 6px rgba(12, 12, 14, 0.06), 0 1px 2px rgba(12, 12, 14, 0.04);
+  --shadow-l: 0 16px 40px rgba(12, 12, 14, 0.10), 0 4px 8px rgba(12, 12, 14, 0.04);
+}
+
+/* ============================================================================
+   4. DARK MODE — Obsidian variable mapping (colour only)
+   ========================================================================= */
+
+.theme-dark {
+  /* ---------- Derived dark status set (PROPOSED) ---------- */
+  --ch-dk-ok-bg:     #13301F;
+  --ch-dk-ok-fg:     #4ADE80;
+  --ch-dk-warn-bg:   #332611;
+  --ch-dk-warn-fg:   #FACC15;
+  --ch-dk-error-bg:  #34191A;
+  --ch-dk-error-fg:  #F87171;
+  --ch-dk-info-bg:   #16233D;
+  --ch-dk-info-fg:   #60A5FA;
+
+  /* ---------- Surfaces ---------- */
+  --background-primary:          var(--ch-navy-900);   /* #0C0C0E canvas — the darkest surface */
+  --background-primary-alt:      #18181D;
+  --background-secondary:        var(--ch-chrome);     /* #1C1C21 chrome — raised above the canvas */
+  --background-secondary-alt:    #0C0C0E;
+  --background-modifier-hover:   rgba(255, 255, 255, 0.05);
+  --background-modifier-active-hover: rgba(234, 88, 12, 0.18);
+  --background-modifier-border:  #26262D;
+  --background-modifier-border-hover:  var(--ch-navy-600);
+  --background-modifier-border-focus:  var(--ch-green);
+  --background-modifier-box-shadow:    rgba(0, 0, 0, 0.45);
+  --background-modifier-form-field:    #131316;
+  --background-modifier-form-highlight: var(--ch-navy-600);
+  --background-modifier-error:         var(--ch-dk-error-bg);
+  --background-modifier-error-hover:   #44201F;
+  --background-modifier-success:       var(--ch-dk-ok-bg);
+  --background-modifier-message:       var(--ch-navy-600);
+
+  --text-selection:              rgba(234, 88, 12, 0.26);
+  --text-highlight-bg:           rgba(234, 88, 12, 0.24);
+  --text-highlight-bg-active:    rgba(234, 88, 12, 0.38);
+
+  /* ---------- Text ---------- */
+  --text-normal:                 #E7E7EA;              /* 16.1:1 on #1C1C21 */
+  --text-muted:                  var(--ch-navy-300);   /*  6.5:1 on #1C1C21 */
+  --text-faint:                  #7A7A85;              /*  4.7:1 on #1C1C21 */
+  --text-on-accent:              var(--ch-navy-700);   /* navy on green fill */
+  --text-on-accent-inverted:     var(--ch-white);
+  --text-error:                  var(--ch-dk-error-fg);
+  --text-warning:                var(--ch-dk-warn-fg);
+  --text-success:                var(--ch-dk-ok-fg);
+
+  /* The accent as type. Uses orange-700 on light / orange-400 on dark,
+     never the brand orange itself — see the contrast table in GL-003 2.4. */
+  --text-accent:                 var(--ch-green);
+  --text-accent-hover:           var(--ch-green-200);
+
+  /* ---------- Interactive ---------- */
+  --interactive-normal:          var(--ch-navy-700);
+  --interactive-hover:           var(--ch-navy-600);
+  --interactive-accent:          var(--ch-green);
+  --interactive-accent-hover:    var(--ch-green-200);  /* lifts on dark */
+  --interactive-success:         var(--ch-dk-ok-fg);
+
+  /* ---------- Chrome ---------- */
+  --titlebar-background:         #0C0C0E;
+  --titlebar-background-focused: #0C0C0E;
+  --titlebar-text-color:         rgba(255, 255, 255, 0.55);
+  --titlebar-text-color-focused: #E7E7EA;
+  --titlebar-border-width:       0;
+
+  --ribbon-background:           #0C0C0E;
+  --ribbon-background-collapsed: #0C0C0E;
+
+  --tab-text-color:              var(--ch-navy-400);
+  --tab-text-color-active:       #E7E7EA;
+  --tab-text-color-focused-active-current: #E7E7EA;
+  --tab-background-active:       var(--ch-navy-800);
+  --tab-outline-color:           #26262D;
+  --tab-divider-color:           #26262D;
+
+  /* orange-400 measures 6.18:1 on the chrome (AA). */
+  --link-color:                  var(--ch-green-400);
+  --link-color-hover:            var(--ch-green-300);
+  --link-external-color:         var(--ch-green-400);
+  --link-external-color-hover:   var(--ch-green-300);
+  --link-unresolved-color:       var(--ch-navy-400);
+
+  --nav-item-color:              var(--ch-navy-300);
+  --nav-item-color-hover:        #E7E7EA;
+  --nav-item-color-active:       #FFFFFF;
+  --nav-item-background-hover:   rgba(255, 255, 255, 0.05);
+  --nav-item-background-active:  rgba(234, 88, 12, 0.14);
+  --nav-indentation-guide-color: rgba(255, 255, 255, 0.09);
+
+  --divider-color:               #26262D;
+  --divider-color-hover:         var(--ch-green);
+  --scrollbar-thumb-bg:          rgba(255, 255, 255, 0.14);
+  --scrollbar-active-thumb-bg:   rgba(255, 255, 255, 0.26);
+  --scrollbar-bg:                transparent;
+
+  /* ---------- Headings ---------- */
+  --h1-color: #FFFFFF;
+  --h2-color: #F0F0F2;
+  --h3-color: #E7E7EA;
+  --h4-color: #E7E7EA;
+  --h5-color: var(--ch-navy-300);
+  --h6-color: var(--ch-navy-300);
+
+  /* ---------- Tables ---------- */
+  --table-header-background:       #1C1C21;
+  --table-header-background-hover: #26262D;
+  --table-header-color:            var(--ch-navy-300);
+  --table-row-background-hover:    rgba(234, 88, 12, 0.06);
+  --table-row-alt-background:      rgba(255, 255, 255, 0.022);
+  --table-border-color:            #26262D;
+  --table-column-alt-background:   rgba(255, 255, 255, 0.022);
+  --table-selection:               rgba(234, 88, 12, 0.16);
+  --table-selection-border-color:  var(--ch-green);
+
+  /* ---------- Code ---------- */
+  --code-background:  #131316;
+  --code-normal:      #E7E7EA;
+  --code-comment:     var(--ch-navy-400);
+  --code-keyword:     var(--ch-green);
+  --code-string:      var(--ch-dk-info-fg);
+  --code-value:       var(--ch-green-200);
+  --code-function:    #CECED4;
+  --code-property:    var(--ch-dk-info-fg);
+  --code-operator:    var(--ch-navy-300);
+  --code-tag:         var(--ch-green);
+  --code-punctuation: var(--ch-navy-400);
+
+  /* ---------- Tags ---------- */
+  --tag-color:            var(--ch-green);
+  --tag-background:       rgba(234, 88, 12, 0.13);
+  --tag-background-hover: rgba(234, 88, 12, 0.22);
+  --tag-border-color:     rgba(234, 88, 12, 0.34);
+  --tag-border-color-hover: var(--ch-green-500);
+
+  /* ---------- Checkboxes ---------- */
+  --checkbox-color:         var(--ch-green);
+  --checkbox-color-hover:   var(--ch-green-200);
+  --checkbox-border-color:  var(--ch-navy-500);
+  --checkbox-border-color-hover: var(--ch-green);
+  --checkbox-marker-color:  var(--ch-navy-900);
+  --checklist-done-color:   var(--ch-navy-400);
+
+  /* ---------- Graph view: still monochromatic ---------- */
+  --graph-line:      rgba(255, 255, 255, 0.10);
+  --graph-node:      var(--ch-navy-300);
+  --graph-node-tag:  var(--ch-green);
+  --graph-node-attachment: var(--ch-navy-400);
+  --graph-node-unresolved: var(--ch-navy-500);
+  --graph-node-focused:    #FFFFFF;
+
+  /* ---------- Misc ---------- */
+  --blockquote-border-color: var(--ch-green);
+  --blockquote-color:        var(--ch-navy-300);
+  --hr-color:                #26262D;
+  --embed-border-left:       2px solid #26262D;
+  --icon-color:              var(--ch-navy-300);
+  --icon-color-hover:        #E7E7EA;
+  --icon-color-active:       #FFFFFF;
+  --icon-color-focused:      #FFFFFF;
+  --link-external-color:       var(--ch-green);
+  --link-external-color-hover: var(--ch-green-200);
+  --link-unresolved-color:     var(--ch-navy-400);
+  --link-unresolved-opacity:   0.75;
+  --metadata-label-text-color: var(--ch-navy-400);
+  --metadata-input-text-color: #E7E7EA;
+  --indentation-guide-color:   rgba(255, 255, 255, 0.08);
+  --indentation-guide-color-active: rgba(255, 255, 255, 0.20);
+  --collapse-icon-color:       var(--ch-navy-400);
+  --shadow-s: 0 2px 6px rgba(0, 0, 0, 0.40);
+  --shadow-l: 0 16px 40px rgba(0, 0, 0, 0.55);
+}
+
+/* ============================================================================
+   5. TYPOGRAPHY — faces and weights only, no metrics
+   ========================================================================= */
+
+body.theme-light,
+body.theme-dark {
+  --font-interface-theme: var(--ch-font-sans);
+  --font-text-theme:      var(--ch-font-body);
+  --font-monospace-theme: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
+
+  /* Heading faces and weights — system stack, per GL-003 section 3. */
+  --h1-font:   var(--ch-font-display);
+  --h2-font:   var(--ch-font-display);
+  --h3-font:   var(--ch-font-display);
+  --h4-font:   var(--ch-font-display);
+  --h5-font:   var(--ch-font-display);
+  --h6-font:   var(--ch-font-display);
+
+  --h1-weight: 600;
+  --h2-weight: 600;
+  --h3-weight: 600;
+  --h4-weight: 600;
+  --h5-weight: 600;
+  --h6-weight: 600;
+
+  /* Document scale, GL-003 section 3, mapped to note headings.
+     H1 48px is the report H1; H2 36px; H3 28px; H4 22px. H5 and H6 have no
+     GL-003 role, so they continue the ramp at 18px and 16px with the eyebrow
+     treatment applied to H6 below. */
+  --h1-size: 40px;   /* one step in from the 48px report H1: a pane is
+                        narrower than a page and 48px wraps a title */
+  --h2-size: 30px;
+  --h3-size: 24px;
+  --h4-size: 20px;
+  --h5-size: 17px;
+  --h6-size: 13px;
+
+  --h1-line-height: 1.1;
+  --h2-line-height: 1.25;
+  --h3-line-height: 1.25;
+  --h4-line-height: 1.25;
+  --h5-line-height: 1.35;
+  --h6-line-height: 1.35;
+
+  --h1-letter-spacing: -0.01em;
+  --h2-letter-spacing: -0.01em;
+  --h3-letter-spacing: 0;
+  --h4-letter-spacing: 0;
+  --h5-letter-spacing: 0;
+  --h6-letter-spacing: 0.12em;   /* eyebrow tracking */
+
+  --bold-weight: 600;
+  --bold-color:  var(--text-normal);
+  --italic-color: inherit;
+
+  --font-smallest: 12px;
+  --font-smaller:  13px;
+  --font-small:    14px;
+}
+
+/* ============================================================================
+   6. TOP-LEVEL FOLDER COLOUR + ICON
+   ========================================================================= */
+
+/* ----------------------------------------------------------------------------
+   The icon is drawn on ::before of the folder NAME, using mask-image so one
+   glyph tints to the row's accent. A ::before on an inline-flex text span adds
+   an inline box inside the label; it does not alter the row's own padding or
+   the tree's indent, which is what app.js measures.
+
+   Deliberately NOT set here (all present in v1.x, all removed):
+       align-items, border-radius, border-left, padding-left on the row
+   The 2px accent rail is gone. It required a compensating padding-left of
+   22px on the row, and row padding is exactly what the indent maths reads.
+   The accent now lives in the icon and the folder name instead.
+
+   `:not([data-path*="/"])` keeps every rule to top-level folders only.
+   -------------------------------------------------------------------------- */
+
+/* Base: default accent so a folder added later still renders sanely. */
+.nav-folder-title[data-path]:not([data-path*="/"]) {
+  --ch-folder-accent: var(--ch-navy-400);
+  --ch-folder-icon: none;
+}
+
+/* The glyph. inline-block + mask keeps it tintable and inside the text flow. */
+.nav-folder-title[data-path]:not([data-path*="/"]) .nav-folder-title-content::before {
+  content: "";
+  /* The only dimensions in this file. They size an inline-block INSIDE the
+     folder label, so they add to the label's own width, never to the row's
+     padding-inline-start — which is the value app.js measures and rewrites.
+     Verified by rebuild-series measurement, not assumed. */
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 7px;
+  flex-shrink: 0;
+  vertical-align: -2px;
+  background-color: var(--ch-folder-accent);
+  -webkit-mask-image: var(--ch-folder-icon);
+          mask-image: var(--ch-folder-icon);
+  -webkit-mask-repeat: no-repeat;
+          mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+          mask-position: center;
+}
+
+/* Folder name takes the accent, so icon and name read as one unit. */
+.nav-folder-title[data-path]:not([data-path*="/"]) .nav-folder-title-content {
+  color: var(--ch-folder-accent);
+  font-weight: 600;
+}
+
+/* ----------------------------------------------------------------------------
+   THE COLOURED BAND — rail + row tint, drawn entirely in BACKGROUND
+
+   v1.x did this with `border-left: 2px` plus a compensating `padding-left`,
+   and that padding is the exact value app.js measures and rewrites onto every
+   row. It compounded the indent 17px per rebuild. See the v2.0.0 note at the
+   top of this file.
+
+   This version draws the same thing as a two-stop linear-gradient on
+   background-image. A background paints INSIDE the element's existing box:
+   it adds no width, no padding, and no border-box, so the tree measurement
+   never sees it. Same look, zero geometry.
+
+       stop 1:  0 -> 3px    solid accent          (the rail)
+       stop 2:  3px -> 100% accent at 14%         (the row tint)
+
+   Deliberately NOT used here: border-left, border-inline-start, box-shadow
+   with a spread, ::before with position:absolute, padding of any kind.
+   -------------------------------------------------------------------------- */
+.nav-folder-title[data-path]:not([data-path*="/"]) {
+  background-image: linear-gradient(
+    to right,
+    var(--ch-folder-accent) 0,
+    var(--ch-folder-accent) 3px,
+    color-mix(in srgb, var(--ch-folder-accent) 14%, transparent) 3px,
+    color-mix(in srgb, var(--ch-folder-accent) 14%, transparent) 100%
+  );
+}
+
+/* Hover deepens the tint; the rail is unchanged so rows do not jump. */
+.nav-folder-title[data-path]:not([data-path*="/"]):hover {
+  background-image: linear-gradient(
+    to right,
+    var(--ch-folder-accent) 0,
+    var(--ch-folder-accent) 3px,
+    color-mix(in srgb, var(--ch-folder-accent) 26%, transparent) 3px,
+    color-mix(in srgb, var(--ch-folder-accent) 26%, transparent) 100%
+  );
+}
+
+/* Collapsed folders read one step quieter than expanded ones. */
+.nav-folder.is-collapsed > .nav-folder-title[data-path]:not([data-path*="/"]) {
+  background-image: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--ch-folder-accent) 70%, transparent) 0,
+    color-mix(in srgb, var(--ch-folder-accent) 70%, transparent) 3px,
+    color-mix(in srgb, var(--ch-folder-accent) 8%, transparent) 3px,
+    color-mix(in srgb, var(--ch-folder-accent) 8%, transparent) 100%
+  );
+}
+
+/* Collapse arrow inherits the accent at reduced strength. */
+.nav-folder-title[data-path]:not([data-path*="/"]) .nav-folder-collapse-indicator {
+  color: color-mix(in srgb, var(--ch-folder-accent) 65%, transparent);
+}
+
+/* Active-file tint must still win over the band. Keeps the rail. */
+.nav-folder-title[data-path]:not([data-path*="/"]).is-active {
+  background-image: linear-gradient(
+    to right,
+    var(--ch-folder-accent) 0,
+    var(--ch-folder-accent) 3px,
+    color-mix(in srgb, var(--ch-folder-accent) 32%, transparent) 3px,
+    color-mix(in srgb, var(--ch-folder-accent) 32%, transparent) 100%
+  );
+}
+
+
+/* ---- The twelve assignments -------------------------------------------- */
+
+.nav-folder-title[data-path="Actions"]:not([data-path*="/"]) {
+  --ch-folder-accent: var(--ch-folder-actions);
+  --ch-folder-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 17 2 2 4-4'/%3E%3Cpath d='m3 7 2 2 4-4'/%3E%3Cpath d='M13 6h8'/%3E%3Cpath d='M13 12h8'/%3E%3Cpath d='M13 18h8'/%3E%3C/svg%3E");
+}
+
+.nav-folder-title[data-path="PKM"]:not([data-path*="/"]) {
+  --ch-folder-accent: var(--ch-folder-pkm);
+  --ch-folder-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z'/%3E%3Cpath d='M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z'/%3E%3C/svg%3E");
+}
+
+.nav-folder-title[data-path="Team"]:not([data-path*="/"]) {
+  --ch-folder-accent: var(--ch-folder-team);
+  --ch-folder-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='9' cy='7' r='4'/%3E%3Cpath d='M22 21v-2a4 4 0 0 0-3-3.87'/%3E%3Cpath d='M16 3.13a4 4 0 0 1 0 7.75'/%3E%3C/svg%3E");
+}
+
+.nav-folder-title[data-path="Team Knowledge"]:not([data-path*="/"]) {
+  --ch-folder-accent: var(--ch-folder-team-knowledge);
+  --ch-folder-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20'/%3E%3C/svg%3E");
+}
+
+.nav-folder-title[data-path="Team Inbox"]:not([data-path*="/"]) {
+  --ch-folder-accent: var(--ch-folder-team-inbox);
+  --ch-folder-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='22 12 16 12 14 15 10 15 8 12 2 12'/%3E%3Cpath d='M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z'/%3E%3C/svg%3E");
+}
+
+.nav-folder-title[data-path="Deliverables"]:not([data-path*="/"]) {
+  --ch-folder-accent: var(--ch-folder-deliverables);
+  --ch-folder-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7.5 4.27 9 5.15'/%3E%3Cpath d='M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z'/%3E%3Cpath d='m3.3 7 8.7 5 8.7-5'/%3E%3Cpath d='M12 22V12'/%3E%3C/svg%3E");
+}
+
+.nav-folder-title[data-path="Expansions"]:not([data-path*="/"]) {
+  --ch-folder-accent: var(--ch-folder-expansions);
+  --ch-folder-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z'/%3E%3Cpath d='m6.08 9.5-3.5 1.6a1 1 0 0 0 0 1.81l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9a1 1 0 0 0 0-1.83l-3.5-1.59'/%3E%3Cpath d='m6.08 14.5-3.5 1.6a1 1 0 0 0 0 1.81l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9a1 1 0 0 0 0-1.83l-3.5-1.59'/%3E%3C/svg%3E");
+}
+
+.nav-folder-title[data-path="Backups"]:not([data-path*="/"]) {
+  --ch-folder-accent: var(--ch-folder-backups);
+  --ch-folder-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='20' height='5' x='2' y='3' rx='1'/%3E%3Cpath d='M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8'/%3E%3Cpath d='M10 12h4'/%3E%3C/svg%3E");
+}
+
+.nav-folder-title[data-path="copilot"]:not([data-path*="/"]) {
+  --ch-folder-accent: var(--ch-folder-copilot);
+  --ch-folder-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 8V4H8'/%3E%3Crect width='16' height='12' x='4' y='8' rx='2'/%3E%3Cpath d='M2 14h2'/%3E%3Cpath d='M20 14h2'/%3E%3Cpath d='M15 13v2'/%3E%3Cpath d='M9 13v2'/%3E%3C/svg%3E");
+}
+
+.nav-folder-title[data-path="docs"]:not([data-path*="/"]) {
+  --ch-folder-accent: var(--ch-folder-docs);
+  --ch-folder-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z'/%3E%3Cpath d='M14 2v5h5'/%3E%3Cpath d='M8 13h8'/%3E%3Cpath d='M8 17h8'/%3E%3C/svg%3E");
+}
+
+.nav-folder-title[data-path="github"]:not([data-path*="/"]) {
+  --ch-folder-accent: var(--ch-folder-github);
+  --ch-folder-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='6' x2='6' y1='3' y2='15'/%3E%3Ccircle cx='18' cy='6' r='3'/%3E%3Ccircle cx='6' cy='18' r='3'/%3E%3Cpath d='M18 9a9 9 0 0 1-9 9'/%3E%3C/svg%3E");
+}
+
+.nav-folder-title[data-path="scripts"]:not([data-path*="/"]) {
+  --ch-folder-accent: var(--ch-folder-scripts);
+  --ch-folder-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='4 17 10 11 4 5'/%3E%3Cline x1='12' x2='20' y1='19' y2='19'/%3E%3C/svg%3E");
+}
+
+/* ---- No per-mode accent overrides ---------------------------------------
+   v1 relit six of the eleven for dark mode, because the light sidebar was
+   white and the dark one near-black. Both sidebars are navy as of the
+   2026-09-08 rebuild (section 10), so one palette now serves both and the
+   override blocks are gone. If a future mode reintroduces a light sidebar,
+   relight the tokens at the top of the file, not here. */
+
+
+/* ============================================================================
+   7. BASES — the table/card views over CRM notes
+   ----------------------------------------------------------------------------
+   Bases (core plugin, Obsidian 1.12.x) renders a folder of notes as a sortable
+   table. Used here for PKM/CRM/People and PKM/CRM/Organizations.
+
+   THIS SECTION SETS BASES' OWN VARIABLES, NOT ITS CLASS NAMES.
+   Bases declares a full --bases-* custom-property surface on `body` and every
+   default chains to an Obsidian variable (--bases-table-header-background is
+   var(--background-primary), and so on). Overriding those variables is the
+   supported path: it cannot silently miss the way a hand-written class
+   selector can. The first draft of this section did exactly that — it guessed
+   .bases-table-header-cell, .bases-table-row and .bases-group-header, none of
+   which exist in the build (the real names are -header-label, .bases-tr and
+   .bases-group-heading). Verified against obsidian.asar on 2026-09-08.
+
+   COLOUR ONLY, same contract as the rest of this file. The variables named
+   here are all colour-valued. The width/height/padding members of the same
+   --bases-* family are deliberately untouched — see the v2.0.0 note at the
+   top of this file for what geometry does in a theme.
+   ========================================================================= */
+
+/* ---- Light mode -------------------------------------------------------- */
+
+body.theme-light {
+  /* Header row */
+  --bases-table-header-background:        var(--ch-navy-50);
+  --bases-table-header-background-hover:  var(--ch-navy-100);
+  --bases-table-header-color:             var(--ch-navy-400);
+
+  /* Grid and rows */
+  --bases-table-border-color:             var(--ch-navy-100);
+  --bases-table-row-background-hover:     var(--ch-green-50);
+
+  /* Cell states */
+  --bases-table-cell-background-active:   var(--ch-green-50);
+  --bases-table-cell-background-selected: var(--ch-green-100);
+
+  /* Group headings — the "By relation" / "By industry" views */
+  --bases-table-group-background:         var(--ch-navy-50);
+  --bases-group-heading-property-color:   var(--ch-navy-400);
+  --bases-group-heading-value-color:      var(--ch-navy-700);
+
+  /* Summary row */
+  --bases-table-summary-background:       var(--ch-navy-50);
+  --bases-table-summary-background-hover: var(--ch-navy-100);
+
+  /* Cards view */
+  --bases-cards-background:               var(--ch-white);
+  --bases-cards-container-background:     var(--ch-grey);
+  --bases-cards-cover-background:         var(--ch-navy-50);
+}
+
+/* ---- Dark mode --------------------------------------------------------- */
+
+body.theme-dark {
+  --bases-table-header-background:        var(--ch-navy-800);
+  --bases-table-header-background-hover:  var(--ch-navy-600);
+  --bases-table-header-color:             var(--ch-navy-300);
+
+  --bases-table-border-color:             var(--ch-navy-600);
+  --bases-table-row-background-hover:     var(--ch-navy-700);
+
+  --bases-table-cell-background-active:   var(--ch-navy-700);
+  --bases-table-cell-background-selected: var(--ch-navy-600);
+
+  --bases-table-group-background:         var(--ch-navy-800);
+  --bases-group-heading-property-color:   var(--ch-navy-300);
+  --bases-group-heading-value-color:      var(--ch-navy-100);
+
+  --bases-table-summary-background:       var(--ch-navy-800);
+  --bases-table-summary-background-hover: var(--ch-navy-600);
+
+  --bases-cards-background:               var(--ch-navy-800);
+  --bases-cards-container-background:     var(--ch-navy-900);
+  --bases-cards-cover-background:         var(--ch-navy-700);
+}
+
+/* ---- Note links inside cells: the accent, as links read elsewhere ---
+   .bases-table-cell, .bases-cards-item and .bases-group-heading are all
+   confirmed present in the 1.12.7 bundle. */
+
+.bases-table-cell a.internal-link,
+.bases-cards-item a.internal-link {
+  color: var(--ch-green-600);
+}
+
+.bases-table-cell a.internal-link:hover,
+.bases-cards-item a.internal-link:hover {
+  color: var(--ch-green-700);
+}
+
+.theme-dark .bases-table-cell a.internal-link,
+.theme-dark .bases-cards-item a.internal-link {
+  color: var(--ch-green-300);
+}
+
+.theme-dark .bases-table-cell a.internal-link:hover,
+.theme-dark .bases-cards-item a.internal-link:hover {
+  color: var(--ch-green-200);
+}
+
+/* ---- The BASE badge on .base files in the file tree --------------------- */
+
+.nav-file-tag {
+  color: var(--ch-green-700);
+  background-color: var(--ch-green-100);
+}
+
+.theme-dark .nav-file-tag {
+  color: var(--ch-green-200);
+  background-color: var(--ch-navy-600);
+}
+
+
+/* ============================================================================
+   8. WATERMARK — a neutral mark in the file-explorer pane
+   ----------------------------------------------------------------------------
+   WHY A BACKGROUND AND NOT A HEADER LOGO
+
+   The obvious place for a logo is `.nav-header`, above the tree. That needs a
+   height, and a height on a sidebar element is exactly the class of
+   declaration that compounds the file-tree indent (see the note at the top of
+   this file). This paints the mark as a `background-image` on the tree
+   container instead. A background paints inside the element's existing box:
+   no height, no padding, no reflow, nothing for app.js to measure.
+
+   WHY THE COLOUR IS BAKED IN AND NOT MASKED
+
+   An earlier build used `mask-image` so one asset could tint to a variable.
+   It clipped the ENTIRE FILE TREE to the mark's shape — the sidebar rendered
+   as an empty pane with a logo at the bottom. A mask on an element clips
+   everything that element paints, children included. So the tint is baked
+   into the data URI. Costs a second copy of the path data; buys a mechanism
+   that cannot clip content. Do not "optimise" this back to a mask.
+
+   THE MARK ITSELF is a deliberate placeholder: three concentric arcs, no
+   wordmark. Replace it with your own when you have one — see GL-003 section 9.
+
+   PAINT ONLY. No mask, no box change, no geometry.
+   ========================================================================= */
+
+.workspace-leaf-content[data-type="file-explorer"] .nav-files-container {
+  background-repeat: no-repeat;
+  background-position: left 14px bottom 20px;
+  background-size: 92px auto;
+  background-attachment: local;
+}
+
+/* The sidebar is dark in BOTH modes, so one tint serves both.
+   Brand orange at 22% on #1C1C21 composites to about #3F2A1E: present as a
+   mark, far too quiet to compete with a file name. */
+.workspace-leaf-content[data-type="file-explorer"] .nav-files-container {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='rgba(234,88,12,0.22)' stroke-linecap='round'%3E%3Ccircle cx='60' cy='60' r='46' stroke-width='9'/%3E%3Cpath d='M60 28a32 32 0 0 1 0 64' stroke-width='9'/%3E%3Ccircle cx='60' cy='60' r='13' stroke-width='9'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+
+/* ============================================================================
+   9. ICONS ON THE DARK CHROME — the brand orange, scoped
+
+   Problem: `--icon-color` is one global variable, but in LIGHT mode two
+   surfaces are navy while the rest of the app is white. Light mode set
+   --icon-color: var(--ch-navy-400) (#7A7A85), which is a dark blue-grey.
+   On the white note area that reads fine. On the navy ribbon (#0C0C0E) it
+   is much too faint: contrast 3.05:1, below the 4.5:1 AA floor.
+
+   Fix: redefine the icon variables ON THE NAVY CONTAINERS, not globally.
+   CSS custom properties inherit, so every icon inside the ribbon and the
+   titlebar picks up the green, while icons on white keep their navy. The
+   green is never placed on a white surface, so nothing regresses.
+
+   Contrast, orange-400 #FB7435 on chrome #1C1C21:  6.18:1  (WCAG AA)
+
+   PAINT ONLY. No width, no padding, no border, no margin. This file stays
+   colour-only per the v2.0.0 rule at the top — geometry on any sidebar
+   container makes app.js compound the file-tree indent.
+   ========================================================================= */
+
+.workspace-ribbon,
+.titlebar,
+.titlebar-button-container,
+.workspace-tabs.mod-top,
+.workspace-tabs.mod-top .workspace-tab-header-container,
+.sidebar-toggle-button,
+.mod-left-split .workspace-tab-header-container,
+.mod-right-split .workspace-tab-header-container {
+  --icon-color:         var(--ch-green);
+  --icon-color-hover:   var(--ch-green-200);
+  --icon-color-active:  var(--ch-white);
+  --icon-color-focused: var(--ch-white);
+  --icon-opacity:       1;
+  --icon-opacity-hover: 1;
+  --icon-opacity-active: 1;
+
+}
+
+/* The tab-text variables are set ONLY on the sidebar tab bars, never on
+   .workspace-tabs.mod-top. The note tab bar's active tab sits on a WHITE
+   surface (--tab-background-active: --ch-white), so forcing white there
+   would recreate this same invisible-icon bug on the other side. */
+.mod-left-split .workspace-tab-header-container,
+.mod-right-split .workspace-tab-header-container {
+  --tab-text-color-focused-active-current: var(--ch-white);
+  --tab-text-color-focused-active:         var(--ch-white);
+  --tab-text-color-focused:                var(--ch-green);
+}
+
+/* Obsidian paints some ribbon/titlebar glyphs from currentColor rather than
+   from --icon-color, so state the colour directly as well. */
+.workspace-ribbon .clickable-icon,
+.workspace-ribbon .side-dock-ribbon-action,
+.titlebar .clickable-icon,
+.titlebar-button,
+.sidebar-toggle-button .clickable-icon,
+.workspace-tabs.mod-top .workspace-tab-header-new-tab .clickable-icon,
+.workspace-tabs.mod-top .workspace-tab-header-tab-list .clickable-icon,
+.workspace-tabs.mod-top .workspace-tab-header-container .clickable-icon,
+.mod-left-split .workspace-tab-header-container .workspace-tab-header-inner-icon,
+.mod-right-split .workspace-tab-header-container .workspace-tab-header-inner-icon {
+  color: var(--ch-green);
+}
+
+/* The sidebar tab bar (file explorer / search / bookmarks) sits on the navy
+   too, but it lives under .mod-left-split, NOT .workspace-tabs.mod-top - a
+   different container. Obsidian gives its active and pressed states their own
+   rules at higher specificity, so a variable alone loses to them. These
+   restate the colour at matching specificity.
+
+   The active sidebar tab keeps a brighter white so the open pane still reads
+   as selected against the green idle ones. */
+/* THE ACTIVE SIDEBAR TAB - the one that stayed invisible.
+
+   Obsidian paints it at app.css:3946 with a 0,5,1 selector:
+       body.is-focused .mod-active .workspace-tab-header-container
+         .workspace-tab-header.is-active .workspace-tab-header-inner-icon
+       { color: var(--tab-text-color-focused-active-current); }
+
+   Light mode set that variable to --ch-navy-700 (#0C0C0E), which is EXACTLY
+   the ribbon and titlebar navy. Icon and background the same colour:
+   contrast 1.00:1. Not dim - identical. On the white note tab bar, where the
+   variable was designed to apply, ink is correct; on the dark sidebar tab
+   bar it vanishes.
+
+   Fixed by redefining the variable on the navy containers (top of section 9)
+   AND restating it here at 0,5,1 to match Obsidian's own specificity. A lower
+   -specificity rule loses to line 3946 no matter what colour it names - which
+   is why the two earlier attempts had no effect. */
+body.is-focused .mod-active .mod-left-split .workspace-tab-header-container .workspace-tab-header.is-active .workspace-tab-header-inner-icon,
+body.is-focused .mod-active .mod-right-split .workspace-tab-header-container .workspace-tab-header.is-active .workspace-tab-header-inner-icon,
+body.is-focused .mod-left-split .workspace-tab-header-container .workspace-tab-header.is-active .workspace-tab-header-inner-icon,
+body.is-focused .mod-right-split .workspace-tab-header-container .workspace-tab-header.is-active .workspace-tab-header-inner-icon,
+.mod-left-split .workspace-tab-header-container .workspace-tab-header.is-active .workspace-tab-header-inner-icon,
+.mod-right-split .workspace-tab-header-container .workspace-tab-header.is-active .workspace-tab-header-inner-icon,
+.mod-left-split .workspace-tab-header-container .workspace-tab-header.has-active-menu .workspace-tab-header-inner-icon,
+.mod-right-split .workspace-tab-header-container .workspace-tab-header.has-active-menu .workspace-tab-header-inner-icon,
+.mod-left-split .workspace-tab-header-container .workspace-tab-header:active .workspace-tab-header-inner-icon,
+.mod-right-split .workspace-tab-header-container .workspace-tab-header:active .workspace-tab-header-inner-icon {
+  color: var(--ch-white);
+}
+
+.mod-left-split .workspace-tab-header-container .workspace-tab-header-inner:hover .workspace-tab-header-inner-icon,
+.mod-right-split .workspace-tab-header-container .workspace-tab-header-inner:hover .workspace-tab-header-inner-icon {
+  color: var(--ch-green-200);
+}
+
+.workspace-ribbon .clickable-icon:hover,
+.workspace-ribbon .side-dock-ribbon-action:hover,
+.titlebar .clickable-icon:hover,
+.titlebar-button:hover,
+.sidebar-toggle-button .clickable-icon:hover,
+.workspace-tabs.mod-top .workspace-tab-header-new-tab .clickable-icon:hover,
+.workspace-tabs.mod-top .workspace-tab-header-tab-list .clickable-icon:hover,
+.workspace-tabs.mod-top .workspace-tab-header-container .clickable-icon:hover {
+  color: var(--ch-green-200);
+}
+
+/* The Windows close button keeps its red hover — that is an OS convention and
+   overriding it would hide a destructive action. Only the resting glyph is
+   green; the hover state is left to Obsidian's --background-modifier-error. */
+.titlebar-button.mod-close:hover {
+  color: var(--ch-white);
+}
+
+/* An ACTIVE tab sits on a white tab surface, not on the navy. Its icon must
+   stay navy or it disappears — the exact failure this section fixes, mirrored.
+   Inactive tabs sit on the navy, so they keep the green.
+
+   LIGHT ONLY. In dark mode the active tab is navy-800 (#1C1C21) and navy-500
+   on it measures 1.83:1 - invisible. There the green stays, at 11.07:1.
+   Measured with the contrast check, not assumed. */
+.theme-light .workspace-tabs.mod-top .workspace-tab-header.is-active .clickable-icon,
+.theme-light .workspace-tabs.mod-top .workspace-tab-header.is-active .workspace-tab-header-inner-icon {
+  color: var(--ch-navy-500);
+}
+
+/* Active view (the currently open left-pane tool) reads brightest. */
+.workspace-ribbon .side-dock-ribbon-action.is-active,
+.workspace-ribbon .clickable-icon.is-active {
+  color: var(--ch-white);
+}
+
+/* In DARK mode the ribbon is near-black (#0C0C0E) and the same green holds:
+   contrast 11.89:1. The rules above are unscoped by mode on purpose — both
+   surfaces are dark, so one definition serves both. */
+
+
+/* ============================================================================
+   10. NAVY LEFT SIDEBAR IN LIGHT MODE
+   ----------------------------------------------------------------------------
+   Requested 2026-09-08: the whole left sidebar reads navy in light mode, the
+   same as it does in dark mode, so it forms one continuous navy block with the
+   ribbon beside it and the titlebar above it.
+
+   SCOPE: `.theme-light .mod-left-split` and the left half of the status bar.
+   Dark mode is untouched — it is already navy and its own section 4 mapping
+   still owns it. The note area, the right sidebar and every modal stay white.
+
+   HOW: by redefining Obsidian's own colour variables ON the container, not by
+   painting elements. Custom properties inherit, so every pane that docks into
+   the left split — file explorer, search, bookmarks, outline, tag pane — picks
+   up the dark set without needing a selector each. This is the same technique
+   section 9 uses for the ribbon icons, and it is why a plugin pane added later
+   will inherit the treatment for free.
+
+   The values are lifted from the section 4 dark mapping rather than invented,
+   so the two modes' sidebars stay identical and there is one place to change
+   the navy.
+
+   PAINT ONLY. No padding, margin, width, height, position or display anywhere
+   in this section. The v2.0.0 rule at the top of this file forbids geometry on
+   any element in the sidebar chain — that is what compounded the file-tree
+   indent in v1.x, and a background colour cannot reintroduce it.
+   ========================================================================= */
+
+.theme-light .mod-left-split {
+  /* ---------- Surfaces ----------
+     The sidebar is dark in BOTH modes, so light mode gets the same chrome.
+     Base is --ch-chrome (#1C1C21); the alt steps DOWN to the canvas black,
+     never up — an alt lighter than its base reads as a raised panel. */
+  --background-primary:            var(--ch-chrome);
+  --background-primary-alt:        var(--ch-chrome-alt);
+  --background-secondary:          var(--ch-chrome);
+  --background-secondary-alt:      var(--ch-navy-900);
+  --background-modifier-hover:     rgba(255, 255, 255, 0.05);
+  --background-modifier-border:    #26262D;
+  --background-modifier-border-hover: var(--ch-navy-500);
+  --background-modifier-form-field:   var(--ch-navy-900);
+  --background-modifier-box-shadow:   rgba(0, 0, 0, 0.40);
+
+  /* ---------- Text ---------- */
+  --text-normal:      #E7E7EA;
+  --text-muted:       var(--ch-navy-300);
+  --text-faint:       #7A7A85;
+  --text-accent:      var(--ch-green-400);   /* 6.18:1 on the chrome */
+  --text-accent-hover: var(--ch-green-300);
+  --text-on-accent:   var(--ch-navy-700);
+
+  /* ---------- Nav rows ---------- */
+  --nav-item-color:              var(--ch-navy-300);
+  --nav-item-color-hover:        #E7E7EA;
+  --nav-item-color-active:       #FFFFFF;
+  --nav-item-color-selected:     #FFFFFF;
+  --nav-item-background-hover:   rgba(255, 255, 255, 0.05);
+  --nav-item-background-active:  rgba(234, 88, 12, 0.14);
+  --nav-item-background-selected: rgba(234, 88, 12, 0.14);
+  --nav-indentation-guide-color: rgba(255, 255, 255, 0.09);
+  --nav-collapse-icon-color:     var(--ch-navy-400);
+  --indentation-guide-color:        rgba(255, 255, 255, 0.08);
+  --indentation-guide-color-active: rgba(255, 255, 255, 0.20);
+  --collapse-icon-color:            var(--ch-navy-400);
+  --collapse-icon-color-collapsed:  var(--ch-green);
+
+  /* ---------- Chrome inside the pane ---------- */
+  --divider-color:             #26262D;
+  --divider-color-hover:       var(--ch-green);
+  --scrollbar-thumb-bg:        rgba(255, 255, 255, 0.14);
+  --scrollbar-active-thumb-bg: rgba(255, 255, 255, 0.26);
+  --scrollbar-bg:              transparent;
+  --icon-color:                var(--ch-navy-300);
+  --icon-color-hover:          #E7E7EA;
+  --icon-color-active:         #FFFFFF;
+
+  /* Search results and the input inside the search pane. */
+  --text-selection:            rgba(234, 88, 12, 0.26);
+  --text-highlight-bg:         rgba(234, 88, 12, 0.24);
+  --tag-color:                 var(--ch-green);
+  --tag-background:            rgba(234, 88, 12, 0.13);
+  --tag-border-color:          rgba(234, 88, 12, 0.34);
+
+  /* The BASE badge on .base files reads on navy now, not on the pale green. */
+  --nav-file-tag-color:        var(--ch-green-200);
+}
+
+/* The split container itself and each docked leaf. Obsidian paints some of
+   these from --background-secondary and some from a hardcoded surface, so the
+   colour is stated directly as well as through the variable above. */
+.theme-light .mod-left-split,
+.theme-light .mod-left-split .workspace-tabs,
+.theme-light .mod-left-split .workspace-tab-container,
+.theme-light .mod-left-split .workspace-leaf,
+.theme-light .mod-left-split .workspace-leaf-content,
+.theme-light .mod-left-split .view-content,
+.theme-light .mod-left-split .nav-files-container,
+.theme-light .mod-left-split .workspace-tab-header-container {
+  background-color: var(--ch-navy-800);
+}
+
+/* The BASE badge, restated: section 7 sets it on the pale green tint, which is
+   a light-surface value and glares on the navy. */
+.theme-light .mod-left-split .nav-file-tag {
+  color: var(--ch-green-200);
+  background-color: var(--ch-navy-600);
+}
+
+/* ---- The vault-name bar at the bottom of the sidebar -------------------
+   The vault-name strip with the switcher and settings glyphs is
+   `.workspace-sidedock-vault-profile`, a CHILD of .mod-left-split — not
+   `.status-bar`. Checked against app.css:5778 in obsidian.asar, after a first
+   draft aimed at .status-bar and would have recoloured the wrong element:
+   .status-bar is `width:auto; right:0` and floats at the bottom RIGHT of the
+   NOTE area, which is explicitly out of scope for this change.
+
+   Its background already resolves correctly — app.css paints it from
+   --background-secondary, which the block above redefines. Only the text and
+   glyph colours need stating, because those chain to --vault-profile-color and
+   --icon-color at a specificity the container variables do not reach. */
+.theme-light .mod-left-split .workspace-sidedock-vault-profile {
+  --vault-profile-color:       #E7E7EA;
+  --vault-profile-color-hover: #FFFFFF;
+  border-top-color: #26262D;
+}
+
+.theme-light .mod-left-split .workspace-sidedock-vault-profile .workspace-drawer-vault-switcher {
+  color: #E7E7EA;
+}
+
+.theme-light .mod-left-split .workspace-sidedock-vault-profile .clickable-icon {
+  color: var(--ch-green);
+}
+
+.theme-light .mod-left-split .workspace-sidedock-vault-profile .clickable-icon:hover {
+  color: var(--ch-green-200);
+}
+
+
+/* ---- Folder bands need no override here --------------------------------
+   The folder tokens at the top of this file are already tuned for the dark
+   sidebar, which both modes now use. Nothing to restate. */
+

@@ -1,0 +1,147 @@
+{
+  "_about": "This is the single source of truth (SSOT) for the Wranglit scaffold version and for the framework/user-state seam. The scaffold version lives HERE, authoritatively. VERSION and .scaffold-version are kept for back-compat with older tooling, but they mirror this file; if they ever disagree, manifest.json wins. The framework_paths and user_state_paths blocks are machine-readable: the updater (scripts/update-scaffold.py) reads them to decide which files it MAY overwrite (framework, ours, upgradable) and which it must NEVER touch (user state, yours, sacred). Markdown is canonical; this JSON is the control plane that lets the folder update itself safely.",
+  "scaffold_version": "1.0.0",
+  "released": "2026-10-08",
+  "from": null,
+  "breaking": true,
+  "version_files": {
+    "authoritative": "manifest.json",
+    "mirrors": [
+      "VERSION",
+      ".scaffold-version"
+    ],
+    "note": "VERSION and .scaffold-version are legacy plain-text mirrors kept for back-compat. They must equal scaffold_version above. manifest.json is authoritative."
+  },
+  "framework_paths": {
+    "_about": "Allow-list (globs) of framework-owned paths the updater MAY overwrite. This is the engine: ours, shipped with the scaffold, upgradable. If a path is not on this list, the updater will not write it. A locally-modified file on this list is backed up before it is overwritten (never a silent overwrite of a member edit).",
+    "globs": [
+      "Team Knowledge/SOPs/**",
+      "Team Knowledge/Workstreams/**",
+      "Team Knowledge/Guidelines/**",
+      "Team Knowledge/Templates/**",
+      "Team Knowledge/scripts/**",
+      "scripts/**",
+      "AGENTS.md",
+      "Team/*/AGENTS.md",
+      ".claude/agents/**",
+      ".claude/commands/**",
+      "ADAPTER-PROMPT.md",
+      "validation-script.sh",
+      "CHANGELOG.md",
+      "CHANGELOG-MIGRATION.md",
+      "manifest.json",
+      "VERSION",
+      ".scaffold-version",
+      "CLAUDE.md",
+      "README.md",
+      "CONTRIBUTING.md"
+    ]
+  },
+  "user_state_paths": {
+    "_about": "Explicitly sacred. The updater NEVER writes any path under these globs, even if a future bug or a malformed target manifest claims otherwise. This is the user's own knowledge, their team's durable memory, their installed Expansion state, their secrets, and their derived databases. These survive every update by LOCATION, not by merge logic (the Hermes-Agent lesson: separate the engine directory from the state directory).",
+    "globs": [
+      "PKM/**",
+      "Team Inbox/**",
+      "Team/*/journal/**",
+      "Team Knowledge/tasks/**",
+      "Team Knowledge/session-logs/**",
+      "Expansions/*/**",
+      ".env",
+      "**/.env",
+      "mypka.db",
+      "mypka-cockpit.db",
+      ".mypka/**"
+    ]
+  },
+  "expansions": {
+    "_about": "Each installed Expansion is versioned on its OWN expansion.yaml SemVer, NOT on the scaffold version. The scaffold updater treats all of Expansions/*/ as user-state (it never overwrites Expansion code). It only READS these declared versions so it can DETECT a behind Expansion (for example a cockpit older than the latest released cockpit) and DEFER to that Expansion's own updater. The scaffold updater never updates Expansion code itself.",
+    "items": [
+      {
+        "slug": "mypka-cockpit",
+        "name": "Wranglit Cockpit",
+        "expansion_yaml_version": "1.1.0",
+        "updater": "Expansions/mypka-cockpit/scripts/UPDATE-COCKPIT.md",
+        "update_policy": "defer-to-expansion",
+        "note": "Runtime Expansion. Has source code, an npm build, and its own SQLite migration lifecycle. The scaffold updater must NOT swap cockpit code. If the cockpit is behind its latest release, the scaffold updater only prints a notice and points the member at the cockpit updater."
+      },
+      {
+        "slug": "app-developer",
+        "name": "App Developer Pack",
+        "expansion_yaml_version": "1.0.1",
+        "updater": null,
+        "update_policy": "defer-to-expansion",
+        "note": "Knowledge-pack Expansion. Versioned on its own expansion.yaml. Not updated by the scaffold updater."
+      },
+      {
+        "slug": "designer-pack",
+        "name": "Designer Expansion Pack",
+        "expansion_yaml_version": "1.1.0",
+        "updater": null,
+        "update_policy": "defer-to-expansion",
+        "note": "Knowledge-pack Expansion. Versioned on its own expansion.yaml. Not updated by the scaffold updater."
+      }
+    ]
+  },
+  "update_check": {
+    "_about": "Configuration for the boot-time version check (scripts/check-version.py). The boot-time call is the ONLY network reach in the update core. It SENDS NO USER DATA: it fetches a single remote version string over HTTPS, read-only, and fails silent when offline. It reports back in one line if a newer version exists. It never auto-applies anything. Set enabled to false to turn it off.",
+    "enabled": true,
+    "remote_version_url": "https://raw.githubusercontent.com/richiemulder-ops/wranglitnow/main/VERSION",
+    "sends_user_data": false,
+    "fail_silent_offline": true,
+    "disclosure": "On boot, Wranglit fetches one version string from its repo to tell you if an update exists. That request sends no data about you or your vault. It is read-only and fails silently if you are offline. Set update_check.enabled to false to turn it off."
+  },
+  "changes": {
+    "_about": "Per-path change record for THIS release (3.1.0 -> 4.0.0), so the updater can print a plain-English plan like 'N added, N changed, 0 of yours touched'. change_type is one of: added | changed | moved. Only framework_paths appear here; user-state never appears because the updater never touches it.",
+    "paths": [
+      {
+        "path": "manifest.json",
+        "change_type": "added",
+        "note": "The keystone: version SSOT + framework/user-state seam as data."
+      },
+      {
+        "path": "scripts/update-scaffold.py",
+        "change_type": "added",
+        "note": "Offline, stdlib-only updater. Dry-run by default; applies only on --apply; backs up modified framework files before overwrite."
+      },
+      {
+        "path": "scripts/check-version.py",
+        "change_type": "added",
+        "note": "Boot-time version check. Fetches one version string; sends no user data; fail-silent offline."
+      },
+      {
+        "path": ".claude/commands/update-scaffold.md",
+        "change_type": "added",
+        "note": "Slash-command wrapper plus the portable natural-language trigger 'update Wranglit'."
+      },
+      {
+        "path": "VERSION",
+        "change_type": "changed",
+        "note": "3.1.0 -> 4.0.0 (mirror of manifest)."
+      },
+      {
+        "path": ".scaffold-version",
+        "change_type": "changed",
+        "note": "3.1.0 -> 4.0.0 (mirror of manifest)."
+      },
+      {
+        "path": "CHANGELOG.md",
+        "change_type": "changed",
+        "note": "Prepended the [4.0.0] entry."
+      },
+      {
+        "path": "CHANGELOG-MIGRATION.md",
+        "change_type": "changed",
+        "note": "Added the 3.1.0 -> 4.0.0 bridged-update recipe."
+      }
+    ]
+  },
+  "control_folder": {
+    "_about": "The .mypka/ hidden control folder is user-state (listed under user_state_paths). The updater creates it on first run. It holds backups/<timestamp>/ (pre-overwrite copies of any locally-modified framework file), an install/update log, and a copy of the active manifest. It is never overwritten by an update.",
+    "path": ".mypka/",
+    "contents": [
+      "backups/",
+      "update-log.txt",
+      "active-manifest.json"
+    ]
+  }
+}
