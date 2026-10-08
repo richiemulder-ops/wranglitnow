@@ -12,7 +12,8 @@ __MACOSX/
 #   - plugins/*/data.json carries empty-but-present API-key slots, so it must
 #     never be tracked: one paste into Copilot's settings would commit a key.
 #   - plugins/*/main.js is vendored plugin code, not ours to version.
-#   - graph.json / appearance.json are per-machine view state.
+#   - graph.json is per-machine view state. appearance.json IS tracked:
+#     it is what enables the Wranglitdark theme on first open.
 .obsidian/plugins/
 .obsidian/graph.json
 # Editor-local scratch backups of the theme (bak-YYYY-MM-DD-HHMM).
