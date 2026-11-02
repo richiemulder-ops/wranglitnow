@@ -2,6 +2,16 @@
 
 All notable changes to Wranglit. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.1.0] — 2026-11-03
+
+### Added
+
+- **Jarvis Guide** — an optional guide for building Jarvis, a voice butler over the
+  vault: a 3D galaxy of your notes, spoken answers, Outlook calendar and email, and
+  hand-offs to Larry's team. Twelve prompts for the Claude desktop app, no terminal.
+  `jarvis-setup-guide.html` fills in your own names and folders; `README.md` has the
+  same steps as plain markdown.
+
 ## [1.0.0] — 2026-10-08
 
 First release.

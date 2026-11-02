@@ -71,6 +71,23 @@ Settings → Appearance.
 
 ---
 
+## Add Jarvis, a voice butler (optional)
+
+Once the vault is running, you can build **Jarvis** on top of it: a voice assistant
+that shows the vault as a 3D galaxy of your notes, answers questions from them out
+loud, reads your Outlook calendar and email, and hands work to Larry's team.
+You build your own copy by pasting twelve prompts into the Claude desktop app.
+No code to download and no terminal.
+
+The guide is in `Jarvis Guide/`. Open `jarvis-setup-guide.html` in your browser:
+fill in your details once and every prompt updates with your own names and folders.
+The same steps are in `Jarvis Guide/README.md` if you would rather read them on GitHub.
+
+Jarvis is an add-on. Unlike the vault itself, it makes network calls (public CDNs,
+your browser's speech recognition, and Claude Code on your subscription).
+
+---
+
 ## How you actually use it
 
 Talk to it. The triggers are plain English, not commands.
@@ -143,4 +160,5 @@ Team Inbox/         drop raw inputs here for filing
 Team/               one folder per specialist, each with its contract
 Team Knowledge/     SOPs, Workstreams, Guidelines, Templates, session logs
 Expansions/         optional add-on packs (ships empty)
+Jarvis Guide/       optional: build a voice assistant over the vault
 ```
