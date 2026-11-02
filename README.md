@@ -8,7 +8,7 @@ Gemini CLI, or Cursor), it interviews you for five minutes, and you have a worki
 system with your own people, projects and priorities already filed in it.
 
 No database. No app to install. No account. Plain text files on your own machine,
-readable in any editor in twenty years.
+readable in any editor.
 
 ---
 
