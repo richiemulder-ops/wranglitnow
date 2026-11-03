@@ -230,7 +230,7 @@ Voice in (webkitSpeechRecognition), a 🎙 button: continuous mode. It keeps lis
 
 Status line above the ask bar: ● listening… / ● thinking… / ● speaking….
 
-Wake screen: browsers block speech until the first click, so open on a dimmed screen with "Click anywhere to wake {{ASSISTANT_NAME}}". That click unlocks speech and speaks the greeting: "Good morning/afternoon/evening, {{FORM_OF_ADDRESS}}. {{ASSISTANT_NAME}} at your service. <N> notes indexed, all present and accounted for", plus one more dry remark and a line that Larry and the team are standing by. Speak the assistant's name as a word, not letter by letter.
+Wake screen: browsers block speech until the first click, so open on a dimmed screen with "Click anywhere to wake {{ASSISTANT_NAME}}". That click unlocks speech and speaks the greeting: "Good morning/afternoon/evening (with ", {{FORM_OF_ADDRESS}}" about half the time). {{ASSISTANT_NAME}} at your service. <N> notes indexed, all present and accounted for, <a dry remark>. <a line that Larry and the team are standing by>". The facts stay the same; the wit changes every boot. Write a pool of about 12 note remarks and 8 team lines, plus day lines (Monday, Friday, Saturday, Sunday, added more often than not on those days) and late-night lines (always added after 9pm). Remember in localStorage which line each pool used last, so none repeats twice in a row. Speak the whole greeting, not just its first few sentences. Speak the assistant's name as a word, not letter by letter.
 
 Give me a short test plan when you're done.
 ````
