@@ -244,7 +244,7 @@ Give me a short test plan when you're done.
 
 ### Prompt 4. The animated emblem
 
-An animated assistant emblem, and the galaxy pulsing with data while it speaks.
+An animated assistant emblem, sparks of current always running through the galaxy, and the galaxy pulsing with data while it speaks.
 
 **Paste into:** Claude desktop app, a Code session in the Jarvis folder
 
@@ -254,6 +254,7 @@ Add an animated {{ASSISTANT_NAME}} emblem on the right-hand side, under the Inde
 - Draw it as inline SVG (not an image), like a sci-fi HUD: an outer tick ring, a thick segmented band covering about three-quarters of the circle, a thin accent arc with a few small markers, inner rings, the name "{{ASSISTANT_NAME}}" in the centre, and a dark backing disc so it reads over the galaxy. Use {{BRAND_PRIMARY}} for the band and ticks and {{BRAND_ACCENT}} for the arc.
 - At rest the rings turn slowly. While thinking they speed up. While speaking, the band and the accent arc spin fast in opposite directions and the glow surges on each word (use the speech boundary events, with a flutter as fallback).
 - While it speaks, the galaxy joins in: glowing packets travel along the connections (along whatever is in focus, otherwise the resting web) and the lit notes swell in rolling waves. Ease back to rest when speech ends.
+- Keep the web alive at rest: about 90 bright sparks (a soft round sprite, size about 16, additive blending, per-spark colour mostly {{BRAND_PRIMARY}} and a near-white tint, the odd one in {{BRAND_ACCENT}}) always travelling along the resting links at varied speeds. Each crosses one link, brighter mid-way but never below about 60%, then usually (70%) hops on to a neighbouring link like current finding its way; otherwise it fades and starts on a random link after a short, staggered pause. Dim them when a note is in focus or while the speaking stream runs, and switch them off under prefers-reduced-motion. Drive them from the same animation loop as the emblem, so they never freeze.
 - On the wake screen the emblem sits centre stage, larger, and glides into place once woken.
 - Clicking the emblem starts the mic. When the side panel opens, the emblem slides left of it; on phones it shrinks into the top-right corner.
 ````
@@ -262,6 +263,7 @@ Add an animated {{ASSISTANT_NAME}} emblem on the right-hand side, under the Inde
 
 - The emblem's rings turn slowly at rest and spin up while it thinks and speaks
 - While it speaks, light packets run along the connections and lit notes swell
+- At rest, bright sparks keep travelling along the connections, hopping from link to link
 - On the wake screen the emblem sits centre stage, then glides to its place
 
 ### Prompt 5. Cards down the left
@@ -304,6 +306,7 @@ Brand the page for {{BRAND_NAME}}.
 - Palette: shades around {{BRAND_PRIMARY}} alternating with shades around {{BRAND_ACCENT}}, plus a contrasting cool tone so folders stay easy to tell apart, for folder colours, borders, buttons, the emblem and gauges. Keep red only for warnings and the live microphone.
 - Put every colour in CSS variables so I can change them in one place.
 - Card icons: simple line icons drawn as SVG in currentColor, so each matches its card's colour bar. No emoji.
+- The speaker and mic buttons in the ask bar (and the project chat's mic) use the same style: line icons in {{BRAND_PRIMARY}} with the same soft glow as the card icons. The speaker shows sound waves when voice is on and an ✕ (dimmed) when off; the mic matches the Meetings card's mic and turns red and pulses while listening. Status text says "click the mic" rather than using an emoji.
 ````
 
 **Check it works:**
@@ -311,6 +314,7 @@ Brand the page for {{BRAND_NAME}}.
 - Your logo or brand name sits top left
 - Background and panels use your colours
 - Each card's icon matches the colour of its bar
+- The speaker and mic buttons use the same line-icon style, not emoji
 
 ### Prompt 7. Documents, Actions, Meetings, CRM and Notes
 
