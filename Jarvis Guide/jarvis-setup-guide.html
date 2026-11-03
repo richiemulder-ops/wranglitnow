@@ -2,7 +2,7 @@
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Wranglit and Jarvis Setup</title>
+<title>Jarvis Setup</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -131,13 +131,13 @@
 
 <div class="wrap">
   <header>
-    <div class="eyebrow">One package: vault, Obsidian, assistant</div>
-    <h1>Wranglit and Jarvis setup</h1>
+    <div class="eyebrow">New: one-prompt install</div>
+    <h1>Install Jarvis with one prompt</h1>
     <p class="lede">Set up a personal knowledge vault that comes with a twelve-person AI team, then Jarvis on top: a voice butler that turns the vault into a 3D galaxy, answers from your notes, reads your calendar and hands work to the team. Everything runs on your own computer and your Claude subscription, and you never need a terminal.</p>
   </header>
 
   <section class="section" aria-labelledby="quick">
-    <h2 id="quick">Quick install: one prompt</h2>
+    <h2 id="quick">The one-prompt install</h2>
     <p>The fastest way. Claude downloads the vault and the finished Jarvis, sets up everything it needs (including Python, if your PC doesn't have it), and opens Jarvis in your browser. About five minutes.</p>
     <ol class="steps">
       <li>Install the <strong>Claude desktop app</strong> from claude.ai/download and sign in with a Claude Pro or Max plan.</li>
@@ -148,11 +148,11 @@
     </ol>
     <div class="cards" data-part="Q"></div>
     <p class="note">Windows is tested. On a Mac the same prompt works, but Claude may ask you to install Python from python.org first. Use Chrome or Edge for the voice.</p>
-    <p>Prefer to build Jarvis yourself, or want to change how it works? The full build (Parts A to C) is below.</p>
   </section>
 
   <section class="section" aria-labelledby="overview">
-    <h2 id="overview">How it fits together</h2>
+    <h2 id="overview">Or build it yourself (advanced)</h2>
+    <p>Everything below is the original step-by-step build. You only need it if you want to change how Jarvis works. The one-prompt install above already does all of it.</p>
     <div class="parts">
       <div class="part"><span class="k">Part A · about 20 minutes</span><b>The vault and the team</b><p>Download Wranglit, open it in the Claude desktop app, and Larry interviews you for five minutes and files your people, projects and priorities.</p></div>
       <div class="part"><span class="k">Part B · about 10 minutes</span><b>Obsidian</b><p>Open the same folder in Obsidian, switch on the Wranglitdark theme and the Copilot plugin.</p></div>
@@ -165,7 +165,7 @@
     <div class="reqs">
       <div class="req"><span class="tag need">Required</span><div><b>A Claude Pro or Max subscription</b><p>The team and Jarvis both run through Claude Code on your plan; no API key needed. Max is the better fit if you'll hand long jobs to the team.</p></div></div>
       <div class="req"><span class="tag need">Required</span><div><b>The Claude desktop app, signed in</b><p>From claude.ai/download, for Windows or Mac. All the work happens in its <strong>Code</strong> tab. Step A3 has Claude check the rest of this list on your computer and install anything missing, with your OK.</p></div></div>
-      <div class="req"><span class="tag need">Required</span><div><b>Obsidian</b><p>Free from obsidian.md. You'll open the vault folder in it.</p></div></div>
+      <div class="req"><span class="tag opt">Optional</span><div><b>Obsidian</b><p>Free from obsidian.md. Your notes are plain files, so Jarvis doesn't need it; it's for browsing and editing notes by hand.</p></div></div>
       <div class="req"><span class="tag need">Required</span><div><b>Python 3.10 or newer</b><p>Jarvis runs on it, using the standard library only. Install it from python.org (on Windows, tick <strong>Add python.exe to PATH</strong> on the installer's first screen), or let Claude install it in step A3.</p></div></div>
       <div class="req"><span class="tag need">Required</span><div><b>Google Chrome or Microsoft Edge</b><p>Jarvis's voice input only works in these. Allow microphone access when asked.</p></div></div>
       <div class="req"><span class="tag need">Required</span><div><b>Internet, a microphone and speakers</b><p>Jarvis loads its 3D and markdown libraries from public CDNs, and Chrome's speech recognition runs online.</p></div></div>
