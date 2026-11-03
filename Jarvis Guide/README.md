@@ -224,7 +224,7 @@ Personality: the assistant is called {{ASSISTANT_NAME}}, my butler. I'm {{YOUR_N
 
 Spoken vs shown: the model also returns a `SPOKEN:` line before SOURCES: at most 30 words, wit intact, giving the gist in its own words and never reading out names, figures or dates from the notes. Return it as "speech"; the browser speaks only that line.
 
-Voice out (speechSynthesis): pick a MALE British voice by name (George, Ryan, Thomas, Daniel, Arthur, "Google UK English Male" and similar), then any male English voice, and only then a female voice at a lower pitch. Show the chosen voice in the 🔊 button's tooltip. Speak sentence by sentence at rate 1.2 (the natural pace sounds ponderous). A 🔊 toggle, remembered in localStorage.
+Voice out (speechSynthesis): pick a MALE British voice by name (George, Ryan, Thomas, Daniel, Arthur, "Google UK English Male" and similar), then any male English voice, and only then a female voice at a lower pitch. Show the chosen voice in the 🔊 button's tooltip. Speak sentence by sentence at rate 1.2 (the natural pace sounds ponderous). A 🔊 toggle, remembered in localStorage. Only one window speaks: with the assistant open in several tabs or windows, the one I last clicked or typed in owns the voice (a tab id in localStorage), and the others stay quiet.
 
 Voice in (webkitSpeechRecognition), a 🎙 button: continuous mode. It keeps listening through pauses, commas and full stops until I click the mic again, then sends what it heard. If the browser ends the session early, restart it quietly and keep adding to the same text. Stop speaking before listening.
 
@@ -449,7 +449,7 @@ Stop any agent mid-task; agents do vault file work freely, ask before anything e
 **Paste into:** Claude desktop app, a Code session in the Jarvis folder
 
 ````text
-Give me control over agents while they work, without roadblocks for ordinary vault work.
+Give me control over agents while they work, without roadblocks for ordinary vault work. Approving every routine step is a pain, so the default is Claude Code's own auto mode, and only risky steps ask me.
 
 Stop:
 - A red ■ stop button beside send in the main ask bar while the assistant is answering or any background job is running; one click ends all of it and silences the voice. Each running job in Larry's tray has its own Stop; in Team chat and Project chat the send button turns into ■ while waiting.
@@ -458,6 +458,8 @@ Stop:
 Approvals (background runs can't show Claude Code's own permission prompt):
 - Write approval_mcp.py, a tiny MCP server on stdio (standard library only) with one tool, approve. Give every job and team-chat run its own token, add the helper to that run's --mcp-config (alongside Fireflies) with the server address, run key and token in its env, and pass --permission-prompt-tool mcp__jarvis__approve. Whatever would have asked me now comes to the helper, which asks the server and waits (deny after 30 minutes, or when the run ends). Deny rules in the vault's settings still deny on their own; one-off --allowedTools do NOT override the vault's "ask" rules, which is why the helper is needed.
 - No roadblocks for vault file work: the server approves at once, without asking me, any Bash command that only moves, copies, deletes, renames or makes folders inside the vault (mv, cp, rm, rmdir, mkdir, touch, git mv, git rm), with read-only checks such as ls, cat or grep on vault paths alongside. Still ask for: removing or moving a whole top-level vault folder, anything in .git, .obsidian or .claude, any path outside the vault, pipes, redirects, $( ), background &, and every other program. Write unit tests for this rule before relying on it.
+- Permission setting, saved in config.json as agent_permissions and shown under the model pickers: "Auto · asks only for risky steps" (the default) runs jobs and team chats with --permission-mode auto; "Ask me · approve more steps" uses --permission-mode acceptEdits. It applies from the next job or message. Don't offer a mode that skips all permission checks.
+- In Auto mode, a Bash request that still reaches the server (the vault's "ask" list sends mv, rm and the like there) is approved without me when it clearly stays in the vault. Two hard rules first: anything mentioning internet tools or URLs (curl, wget, Invoke-WebRequest, ssh, http://), installs (pip install, npm, winget, choco), git push / pull / reset / checkout / clean / remote / config, --force, admin tools, an absolute path outside the vault, the temporary folder and ~/.claude, or ../ climbing out of the vault always asks me. Otherwise ask a fast model (Haiku): give it the facts (relative paths are in the vault, the temp folder is scratch, vault scripts are trusted, deleting and moving inside the vault is expected, shell plumbing like set -e, loops, functions and pipes into grep is fine), let it think in a sentence or two, and approve only on a final "VERDICT: YES". Cache verdicts by command. Test it on real requests (move scripts, folder listings, running a vault script into the temp folder, a git commit: all approved) and risky ones (deleting on the Desktop or in Documents, curl, git push, pip install, moving out of the vault, editing ~/.claude/settings.json: all ask).
 - Anything else opens that agent's Team chat window (making a Larry chat for a background job the first time it needs one, where his final report also lands) and says "<name> needs your approval". The card says in plain English what will happen as a bullet list ("Move **file** to **folder**", "Delete **file**", "Create the folder **…**"), translated directly for simple commands and by a fast model (Haiku) for complicated scripts, then the agent's reason, then the exact command tucked behind "Show the exact command", then Approve and Deny. Each approval covers that one action only. Record the answer in the chat in plain English ("✓ Approved: Move … (and 3 more steps)"). Larry's tray shows "Needs your approval" on that job. Redraw a card only when it changes.
 - Tell agents in their prompts that vault file work is allowed, using plain Bash mv, cp, rm and mkdir with vault-relative paths.
 
@@ -472,6 +474,7 @@ Questions:
 - Ask Larry to tidy some files into a folder: it happens without asking you
 - Ask Larry to copy a file outside the vault: his chat opens with a card saying, in plain English, what he wants to do, with Approve and Deny
 - Ask an agent to check something with you first: a pop-up asks the question with options to click
+- Run a session close with Larry: routine steps (scripts, moves, a git commit) go through without asking, while a request to delete something on your Desktop still asks
 
 ### Prompt 13. Final review
 
