@@ -76,7 +76,7 @@ Settings → Appearance.
 Once the vault is running, you can build **Jarvis** on top of it: a voice assistant
 that shows the vault as a 3D galaxy of your notes, answers questions from them out
 loud, reads your Outlook calendar and email, and hands work to Larry's team.
-You build your own copy by pasting twelve prompts into the Claude desktop app.
+You build your own copy by pasting thirteen prompts into the Claude desktop app.
 No code to download and no terminal.
 
 The guide is in `Jarvis Guide/`. Open `jarvis-setup-guide.html` in your browser:

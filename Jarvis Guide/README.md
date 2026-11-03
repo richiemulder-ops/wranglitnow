@@ -139,7 +139,7 @@ https://api.fireflies.ai/mcp
 3. Claude asks before it runs commands or changes files. Approve them: that is how it builds Jarvis. You never type a command yourself.
 4. Paste the prompts **one at a time, in order**. Let each finish, then run through its "Check it works" list before the next.
 5. If something looks wrong, say so in plain words ("the voice is female", "the dots are blurry") and Claude fixes it in the same session.
-6. Prompts marked *Optional* can be skipped. Always run prompt 12, the final review.
+6. Prompts marked *Optional* can be skipped. Always run prompt 13, the final review.
 
 Expect a few hours in total, mostly waiting on Claude. Each prompt takes it roughly 5 to 25 minutes.
 
@@ -277,7 +277,7 @@ Down the left-hand side, add a column of expandable cards, one open at a time. K
 
 1. Projects: each project is a note in PKM/My Life/Projects/ (front matter name, status, target_date, key_element), and its workspace folder is copilot/projects/<project name>/. List active projects first, with their target date. In build.py, find each project's notes: the project note itself, everything in its workspace folder, then notes that link to it ([[its-file-name]]) or mention its name, ranked most relevant first. Clicking a project lights all its notes across the galaxy, frames them, and opens a summary panel: status, target date, the "Why this matters" text, where its notes live (counts by folder), and the ranked notes as clickable chips. Clicking again or Esc clears it. The summary panel also lists the project's Deliverables: whatever is filed in its workspace folder, copilot/projects/<name>/, leaving out the files that run the project (project.md, AGENTS.md, CLAUDE.md, project-brief.md and the chat folders). Use the same rows as Team Inbox (folders first, then newest): folders open in place with ← Back, notes open as documents, other files open on my desktop, and there's an "Open folder ↗" button. The server lists a project's folder through the same safe folder listing as Team Inbox, keyed by project name, and refuses unknown projects and paths that escape the folder.
 2. Team: the specialists in Team/ (one folder each, named "Name - Role"), with their roles and the description from .claude/agents/<name>.md where there is one (Larry has none: he is the orchestrator). Clicking one lights their folder plus notes that mention their capitalised name.
-3. Team Inbox (Team Inbox/) and 4. Deliverables (Deliverables/): live listings from the server, folders first then newest, with ← Back for subfolders. "Open folder ↗" opens it on my desktop. Notes fly to their dot; documents (pdf, docx, xlsx, csv, pptx, images and so on) open in their default desktop app (os.startfile on Windows, `open` on macOS, `xdg-open` on Linux). Hide dot and underscore folders and README files.
+3. Team Inbox (Team Inbox/) and 4. Deliverables (Deliverables/): live listings from the server, folders first then newest, with ← Back for subfolders. "Open folder ↗" opens it on my desktop. Notes fly to their dot; documents (pdf, docx, xlsx, csv, pptx, images and so on) open in their default desktop app (os.startfile on Windows, `open` on macOS, `xdg-open` on Linux). Hide dot and underscore folders and README files. Right-clicking any file or folder row (Team Inbox, Deliverables and each project's Deliverables) opens a small menu: Open, Open on desktop (for notes and folders), Show in File Explorer (the folder with the item selected), and Delete… in red. Delete asks me to confirm, then moves the item into the vault's .trash folder, keeping its path there, the way Obsidian does, so it leaves the vault, the cards and the galaxy but can be brought back. Never delete a card's top folder or anything in .git, .obsidian, .claude or .trash, or outside the vault.
    Team Inbox also takes files: dragging files from my desktop onto the page outlines the Team Inbox card (dashed, filled when over it), and dropping them on it saves them into the inbox folder the card is showing; a drop anywhere else does nothing (and must not open the file in the browser). Add a "+ Add files" button too. The server endpoint takes the raw file with the name in the query and only ever writes into Team Inbox: never overwrite (add " (2)" and so on), refuse hidden or unsafe names and paths that escape the folder, refuse programs and scripts (.exe, .msi, .bat, .cmd, .ps1, .vbs, .js, .lnk and similar), cap each file at 200 MB, write to a hidden temp file then rename. Skip dropped folders with a note. Afterwards refresh the list, say one short line, and show an "Ask Larry to file them" button that hands the new files to the team.
 
 Server rules for anything that touches files: resolve every path with realpath and refuse anything outside the allowed folder; only open document types, never programs; every /api request must carry an `X-Galaxy: 1` header and a same-origin Origin so no other website can trigger it.
@@ -291,6 +291,7 @@ On phones the cards become a swipeable strip whose bodies drop down below it.
 - Click Larry or Penn: their notes light up
 - Open Team Inbox or Deliverables: files are listed; a PDF opens in its usual app
 - Click a project with work filed in its folder: its Deliverables list appears in the panel, and a document opens on your desktop
+- Right-click a file you don't need and choose Delete: after you confirm, it disappears from the list and turns up in the vault's .trash folder
 - Drag a file from your desktop onto Team Inbox: it appears in the list and in the folder
 
 ### Prompt 6. Branding
@@ -307,7 +308,7 @@ Brand the page for {{BRAND_NAME}}.
 - Palette: shades around {{BRAND_PRIMARY}} alternating with shades around {{BRAND_ACCENT}}, plus a contrasting cool tone so folders stay easy to tell apart, for folder colours, borders, buttons, the emblem and gauges. Keep red only for warnings and the live microphone.
 - Put every colour in CSS variables so I can change them in one place.
 - Card icons: simple line icons drawn as SVG in currentColor, so each matches its card's colour bar. No emoji.
-- The speaker and mic buttons in the ask bar (and the project chat's mic) use the same style: line icons in {{BRAND_PRIMARY}} with the same soft glow as the card icons. The speaker shows sound waves when voice is on and an ✕ (dimmed) when off; the mic matches the Meetings card's mic and turns red and pulses while listening. Status text says "click the mic" rather than using an emoji.
+- The speaker and mic buttons in the ask bar (and the project chat's mic) use the same style: line icons in {{BRAND_PRIMARY}} with the same soft glow as the card icons. The speaker shows sound waves when voice is on and an ✕ (dimmed) when off; the mic matches the Meetings card's mic and turns red and pulses while listening. Status text says "click the mic" rather than using an emoji. The send buttons show a line-drawn arrow icon in the same style, not a text arrow.
 - A colour panel in the bottom-left corner, under the cards: two small hex fields, each with a colour-picker swatch, for the primary ({{BRAND_PRIMARY}}) and the accent ({{BRAND_ACCENT}}), plus a Reset button. Changing one recolours its whole family of shades across the page: dots, links and sparks, card bars and icons, tiles, gauges, the emblem, the logo and the glows. Do it with a small theme function that loads before everything else. Each primary-family or accent-family colour keeps its offset from its base (hue turn, saturation ratio, lightness step), so changing a base moves every shade with it. The background ({{BRAND_BACKGROUND}}) and its variations, greys, whites and the red warnings never change. Route every colour in the page script through that function, and rewrite the stylesheet's colours with it on load. Save the pair in localStorage; applying a change reloads the page straight back in, skipping the wake screen and greeting. Ignore invalid hex values (outline the field in red). Hide the panel on narrow screens.
 ````
 
@@ -441,7 +442,38 @@ Add visibility and control.
 - Change the Tokens period between 7 days and 12 months
 - Tiles show next meeting, open actions, things to file and vault activity
 
-### Prompt 12. Final review
+### Prompt 12. Stop, approvals and questions
+
+Stop any agent mid-task; agents do vault file work freely, ask before anything else in plain English, and ask you questions in a pop-up.
+
+**Paste into:** Claude desktop app, a Code session in the Jarvis folder
+
+````text
+Give me control over agents while they work, without roadblocks for ordinary vault work.
+
+Stop:
+- A red ■ stop button beside send in the main ask bar while the assistant is answering or any background job is running; one click ends all of it and silences the voice. Each running job in Larry's tray has its own Stop; in Team chat and Project chat the send button turns into ■ while waiting.
+- Stopping must be immediate and complete: end the whole process tree (taskkill /T /F on Windows, a process group elsewhere), so subagents and helpers stop too, and show "Stopped by you" (anything already written stays, and the message says so). Report a stopped job straight away and refresh the galaxy afterwards in the background.
+
+Approvals (background runs can't show Claude Code's own permission prompt):
+- Write approval_mcp.py, a tiny MCP server on stdio (standard library only) with one tool, approve. Give every job and team-chat run its own token, add the helper to that run's --mcp-config (alongside Fireflies) with the server address, run key and token in its env, and pass --permission-prompt-tool mcp__jarvis__approve. Whatever would have asked me now comes to the helper, which asks the server and waits (deny after 30 minutes, or when the run ends). Deny rules in the vault's settings still deny on their own; one-off --allowedTools do NOT override the vault's "ask" rules, which is why the helper is needed.
+- No roadblocks for vault file work: the server approves at once, without asking me, any Bash command that only moves, copies, deletes, renames or makes folders inside the vault (mv, cp, rm, rmdir, mkdir, touch, git mv, git rm), with read-only checks such as ls, cat or grep on vault paths alongside. Still ask for: removing or moving a whole top-level vault folder, anything in .git, .obsidian or .claude, any path outside the vault, pipes, redirects, $( ), background &, and every other program. Write unit tests for this rule before relying on it.
+- Anything else opens that agent's Team chat window (making a Larry chat for a background job the first time it needs one, where his final report also lands) and says "<name> needs your approval". The card says in plain English what will happen as a bullet list ("Move **file** to **folder**", "Delete **file**", "Create the folder **…**"), translated directly for simple commands and by a fast model (Haiku) for complicated scripts, then the agent's reason, then the exact command tucked behind "Show the exact command", then Approve and Deny. Each approval covers that one action only. Record the answer in the chat in plain English ("✓ Approved: Move … (and 3 more steps)"). Larry's tray shows "Needs your approval" on that job. Redraw a card only when it changes.
+- Tell agents in their prompts that vault file work is allowed, using plain Bash mv, cp, rm and mkdir with vault-relative paths.
+
+Questions:
+- Agents' AskUserQuestion calls come through the same helper. Show them as a pop-up over the page, like Claude's own: who is asking, "1 of 2", the question's short header as a chip, the question, clickable options with their descriptions (several where multiSelect allows), a box for my own answer, Back, Next / Send answers, and Skip (the agent then makes the call and says what it assumed). The answers go back to the agent as the tool's answers. If I close the pop-up, an Answer card waits in the chat.
+- Tell agents to ask this way when they genuinely need a decision, rather than "don't ask questions".
+````
+
+**Check it works:**
+
+- While Jarvis answers or Larry works, a red stop button appears; clicking it ends the work within a second or two
+- Ask Larry to tidy some files into a folder: it happens without asking you
+- Ask Larry to copy a file outside the vault: his chat opens with a card saying, in plain English, what he wants to do, with Approve and Deny
+- Ask an agent to check something with you first: a pop-up asks the question with options to click
+
+### Prompt 13. Final review
 
 A full check of security and features before you rely on it.
 
@@ -451,7 +483,7 @@ A full check of security and features before you rely on it.
 Do a final review of the whole build.
 
 1. Security: confirm every /api endpoint rejects requests without the X-Galaxy header or from another origin, rejects paths outside the vault (including ../, encoded and absolute paths), and that config.json, data/ and server.py are never served.
-2. Run through every feature: wake and greeting, ask a question and a follow-up, project chat, tick and untick an action, open a document, save and delete a test note, the Outlook card and a calendar question (if set up), and a read-only test job for Larry's team.
+2. Run through every feature: wake and greeting, ask a question and a follow-up, project chat, tick and untick an action, open a document, save and delete a test note, the Outlook card and a calendar question (if set up), a read-only test job for Larry's team, stopping a job, an approval card and a question pop-up, and right-click delete on a test file.
 3. Check that vault files you wrote keep their line endings and that only intended lines changed.
 4. Remove any test notes, projects or chats you created, then rebuild the galaxy.
 5. Fix anything broken, then tell me plainly what you tested, what you fixed, and what you couldn't test yourself.
