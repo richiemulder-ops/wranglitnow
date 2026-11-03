@@ -133,8 +133,23 @@
   <header>
     <div class="eyebrow">One package: vault, Obsidian, assistant</div>
     <h1>Wranglit and Jarvis setup</h1>
-    <p class="lede">Set up a personal knowledge vault that comes with a twelve-person AI team, open it in Obsidian, then build Jarvis on top: a voice butler that turns the vault into a 3D galaxy, answers from your notes, reads your calendar and hands work to the team. Everything runs on your own computer and your Claude subscription, and you never need a terminal: every step happens in the Claude desktop app, your file manager, Obsidian or the browser.</p>
+    <p class="lede">Set up a personal knowledge vault that comes with a twelve-person AI team, then Jarvis on top: a voice butler that turns the vault into a 3D galaxy, answers from your notes, reads your calendar and hands work to the team. Everything runs on your own computer and your Claude subscription, and you never need a terminal.</p>
   </header>
+
+  <section class="section" aria-labelledby="quick">
+    <h2 id="quick">Quick install: one prompt</h2>
+    <p>The fastest way. Claude downloads the vault and the finished Jarvis, sets up everything it needs (including Python, if your PC doesn't have it), and opens Jarvis in your browser. About five minutes.</p>
+    <ol class="steps">
+      <li>Install the <strong>Claude desktop app</strong> from claude.ai/download and sign in with a Claude Pro or Max plan.</li>
+      <li>Open its <strong>Code</strong> tab, start a session in any folder (Documents is fine), and paste the prompt below.</li>
+      <li>Answer two questions: your first name, and where to install (Documents\Jarvis unless you say otherwise). Approve the steps Claude asks about. If a sign-in window opens, sign in and close it.</li>
+      <li>When Jarvis opens, <strong>click anywhere to wake him</strong>. A short welcome sets your name, voice, colours and Outlook. Obsidian is an optional extra at the end.</li>
+      <li>From then on, double-click <strong>Jarvis</strong> on your desktop.</li>
+    </ol>
+    <div class="cards" data-part="Q"></div>
+    <p class="note">Windows is tested. On a Mac the same prompt works, but Claude may ask you to install Python from python.org first. Use Chrome or Edge for the voice.</p>
+    <p>Prefer to build Jarvis yourself, or want to change how it works? The full build (Parts A to C) is below.</p>
+  </section>
 
   <section class="section" aria-labelledby="overview">
     <h2 id="overview">How it fits together</h2>
@@ -269,6 +284,12 @@
     </div>
   </section>
 </div>
+
+<!-- Quick install: the one prompt that installs the finished package (INSTALL-JARVIS.md in the repo). -->
+<script type="text/plain" data-card data-part="Q" data-n="1" data-title="The install prompt" data-tag="need" data-short
+  data-what="Paste this into the Claude app's Code tab. Claude follows the repository's INSTALL-JARVIS.md, which tells it exactly what to do."
+  data-where="Claude desktop app, a Code session in any folder"
+  data-check="A Jarvis shortcut is on your desktop|Jarvis opens in your browser and greets you after one click|The welcome walks you through name, voice, colours, team, Outlook and Obsidian">Install Jarvis for me from github.com/richiemulder-ops/wranglitnow. Follow its INSTALL-JARVIS.md.</script>
 
 <!-- Part A cards: steps and prompts for setting up the vault. A card with no text is click-only. -->
 <script type="text/plain" data-card data-part="A" data-n="A1" data-title="Download the vault" data-tag="need" data-short
@@ -587,5 +608,3 @@ Questions:
   render();
 })();
 </script>
-
-</html>
