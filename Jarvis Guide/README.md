@@ -385,9 +385,9 @@ Connect my Outlook calendar and email, read-only, through the Microsoft 365 conn
 - Ask 'What availability do I have tomorrow?' and check the slots against Outlook
 - Open the Outlook card: today's meetings and latest emails appear in about 15 seconds
 
-### Prompt 10. Hand work to Larry's team (optional)
+### Prompt 10. Larry's team: jobs and direct chat (optional)
 
-Ask the assistant to have the team do real work in the vault, such as filing today's meetings.
+Ask the assistant to have the team do real work in the vault, such as filing today's meetings, or talk to any team member directly in a chat window.
 
 **Paste into:** Claude desktop app, a Code session in the Jarvis folder
 
@@ -399,6 +399,12 @@ Let the assistant hand work to the Wranglit team in my vault. Larry is the orche
 - Job prompt: act as Larry per AGENTS.md and route to the right specialists using their normal process (for meetings that is WS-007, which also extracts actions); don't ask questions (I'm not watching); don't send anything to anyone; finish with a short report listing the files created and changed.
 - From the stream, track each agent's context use separately (parent_tool_use_id tells you which subagent is talking), count compactions, and keep a live activity line such as "Penn is writing <file>". When the job ends, rebuild the galaxy and reload the note index BEFORE marking it done.
 - A tray under the emblem: "Larry · standing by" when idle; working / done / stopped cards with "Read report" and "↻ Reload galaxy"; the assistant announces when a job finishes. Restarting the server stops running jobs, so warn me if one is running.
+
+Team chat: let me talk to any team member directly, in a main-window chat view laid out like the project chat.
+- Open it from a "Team chat" card on the left, a "Chat with <name>" button on each agent's panel, or by asking the assistant. Add `ACTION: chat | <name> | <message, or empty>` to its commands: it is for "talk to / ask <person>", while DELEGATE stays for background work handed to Larry. Pass any message on as the chat's first message.
+- Each message runs that person in the vault: claude -p with the working directory set to the vault, `--agent <name>` when .claude/agents/<name>.md exists (Larry has none, so he runs as the vault's own session), the same tools, permission mode and environment as the jobs, and stream-json output. Keep session persistence on, store each chat's session_id, and send later messages with `--resume <session_id>` so the agent keeps the thread. Prefix only the first message with a short note: I'm talking to them directly through the assistant's chat window, so reply in readable markdown, ask me if they need something, never send email or messages, and list the vault paths of any files they change.
+- Turns run in the background with a 30-minute limit and one turn per chat at a time. The page polls every 2 seconds, showing the live activity line (reuse the job tracker) until the reply arrives, then the assistant says "<name> has replied."
+- Render replies as sanitised markdown with clickable [[links]], with a dropdown to switch between team members (Larry first), saved chats per person listed on the left (stored as JSON in data/agent-chats/, outside the vault), "＋ New chat", and the same continuous mic as the project chat.
 ````
 
 **Check it works:**
@@ -406,6 +412,8 @@ Let the assistant hand work to the Wranglit team in my vault. Larry is the orche
 - Try a read-only job first: 'Tell Larry to count the open actions. Read only, don't change any files.'
 - Watch the tray: standing by, working (with a live activity line), then done with a report
 - Then a real one, e.g. 'Tell Larry to get Penn to file today's Fireflies meetings'
+- Open Team chat, pick a specialist and ask a read-only question: a formatted reply arrives, and a follow-up remembers the first message
+- Say 'I want to talk to Penn': the assistant opens Penn's chat instead of saying it can't
 
 ### Prompt 11. Gauges, models and metrics
 
