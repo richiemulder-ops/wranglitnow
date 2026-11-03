@@ -294,7 +294,7 @@ On phones the cards become a swipeable strip whose bodies drop down below it.
 
 ### Prompt 6. Branding
 
-Your brand name or logo, colours and matching card icons.
+Your brand name or logo, colours and matching card icons, plus a colour panel to change the two brand colours any time.
 
 **Paste into:** Claude desktop app, a Code session in the Jarvis folder
 
@@ -307,6 +307,7 @@ Brand the page for {{BRAND_NAME}}.
 - Put every colour in CSS variables so I can change them in one place.
 - Card icons: simple line icons drawn as SVG in currentColor, so each matches its card's colour bar. No emoji.
 - The speaker and mic buttons in the ask bar (and the project chat's mic) use the same style: line icons in {{BRAND_PRIMARY}} with the same soft glow as the card icons. The speaker shows sound waves when voice is on and an ✕ (dimmed) when off; the mic matches the Meetings card's mic and turns red and pulses while listening. Status text says "click the mic" rather than using an emoji.
+- A colour panel in the bottom-left corner, under the cards: two small hex fields, each with a colour-picker swatch, for the primary ({{BRAND_PRIMARY}}) and the accent ({{BRAND_ACCENT}}), plus a Reset button. Changing one recolours its whole family of shades across the page: dots, links and sparks, card bars and icons, tiles, gauges, the emblem, the logo and the glows. Do it with a small theme function that loads before everything else. Each primary-family or accent-family colour keeps its offset from its base (hue turn, saturation ratio, lightness step), so changing a base moves every shade with it. The background ({{BRAND_BACKGROUND}}) and its variations, greys, whites and the red warnings never change. Route every colour in the page script through that function, and rewrite the stylesheet's colours with it on load. Save the pair in localStorage; applying a change reloads the page straight back in, skipping the wake screen and greeting. Ignore invalid hex values (outline the field in red). Hide the panel on narrow screens.
 ````
 
 **Check it works:**
@@ -315,6 +316,7 @@ Brand the page for {{BRAND_NAME}}.
 - Background and panels use your colours
 - Each card's icon matches the colour of its bar
 - The speaker and mic buttons use the same line-icon style, not emoji
+- Type a new hex into the bottom-left colour panel: every shade of that colour changes, the background stays, and Reset brings yours back
 
 ### Prompt 7. Documents, Actions, Meetings, CRM and Notes
 
