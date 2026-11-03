@@ -12,6 +12,20 @@ readable in any editor.
 
 ---
 
+## Quick install (one prompt)
+
+1. Install the **Claude desktop app** from claude.ai/download and sign in (Claude Pro or Max).
+2. Open its **Code** tab and paste:
+
+   > Install Jarvis for me from github.com/richiemulder-ops/wranglitnow
+
+3. Answer two questions (your first name, and where to install). Claude sets up everything else, including Python if your PC doesn't have it, then opens Jarvis in your browser.
+4. Click to wake Jarvis. A short welcome sets your name, voice, colours and Outlook. Obsidian is optional.
+
+After that, double-click **Jarvis** on your desktop. Claude follows [INSTALL-JARVIS.md](INSTALL-JARVIS.md). Windows is tested; Mac follows the same steps.
+
+---
+
 ## What you get
 
 **A structure that holds.** Your life splits into Key Elements, Projects, Goals,

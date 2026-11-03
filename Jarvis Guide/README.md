@@ -2,6 +2,8 @@
 
 This folder is the setup guide for **Jarvis**, an optional assistant you build on top of this vault. Jarvis turns the vault into a 3D galaxy of your notes, answers questions from them out loud, reads your Outlook calendar and email, and hands work to Larry's team. You build your own copy by pasting prompts into the Claude desktop app; there is no code to download and no terminal to use.
 
+**New: one-prompt install.** You no longer need to build Jarvis from the prompts below. Paste *"Install Jarvis for me from github.com/richiemulder-ops/wranglitnow"* into the Claude app's Code tab and Claude installs the finished Jarvis for you (see [INSTALL-JARVIS.md](../INSTALL-JARVIS.md)). The prompts below stay as the build-it-yourself route.
+
 **Easiest way to follow it:** open `jarvis-setup-guide.html` (in this folder) in your browser. Fill in your details at the top and every step and prompt below updates with your own names and folders, with a copy button on each. This README has the same steps, with `{{PLACEHOLDERS}}` you replace yourself.
 
 Jarvis is an add-on, not part of the vault's core. Unlike the vault, it makes network calls: it loads its 3D and markdown libraries from public CDNs, uses your browser's online speech recognition, and runs everything through Claude Code on your subscription.
