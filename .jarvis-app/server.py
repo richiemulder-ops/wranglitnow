@@ -7,6 +7,7 @@ Answers come from the Claude Code CLI (`claude -p`), so they run on your Claude 
 subscription. config.json ("model") and data/notes-index.json live outside viewer/
 and are read server-side only.
 """
+import base64
 import functools
 import http.cookies
 import http.server
@@ -332,8 +333,48 @@ def get_setup():
     cfg = read_config()
     out = {k: cfg.get(k, "") for k in SETUP_KEYS}
     out.update(onboarded=bool(cfg.get("onboarded")), rate=cfg.get("rate", 1.2), vault=VAULT,
-               vault_name=os.path.basename(VAULT), obsidian=os.path.isdir(os.path.join(VAULT, ".obsidian")))
+               vault_name=os.path.basename(VAULT), obsidian=os.path.isdir(os.path.join(VAULT, ".obsidian")),
+               logo=logo_url())
     return out
+
+
+# The user's own logo, shown top left in place of "JARVIS". The page turns whatever image is
+# chosen into a PNG before sending it, so only a checked PNG is ever stored and served.
+LOGO_FILE = os.path.join(HERE, "viewer", "user-logo.png")
+LOGO_MAX = 360 * 1024
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+
+def logo_url():
+    try:
+        return f"user-logo.png?v={int(os.path.getmtime(LOGO_FILE))}"
+    except OSError:
+        return ""
+
+
+def save_logo(body):
+    if body.get("remove"):
+        try:
+            os.remove(LOGO_FILE)
+        except FileNotFoundError:
+            pass
+        return {"logo": ""}
+    m = re.fullmatch(r"data:image/png;base64,([A-Za-z0-9+/=]+)", str(body.get("png") or ""))
+    if not m:
+        raise ChatError(400, "Send the logo as a PNG.")
+    try:
+        raw = base64.b64decode(m.group(1), validate=True)
+    except ValueError:
+        raise ChatError(400, "That image didn't come through. Try another.")
+    if not raw.startswith(PNG_SIGNATURE):
+        raise ChatError(400, "That isn't a PNG image.")
+    if len(raw) > LOGO_MAX:
+        raise ChatError(400, "That logo is too large. Try a smaller image.")
+    tmp = LOGO_FILE + ".tmp"
+    with open(tmp, "wb") as f:
+        f.write(raw)
+    os.replace(tmp, LOGO_FILE)
+    return {"logo": logo_url()}
 
 
 def save_setup(body):
@@ -2598,7 +2639,7 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
                 self._json(400, {"error": "Bad request."})
             return
         if path in ("/api/open", "/api/reveal", "/api/trash", "/api/action", "/api/fleeting", "/api/models", "/api/projects", "/api/agent-chat",
-                    "/api/agent-chat/stop", "/api/jobs/stop", "/api/stop-answer", "/api/approval", "/api/approval/decide", "/api/hires/approve", "/api/hires/decline", "/api/setup"):
+                    "/api/agent-chat/stop", "/api/jobs/stop", "/api/stop-answer", "/api/approval", "/api/approval/decide", "/api/hires/approve", "/api/hires/decline", "/api/setup", "/api/logo"):
             if not self._trusted():
                 self._json(403, {"error": "Forbidden."})
                 return
@@ -2612,6 +2653,8 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
                     self._json(200, trash_item(str(body.get("name", "")), str(body.get("path", ""))))
                 elif path == "/api/setup":
                     self._json(200, save_setup(body))
+                elif path == "/api/logo":
+                    self._json(200, save_logo(body))
                 elif path == "/api/hires/approve":
                     self._json(200, approve_hire(body.get("folder", "")))
                 elif path == "/api/hires/decline":

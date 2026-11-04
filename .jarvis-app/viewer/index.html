@@ -148,6 +148,15 @@
   #onboard .note { font-size: 13px; opacity: .75; margin-top: 10px; }
   #onboard code { background: rgba(255,255,255,.08); padding: 1px 5px; border-radius: 5px; word-break: break-all; }
   #onboard a { color: var(--brand, #bad367); }
+  #onboard .logo-prev { margin-top: 12px; min-height: 48px; padding: 10px; border-radius: 10px; background: rgba(255,255,255,.04);
+             border: 1px dashed rgba(255,255,255,.18); display: flex; align-items: center; }
+  #onboard .logo-prev img { max-height: 60px; max-width: 100%; object-fit: contain; }
+  #onboard input[type=file] { margin-top: 8px; font: inherit; color: inherit; }
+  /* The user's own logo in place of JARVIS, with the credit under the stats line. */
+  #logo-img { display: block; height: 40px; width: auto; max-width: 240px; object-fit: contain; object-position: left center; }
+  #hud p#powered { margin-top: 2px; }
+  body.has-credit #rail { top: 118px; }
+  @media (max-width: 600px) { body.has-credit #rail { top: 92px; } }
   #wake { display: none; position: fixed; inset: 0; z-index: 15; cursor: pointer;
     background: radial-gradient(circle at 50% 50%, rgba(22, 25, 51, 0.35), rgba(10, 12, 32, 0.86)); }
   body.waking #wake { display: block; }
@@ -594,7 +603,7 @@
       overflow-x: auto; overflow-y: hidden; padding: 0 16px 6px; }
     /* No backdrop-filter here: it would trap the fixed drop-down inside the strip. */
     .section { overflow: visible; backdrop-filter: none; background: rgba(13, 16, 40, 0.85); }
-    #logo { height: 24px; }
+    #logo, #logo-img { height: 24px; }
     .section > .head { padding: 9px 12px 9px 16px; white-space: nowrap; }
     .head .label span { display: none; }
     .section .body { position: fixed; top: 128px; left: 16px; right: 16px; max-height: 45vh; z-index: 5;
@@ -2523,6 +2532,26 @@ const tc = THEME.colour;
   // What onboarding saved; cached here so the boot greeting can use it before the server answers.
   let SETUP = {};
   try { SETUP = JSON.parse(localStorage.getItem('jarvis-setup') || '{}') || {}; } catch (_) {}
+  // The user's logo (chosen at setup) replaces JARVIS top left; "Powered by Carbonhalo" then sits
+  // under the notes and connections line, in the same type.
+  function applyLogo(url) {
+    const svg = document.getElementById('logo'), stats = document.getElementById('stats');
+    let img = document.getElementById('logo-img'), credit = document.getElementById('powered');
+    if (url) {
+      if (!img) { img = document.createElement('img'); img.id = 'logo-img'; img.alt = 'Logo'; svg.after(img); }
+      img.src = url;
+      svg.style.display = 'none';
+      document.body.classList.add('has-credit');
+      if (!credit) { credit = document.createElement('p'); credit.id = 'powered'; credit.textContent = 'Powered by Carbonhalo'; stats.after(credit); }
+    } else {
+      if (img) img.remove();
+      if (credit) credit.remove();
+      document.body.classList.remove('has-credit');
+      svg.style.display = '';
+    }
+  }
+  applyLogo(SETUP.logo);
+  api('/api/setup').then(d => { if ((d.logo || '') !== (SETUP.logo || '')) { SETUP.logo = d.logo; applyLogo(d.logo); } }).catch(() => {});
   let voiceOn = true;
   try { voiceOn = localStorage.getItem('galaxy-voice') !== 'off'; } catch (_) {}
 
@@ -3412,6 +3441,28 @@ const tc = THEME.colour;
     try { localStorage.setItem('jarvis-setup', JSON.stringify(SETUP)); } catch (_) {}
     return api('/api/setup', patch).then(d => { Object.assign(SETUP, d); return d; }).catch(() => null);
   }
+  // Any picked image (PNG, JPEG, WebP, GIF or SVG) is drawn onto a canvas and sent as a PNG no
+  // bigger than 720 x 240, shrinking further if needed to stay well under the server's limit.
+  function logoPng(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file), img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let w = img.naturalWidth || 720, h = img.naturalHeight || 240;
+        let k = Math.min(1, 720 / w, 240 / h);
+        for (let tries = 0; tries < 6; tries++, k *= 0.75) {
+          const c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          const png = c.toDataURL('image/png');
+          if (png.length < 460 * 1024) return resolve(png);
+        }
+        reject(new Error('That image is too detailed to use as a logo. Try a simpler one.'));
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('That file is not an image I can read.')); };
+      img.src = url;
+    });
+  }
   let onboardStarted = false;
   async function maybeOnboard(force) {
     if (onboardStarted) return;
@@ -3448,6 +3499,38 @@ const tc = THEME.colour;
           <input type="text" id="ob-addr" maxlength="40" value="${esc(SETUP.address)}">`,
         next: () => saveSetup({ user_name: card.querySelector('#ob-name').value.trim(),
                                 address: card.querySelector('#ob-addr').value.trim() })
+      },
+      {
+        title: 'Your logo (optional)',
+        say: 'If you have a logo, I can put it in the top left corner in place of my name.',
+        body: () => `<p>Pick your logo, or any image you like. It replaces <strong>JARVIS</strong> in the top left
+          corner. A wide image with a transparent background looks best.</p>
+          <input type="file" id="ob-logo" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml">
+          <div class="logo-prev"><img id="ob-logo-prev" alt="Your logo"${SETUP.logo ? ` src="${esc(SETUP.logo)}"` : ' hidden'}></div>
+          <div class="row" style="justify-content:flex-start"><button type="button" id="ob-logo-rm"${SETUP.logo ? '' : ' hidden'}>Remove logo</button></div>
+          <p class="note" id="ob-logo-out">No logo? Skip this and JARVIS stays.</p>`,
+        wire: () => {
+          const out = card.querySelector('#ob-logo-out'), prev = card.querySelector('#ob-logo-prev'), rm = card.querySelector('#ob-logo-rm');
+          const show = url => {
+            SETUP.logo = url; try { localStorage.setItem('jarvis-setup', JSON.stringify(SETUP)); } catch (_) {}
+            applyLogo(url);
+            prev.hidden = !url; if (url) prev.src = url; else prev.removeAttribute('src');
+            rm.hidden = !url;
+          };
+          card.querySelector('#ob-logo').onchange = async e => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            out.textContent = 'Adding your logo…';
+            try {
+              const r = await api('/api/logo', { png: await logoPng(file) });
+              show(r.logo); out.textContent = 'Done. That is your logo, top left.';
+            } catch (err) { out.textContent = err.message || 'That image could not be used. Try another.'; }
+          };
+          rm.onclick = async () => {
+            try { const r = await api('/api/logo', { remove: true }); show(r.logo); out.textContent = 'Removed. JARVIS is back.'; }
+            catch (err) { out.textContent = err.message; }
+          };
+        }
       },
       {
         title: 'My voice',
