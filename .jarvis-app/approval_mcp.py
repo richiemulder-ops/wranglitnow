@@ -37,6 +37,8 @@ def decide(tool_name, tool_input, tool_use_id):
         return {"behavior": "deny", "message": f"Couldn't reach Jarvis to ask for approval ({e})."}
     if ticket.get("decision") == "approve":   # file work inside the vault: allowed without asking
         return {"behavior": "allow", "updatedInput": tool_input}
+    if ticket.get("decision") == "deny":      # never allowed (sending email, for one): no need to ask
+        return {"behavior": "deny", "message": ticket.get("message") or "Not allowed."}
     deadline = time.time() + WAIT
     while time.time() < deadline:
         time.sleep(1)

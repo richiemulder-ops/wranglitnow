@@ -164,6 +164,10 @@ ACTION: deliverables | <the project name, exactly as listed below>
 Glob or Grep, then ACTION: open | <its path relative to the vault, exactly as found>. Only open a file \
 that exists. If more than one file fits, list them and ask which one, with no ACTION line. Prefer files \
 in the project's folder, copilot/projects/<name>/, and the newest version when they say "latest".
+- Draft an email ("draft an email to Ben about Friday", "reply to Anthony saying yes", "write to the client \
+that the report is late"): ACTION: draft | <everything the team needs in one line: who it is to, what it should say \
+in the user's words, the tone if they gave one, and the subject or sender of the email being replied to>. The team \
+writes it and puts it in their Outlook Drafts folder; nothing is ever sent. Say it is with the team and will be in Drafts.
 - Talk to a team member directly ("let me talk to Penn", "ask Pax what he found on X", "open a chat with Larry"): ACTION: chat | <their name> | <the message to pass on, in the user's words, or empty if they only want the chat opened>. You can do this: it opens a chat window with that person, and they reply there themselves. Use this rather than DELEGATE whenever the user wants to talk to or ask one person; DELEGATE is for work handed to Larry's team to run in the background.
 Their projects: {projects}. The team: {team}."""
 
@@ -719,6 +723,18 @@ def run_action(line):
                 rel = rel[len(vault_fwd) + 1:]
             open_in_os("vault", rel)   # vault files of document types only
             return {"type": "open", "path": rel}
+        if kind == "draft":
+            brief = " | ".join(parts).strip()
+            if not brief:
+                return {"type": "error", "message": "Tell me who the email is to and what it should say."}
+            try:
+                who = team_member("Wren")[0]   # the correspondence specialist, if hired
+            except ChatError:
+                who = team_member("Larry")[0]
+            message = (f"Please draft this email and place it in my Outlook Drafts folder (never send it): {brief}\n"
+                       "Find the recipient's address from my CRM notes or past email. If it is a reply, find the email "
+                       "and use a reply draft. Tell me who it is to, the subject and the draft's link.")
+            return {"type": "chat", "agent": who, "chat": agent_say(who, message)["id"]}
         if kind == "chat":
             who = team_member(parts[0] if parts else "")[0]
             message = " | ".join(parts[1:]).strip()
@@ -845,6 +861,15 @@ JOB_TOOLS = ["Read", "Write", "Edit", "Glob", "Grep", "Agent", "Task", "TodoWrit
              "mcp__claude_ai_Microsoft_365__outlook_email_search",
              "mcp__claude_ai_Microsoft_365__outlook_calendar_search",
              "mcp__claude_ai_Microsoft_365__read_resource"]
+# Email drafts land in the user's Outlook Drafts folder without asking: that is where the user reads,
+# edits and sends them. These four only ever make or change a draft. Every other Outlook tool that
+# changes the mailbox (send, forward, delete, move, rules, out of office) is refused outright.
+DRAFT_TOOLS = ["mcp__claude_ai_Microsoft_365__outlook_create_draft",
+               "mcp__claude_ai_Microsoft_365__outlook_create_reply_draft",
+               "mcp__claude_ai_Microsoft_365__outlook_create_reply_all_draft",
+               "mcp__claude_ai_Microsoft_365__outlook_update_draft"]
+JOB_TOOLS += DRAFT_TOOLS
+M365_OK = set(M365_TOOLS) | {t for t in JOB_TOOLS if "Microsoft_365" in t}
 FIREFLIES_MCP = '{"mcpServers": {"fireflies": {"type": "http", "url": "https://api.fireflies.ai/mcp"}}}'
 JOB_PROMPT = """Jarvis, the user's voice assistant, relays this request from the user:
 
@@ -1180,6 +1205,9 @@ def request_approval(run_key, token, tool, inp, use_id):
         chat = _load_chat(rid)
         asker = chat["agent"]
     inp = inp if isinstance(inp, dict) else {}
+    if "Microsoft_365" in str(tool) and str(tool) not in M365_OK:
+        return {"ticket": None, "decision": "deny",
+                "message": "Jarvis never lets an agent send, forward, delete or file email. Put it in Drafts instead."}
     if str(tool) == "Bash" and vault_file_work(str(inp.get("command", ""))):
         return {"ticket": None, "decision": "approve"}   # vault file work: no need to ask
     if str(tool) == "Bash" and agent_permissions() == "auto" and vault_only_by_check(str(inp.get("command", ""))):
@@ -1792,6 +1820,7 @@ def track_event(job, event):
             agent["activity"] = f"briefing {who[:1].upper() + who[1:]}"
         else:
             verb = TOOL_VERBS.get(name) or ("asking Fireflies" if "fireflies" in name else
+                                            "placing a draft in Outlook" if name in DRAFT_TOOLS else
                                             "checking Outlook" if "Microsoft_365" in name else f"using {name}")
             target = args.get("file_path") or args.get("pattern") or ""
             job["activity"] = f"{agent['name']} is {verb}" + (f" {os.path.basename(str(target))}" if target else "")
