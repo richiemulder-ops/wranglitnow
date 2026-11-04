@@ -330,7 +330,7 @@
   #ctxmenu button.danger { color: #ff8a9e; }
   #ctxmenu button.danger:hover { background: rgba(255,92,122,0.14); }
   #ctxmenu .sep { height: 1px; margin: 4px 6px; background: var(--edge); }
-  #qmodal { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center;
+  #qmodal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
     background: rgba(8, 10, 26, 0.55); backdrop-filter: blur(3px); }
   #qmodal[hidden] { display: none; }
   .qbox { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 60px); overflow-y: auto; box-sizing: border-box;
@@ -411,10 +411,46 @@
     #metrics .metric:nth-child(n+4) { display: none; }
   }
   @media (max-width: 600px) { #metrics { display: none; } }
+  /* An email opened from the Outlook card. */
+  #work .mail-head { display: grid; gap: 4px; padding: 10px 12px; margin: 6px 0 14px; border-radius: 10px;
+    background: rgba(255,255,255,0.04); border-left: 3px solid var(--accent); font-size: 12.5px; color: var(--ink); }
+  #work .mail-head span { display: inline-block; width: 64px; color: var(--dim); }
+  #work .mail-body { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13.5px; line-height: 1.6; color: var(--ink); }
+  /* Current work: a metrics tile that pulses while agents work, and the screen it opens. */
+  #metrics .metric.crew-tile { display: block !important; flex: 0 0 auto; min-width: 128px; }
+  .metric.crew-tile.live .k span::after { content: ""; display: inline-block; width: 7px; height: 7px; margin-left: 7px;
+    border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: crewpulse 1.2s ease-in-out infinite; }
+  @keyframes crewpulse { 50% { opacity: 0.25; transform: scale(0.7); } }
+  #crew { position: fixed; inset: 0; z-index: 45; display: flex; flex-direction: column; padding: 18px 22px 22px;
+    box-sizing: border-box; background: rgba(8, 10, 26, 0.86); backdrop-filter: blur(6px); }
+  #crew[hidden] { display: none; }
+  #crew header { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+  #crew header .kick { font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); }
+  #crew header h2 { margin: 2px 0 0; font-size: 20px; font-weight: 600; }
+  #crew header .close { margin-left: auto; font: inherit; font-size: 16px; color: var(--ink); background: rgba(255,255,255,0.05);
+    border: 1px solid var(--edge); border-radius: 999px; width: 34px; height: 34px; cursor: pointer; }
+  #crew .crew-main { flex: 1; min-height: 0; display: flex; gap: 16px; }
+  #crew canvas { flex: 1; min-width: 0; width: 100%; height: 100%; border-radius: 16px; background: rgba(13, 16, 40, 0.7);
+    border: 1px solid var(--edge); }
+  #crew aside { width: 320px; flex: none; overflow-y: auto; padding-right: 4px;
+    scrollbar-width: thin; scrollbar-color: rgba(186,211,103,0.25) transparent; }
+  #crew aside h4 { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent, var(--brand)); }
+  #crew aside .grp { margin-bottom: 16px; }
+  #crew aside .row { cursor: pointer; padding: 8px 10px; margin-bottom: 6px; border-radius: 10px; background: rgba(255,255,255,0.04);
+    border-left: 3px solid var(--accent, var(--brand)); font-size: 12.5px; line-height: 1.4; }
+  #crew aside .row b { font-size: 13px; } #crew aside .row .src { float: right; font-size: 10px; color: var(--dim);
+    text-transform: uppercase; letter-spacing: 0.1em; }
+  #crew aside .row .task { color: var(--ink); } #crew aside .row .act { color: var(--dim); font-size: 11.5px; }
+  #crew aside .row.done { opacity: 0.55; }
+  #crew aside .asks .approval { margin-bottom: 8px; }
+  #crew aside .asks .ap-actions { flex-wrap: wrap; }
+  #crew aside .empty { color: var(--dim); font-size: 13px; line-height: 1.5; }
+  @media (max-width: 800px) { #crew .crew-main { flex-direction: column; } #crew aside { width: auto; max-height: 34vh; } }
   /* Jobs handed to Larry: a small tray under the emblem. */
   #jobs { position: fixed; right: calc(var(--right-rail) + 22px); top: calc(var(--jarvis-top) + var(--jarvis-size) + 16px);
     width: max(var(--jarvis-size), 240px); display: flex; flex-direction: column; gap: 8px;
-    max-height: calc(100vh - var(--jarvis-top) - var(--jarvis-size) - 265px); overflow-y: auto;
+    /* Stops above the context card, whatever its height (--ctx-h is kept in step by script). */
+    max-height: calc(100vh - var(--jarvis-top) - var(--jarvis-size) - 16px - 26px - var(--ctx-h, 249px) - 12px); overflow-y: auto;
     scrollbar-width: thin; scrollbar-color: rgba(186,211,103,0.25) transparent;
     transition: right 0.6s cubic-bezier(.2,.8,.2,1); }
   .job { padding: 10px 12px; border-radius: 12px; background: var(--glass); backdrop-filter: blur(14px);
@@ -447,6 +483,9 @@
   #context { position: fixed; bottom: 26px; right: calc(var(--right-rail) + 22px); width: max(var(--jarvis-size), 240px);
     box-sizing: border-box; padding: 10px 12px; border-radius: 12px; background: var(--glass);
     backdrop-filter: blur(14px); border: 1px solid var(--edge); font-size: 11.5px;
+    /* With many agents it scrolls rather than squeezing the job cards out of view. */
+    max-height: max(140px, calc(100vh - var(--jarvis-top) - var(--jarvis-size) - 16px - 26px - 12px - 150px));
+    overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(186,211,103,0.25) transparent;
     transition: right 0.6s cubic-bezier(.2,.8,.2,1); }
   #context .title { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: 0.16em;
     text-transform: uppercase; color: var(--dim); margin-bottom: 6px; }
@@ -700,6 +739,11 @@ const tc = THEME.colour;
 
 <div id="ctxmenu" hidden role="menu"></div>
 <div id="qmodal" hidden role="dialog" aria-modal="true" aria-label="A question from the team"><div class="qbox"></div></div>
+<div id="crew" hidden role="dialog" aria-modal="true" aria-label="Current work">
+  <header><div><div class="kick">Current work</div><h2>Who is working on what</h2><div class="kick" style="margin-top:4px;letter-spacing:0.04em;text-transform:none">Click a bot or a row to chat with that agent · drag to turn · scroll to zoom</div></div>
+    <button class="close" type="button" title="Close (Esc)" aria-label="Close">✕</button></header>
+  <div class="crew-main"><canvas aria-label="Agents shown as bots in their project's zone"></canvas><aside aria-live="polite"></aside></div>
+</div>
 
 <div id="ask">
   <div id="answer" aria-live="polite"></div>
@@ -1856,11 +1900,12 @@ const tc = THEME.colour;
       // Redraw Larry's tray only when a request comes or goes: redrawing every check replays the
       // cards' fade-in, so they flicker.
       if (trayChanged && typeof renderJobs === 'function') renderJobs();
+      if (trayChanged && crewOpen) { assignBots(); renderCrewList(); }
     } catch (_) { /* the server may be restarting */ }
     setTimeout(watchApprovals, 3000);
   }
   setTimeout(watchApprovals, 3000);
-  function showTeamChat(agentName = lastTeamAgent, chatId = null) {
+  function showTeamChat(agentName = lastTeamAgent, chatId = null, draft = '') {
     const member = team.find(a => a.name.toLowerCase() === String(agentName).toLowerCase()) || team[0];
     if (!member) { setStatus('error', 'No team in this vault yet', 4000); return; }
     lastTeamAgent = member.name;
@@ -1885,6 +1930,7 @@ const tc = THEME.colour;
         const listEl = content.querySelector('.chat-list .list'), aboutEl = content.querySelector('.about');
         const msgsEl = content.querySelector('.msgs'), input = content.querySelector('textarea');
         const micBtn = content.querySelector('.mic'), sendBtn = content.querySelector('.send');
+        if (draft) { input.value = draft; setTimeout(() => { input.focus(); input.setSelectionRange(draft.length, draft.length); }, 50); }
         aboutEl.textContent = (member.description || member.role) + ' Each message runs ' + member.name +
           ' in your vault, so replies can take a minute or more when there is work to do.';
 
@@ -1949,7 +1995,7 @@ const tc = THEME.colour;
             else if (wasRunning) {
               loadList();
               const last = chat.messages[chat.messages.length - 1];
-              if (last && last.who === 'agent') speak(`${member.name} has replied.`);
+              if (last && last.who === 'agent' && !chat.job) speak(`${member.name} has replied.`);   // a job's own tray says it
               loadHires();
             }
           } catch (err) { clearTimeout(poll); poll = setTimeout(refresh, 5000); }
@@ -2245,10 +2291,32 @@ const tc = THEME.colour;
       data.emails.forEach(m => itemButton(b, {
         name: String(m.subject || '(no subject)'), color: tc('#f7853b'), cls: m.unread ? 'unread' : '',
         sub: [m.from, m.received].filter(Boolean).join(' · '),
-        title: 'Ask Jarvis what your notes say about this', onClick: () => ask(`What do my notes say about ${m.subject}?`)
+        title: m.key ? 'Open this email' : 'Ask Jarvis what your notes say about this',
+        onClick: () => m.key ? openEmail(m) : ask(`What do my notes say about ${m.subject}?`)
       }));
     }
   })();
+
+  // One email, read from Outlook (read only) and shown in the workspace.
+  function openEmail(m) {
+    openView({
+      kicker: `Email · ${m.from || 'Outlook'}`, title: String(m.subject || '(no subject)'), accent: tc('#f7853b'),
+      render: async (bar, content) => {
+        if (m.link) linkButton(bar, 'Open in Outlook', () => window.open(m.link, '_blank', 'noopener'));
+        linkButton(bar, 'Ask Jarvis about this', () => ask(`What do my notes say about ${m.subject}?`));
+        loadingInto(content, 'Opening the email from Outlook… about 15 seconds the first time.');
+        try {
+          const e = await api(`/api/email?key=${encodeURIComponent(m.key)}`);
+          const field = (k, v) => v ? `<div><span>${k}</span>${escapeHtml(v)}</div>` : '';
+          content.innerHTML = `<div class="mail-head">${field('From', e.from)}${field('To', e.to)}${field('Cc', e.cc)}` +
+            `${field('Date', e.date)}${e.attachments.length ? field('Attached', e.attachments.join(', ')) : ''}</div>`;
+          const body = document.createElement('div'); body.className = 'mail-body'; body.textContent = e.body;
+          content.appendChild(body);
+        } catch (err) { failInto(content, err); }
+      }
+    }, false);
+  }
+
 
   function setActiveProject(p) {
     if (activeProject && activeProject.card) {
@@ -2729,8 +2797,16 @@ const tc = THEME.colour;
   window.addEventListener('focus', claimVoice);
   claimVoice();
 
+  let lastSaid = { text: '', at: 0 };
   function speak(text, maxSentences = MAX_SPOKEN_SENTENCES) {
     if (!synth || !voiceOn || !text || !ownsVoice()) return;
+    // Two triggers for one event (or two Jarvis tabs) would say the same line twice: skip a repeat
+    // within ten seconds.
+    const now = Date.now();
+    try { const o = JSON.parse(localStorage.getItem('jarvis-last-said') || 'null'); if (o) lastSaid = o; } catch (_) {}
+    if (lastSaid.text === text && now - lastSaid.at < 10000) return;
+    lastSaid = { text, at: now };
+    try { localStorage.setItem('jarvis-last-said', JSON.stringify(lastSaid)); } catch (_) {}
     stopSpeaking();
     const token = speakToken;
     const clean = text.replace(/[`*_#>|]/g, '').replace(/\s+/g, ' ').trim();
@@ -3496,7 +3572,554 @@ const tc = THEME.colour;
     render();
   }
 
+  // ---- current work -----------------------------------------------------------------------
+  // A tile that pulses while anyone is working, and a screen where each agent is a little bot:
+  // idle ones wait in Team HQ, working ones walk to their project's zone and say what they're doing.
+  const crewEl = document.getElementById('crew'), crewCanvas = crewEl.querySelector('canvas');
+  const crewList = crewEl.querySelector('aside');
+  const tCrew = tile(tc('#ffb347'), 'Current work', () => openCrew());
+  tCrew.el.classList.add('crew-tile');
+  const AGENT_COLOUR = Object.fromEntries((GRAPH.agents || []).map(a => [a.name, a.color]));
+  const PROJECT_COLOUR = Object.fromEntries((GRAPH.projects || []).map(p => [p.name, p.color]));
+  const hueOf = s => { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) % 360; return `hsl(${h}, 70%, 65%)`; };
+  const colourOf = name => AGENT_COLOUR[name] || hueOf(name);
+  const HQ = 'Team HQ';
+  let crew = { team: [], workers: [] }, crewOpen = false, crewFrame = 0, lastT = 0;
+
+  async function pollCrew() {
+    try { crew = await api('/api/current-work'); } catch (_) { return; }
+    const live = crew.workers.filter(w => !w.done);
+    const projects = [...new Set(live.map(w => w.project))];
+    tCrew.el.classList.toggle('live', live.length > 0);
+    tCrew.set(live.length ? `${live.length} <small>${live.length === 1 ? 'agent' : 'agents'}</small>` : '<small>Team idle</small>',
+      live.length ? escapeHtml(projects.join(' · ')) : 'Nobody is working',
+      live.length ? live.map(w => `${w.agent}: ${w.project}${w.activity ? ' (' + w.activity + ')' : ''}`).join('\n') : 'Click to see the team');
+    if (crewOpen) { assignBots(); renderCrewList(); }
+  }
+  pollCrew();
+  setInterval(() => { if (!crewOpen) pollCrew(); }, 5000);
+  let crewTimer = null;
+
+  function openCrew() {
+    crewEl.hidden = false; crewOpen = true;
+    sizeCrew(); assignBots(); renderCrewList();
+    clearInterval(crewTimer); crewTimer = setInterval(pollCrew, 2000);
+    lastT = performance.now(); cancelAnimationFrame(crewFrame); crewFrame = requestAnimationFrame(drawCrew);
+  }
+  function closeCrew() {
+    crewEl.hidden = true; crewOpen = false; clearInterval(crewTimer); cancelAnimationFrame(crewFrame);
+  }
+  crewEl.querySelector('.close').onclick = closeCrew;
+  window.addEventListener('keydown', e => { if (e.key === 'Escape' && crewOpen) { e.stopPropagation(); closeCrew(); } }, true);
+  // The factory: a 3D floor with a station per project being worked on and a charging bay
+  // (Team HQ) where idle bots wait. Built once, on first open, with the page's own three.js.
+  let F = null;
+  const HQ_X = -13;
+  function labelSprite(text, colour, opts = {}) {
+    const size = opts.size || 30, pad = 14, c = document.createElement('canvas'), g = c.getContext('2d');
+    g.font = `600 ${size}px system-ui, sans-serif`;
+    const w = Math.ceil(g.measureText(text).width) + pad * 2, h = size + pad * 1.4 + (opts.tail ? 12 : 0);
+    c.width = w; c.height = h;
+    g.font = `600 ${size}px system-ui, sans-serif`;
+    const bh = h - (opts.tail ? 12 : 0);
+    g.fillStyle = opts.bg || 'rgba(13,16,40,0.9)'; g.strokeStyle = colour; g.lineWidth = 3;
+    g.beginPath(); g.roundRect ? g.roundRect(2, 2, w - 4, bh - 4, bh / 2.4) : g.rect(2, 2, w - 4, bh - 4); g.fill(); g.stroke();
+    if (opts.tail) { g.beginPath(); g.moveTo(w / 2 - 10, bh - 3); g.lineTo(w / 2, h - 1); g.lineTo(w / 2 + 10, bh - 3); g.fill(); }
+    g.fillStyle = opts.ink || colour; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, w / 2, bh / 2 + 1);
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+    const k = (opts.scale || 0.011);
+    s.scale.set(w * k, h * k, 1); s.renderOrder = 10; s.userData.text = text;
+    return s;
+  }
+  const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.15, ...extra });
+
+  // Soft pastel equipment on the navy floor. Each piece is built facing +x and turned to face the
+  // viewer; its bot works from behind it, facing out, so you see both the bot's face and the machine.
+  const PASTEL = { cream: 0xf6efe2, mint: 0xbfe6c7, peach: 0xffcf9e, sky: 0xa9d4ff, lilac: 0xcdb8ff, coral: 0xff9b8a,
+                   wood: 0xe8c79c, ink: 0x2d3570, pot: 0xd98b6a, leaf: 0x7fc35a };
+  // A rounded box: w along x, h along y, d along z, with soft bevelled corners.
+  function rbox(w, h, d, r = 0.12, color = PASTEL.cream, extra = {}) {
+    const b = Math.min(r, d / 2 - 0.002, w / 2 - 0.002, h / 2 - 0.002) * 0.6, sw = w - 2 * b, sh = h - 2 * b;
+    const cr = Math.max(0.002, Math.min(r - b, sw / 2 - 0.001, sh / 2 - 0.001)), x = -sw / 2, y = -sh / 2, s = new THREE.Shape();
+    s.moveTo(x + cr, y); s.lineTo(x + sw - cr, y); s.quadraticCurveTo(x + sw, y, x + sw, y + cr);
+    s.lineTo(x + sw, y + sh - cr); s.quadraticCurveTo(x + sw, y + sh, x + sw - cr, y + sh);
+    s.lineTo(x + cr, y + sh); s.quadraticCurveTo(x, y + sh, x, y + sh - cr); s.lineTo(x, y + cr); s.quadraticCurveTo(x, y, x + cr, y);
+    const g = new THREE.ExtrudeGeometry(s, { depth: Math.max(0.002, d - 2 * b), bevelEnabled: true, bevelThickness: b, bevelSize: b,
+                                             bevelSegments: 3, curveSegments: 6 });
+    g.center();
+    const m = new THREE.Mesh(g, mat(color, { roughness: 0.6, metalness: 0.05, ...extra }));
+    m.castShadow = true; m.receiveShadow = true;
+    return m;
+  }
+  const at = (m, x, y, z) => { m.position.set(x, y, z); return m; };
+  const cyl = (rt, rb, h, color, seg = 20) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat(color, { roughness: 0.6 })); m.castShadow = true; return m; };
+  const ball = (r, color, extra) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 18, 14), mat(color, extra)); m.castShadow = true; return m; };
+  // A screen: scrolling lines of "code" in mint and lime, drawn once and scrolled while in use.
+  function screenTexture(tint) {
+    const c = document.createElement('canvas'); c.width = 128; c.height = 128; const g = c.getContext('2d');
+    g.fillStyle = '#10153a'; g.fillRect(0, 0, 128, 128);
+    for (let y = 6; y < 128; y += 10) {
+      g.fillStyle = Math.random() < 0.3 ? tint : (Math.random() < 0.5 ? '#bfe6c7' : '#7f8ac0');
+      g.fillRect(8 + Math.random() * 14, y, 20 + Math.random() * 70, 4);
+    }
+    const t = new THREE.CanvasTexture(c); t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }
+  function screen(w, h, tint) {
+    const tex = screenTexture(tint);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex }));
+    m.rotation.y = Math.PI / 2; m.userData.tex = tex;
+    return m;
+  }
+  function plant(x, z, s = 1) {
+    const g = new THREE.Group();
+    g.add(at(cyl(0.32, 0.24, 0.5, PASTEL.pot), 0, 0.25, 0));
+    [[0, 0.85, 0, 0.38], [0.18, 0.7, 0.12, 0.26], [-0.17, 0.72, -0.1, 0.27], [0.05, 1.12, -0.05, 0.24]].forEach(([a, b, c, r]) =>
+      g.add(at(ball(r, PASTEL.leaf, { roughness: 0.8 }), a, b, c)));
+    g.position.set(x, 0, z); g.scale.setScalar(s); F.scene.add(g);
+  }
+  function stationSign(g, text, y) { const s = labelSprite(text, '#9aa3c0', { size: 26, scale: 0.0085 }); s.position.set(0, y, 0); g.add(s); }
+  const EQUIP = 1.5;   // equipment scale, so desks and machines read well next to the bots
+  function addStation(kind, x, z, build, spots, sign) {
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = -Math.PI / 2; g.scale.setScalar(EQUIP); F.scene.add(g);
+    const parts = build(g) || {};
+    if (sign) stationSign(g, sign.text, sign.y);
+    const st = { kind, group: g, parts, active: 0,
+                 spots: spots.map(([sx, sz]) => ({ pos: new THREE.Vector3(x + sx * EQUIP, 0.02, z + sz * EQUIP), taken: null })) };
+    F.stations.push(st);
+    return st;
+  }
+
+  // Desk: a wooden top on round legs, a cream monitor with a scrolling screen, keyboard and a mug.
+  function buildDesk(g) {
+    g.add(at(rbox(1.3, 0.16, 2.1, 0.08, PASTEL.wood), 0, 0.95, 0));
+    [[-0.5, -0.85], [-0.5, 0.85], [0.5, -0.85], [0.5, 0.85]].forEach(([a, b]) => g.add(at(cyl(0.06, 0.06, 0.9, PASTEL.cream, 10), a, 0.45, b)));
+    g.add(at(cyl(0.05, 0.05, 0.3, PASTEL.cream, 10), -0.38, 1.15, 0));
+    g.add(at(rbox(0.22, 0.06, 0.5, 0.03, PASTEL.cream), -0.38, 1.04, 0));
+    g.add(at(rbox(0.14, 0.82, 1.25, 0.12, PASTEL.cream), -0.38, 1.62, 0));
+    const scr = at(screen(1.02, 0.62, '#bad367'), -0.3, 1.63, 0); g.add(scr);
+    g.add(at(rbox(0.36, 0.06, 0.8, 0.03, PASTEL.sky), 0.18, 1.06, 0));
+    const mug = at(cyl(0.09, 0.08, 0.18, PASTEL.coral, 14), 0.3, 1.12, 0.75); g.add(mug);
+    return { screens: [scr] };
+  }
+  // Larry's control desk: wide, with three monitors.
+  function buildControl(g) {
+    g.add(at(rbox(1.4, 0.18, 3.4, 0.1, PASTEL.lilac), 0, 0.95, 0));
+    g.add(at(rbox(1.2, 0.85, 3.2, 0.14, PASTEL.cream), 0, 0.45, 0));
+    const screens = [-1.05, 0, 1.05].map(z => {
+      g.add(at(rbox(0.14, 0.72, 1.0, 0.1, PASTEL.cream), -0.4, 1.58, z));
+      const s = at(screen(0.82, 0.54, '#ffb347'), -0.32, 1.58, z); g.add(s); return s;
+    });
+    g.add(at(ball(0.12, 0xff6b6b, { emissive: 0xff6b6b, emissiveIntensity: 0.4 }), 0.3, 1.1, 1.3));
+    return { screens };
+  }
+  // Filing cabinet: a tall lilac cabinet whose drawers slide out while someone searches.
+  function buildFiling(g) {
+    g.add(at(rbox(1.1, 2.1, 1.3, 0.14, PASTEL.lilac), 0, 1.05, 0));
+    const drawers = [0.45, 1.05, 1.65].map(y => {
+      const d = new THREE.Group(); d.position.set(0.55, y, 0);
+      d.add(at(rbox(0.12, 0.5, 1.08, 0.08, 0xe4d8ff), 0, 0, 0));
+      d.add(at(rbox(0.08, 0.08, 0.4, 0.04, PASTEL.ink), 0.08, 0.05, 0));
+      g.add(d); return d;
+    });
+    g.add(at(rbox(0.5, 0.12, 0.7, 0.05, 0xffffff), 0, 2.16, 0));
+    return { drawers };
+  }
+  // Data cruncher: a sky-blue machine with a glowing porthole, two gears on top and a puffing chimney.
+  function buildCruncher(g) {
+    g.add(at(rbox(1.7, 1.7, 2.0, 0.22, PASTEL.sky), 0, 0.85, 0));
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.07, 10, 28), mat(PASTEL.cream)); ring.rotation.y = Math.PI / 2; g.add(at(ring, 0.86, 1.0, 0));
+    const core = new THREE.Mesh(new THREE.CircleGeometry(0.4, 28), mat(PASTEL.mint, { emissive: 0xbad367, emissiveIntensity: 0.3 }));
+    core.rotation.y = Math.PI / 2; g.add(at(core, 0.87, 1.0, 0));
+    const gears = [[-0.2, -0.45, 0.42], [0.25, 0.35, 0.32]].map(([x, z, r]) => {
+      const gr = new THREE.Group(); gr.position.set(x, 1.82, z);
+      gr.add(at(cyl(r, r, 0.16, PASTEL.peach, 24), 0, 0, 0));
+      for (let i = 0; i < 8; i++) { const tth = at(rbox(0.16, 0.14, 0.16, 0.04, PASTEL.peach), Math.cos(i / 8 * Math.PI * 2) * r, 0, Math.sin(i / 8 * Math.PI * 2) * r); gr.add(tth); }
+      gr.add(at(cyl(0.08, 0.08, 0.2, PASTEL.cream, 12), 0, 0.02, 0));
+      g.add(gr); return gr;
+    });
+    g.add(at(cyl(0.18, 0.22, 0.6, PASTEL.cream), -0.45, 2.0, 0.6));
+    const puffs = [0, 1, 2].map(i => { const p = ball(0.16, 0xffffff, { transparent: true, opacity: 0.8, roughness: 1 }); g.add(at(p, -0.45, 2.4 + i * 0.4, 0.6)); p.userData.off = i / 3; return p; });
+    return { gears, core, puffs };
+  }
+  // Meeting recorder (Fireflies): a peach tape machine with two reels and a little microphone.
+  function buildRecorder(g) {
+    g.add(at(rbox(1.3, 1.0, 1.8, 0.2, PASTEL.peach), 0, 0.5, 0));
+    const reels = [-0.45, 0.45].map(z => {
+      const r = new THREE.Group(); r.position.set(0, 1.08, z);
+      r.add(at(cyl(0.34, 0.34, 0.1, PASTEL.cream, 24), 0, 0, 0));
+      [0, 1, 2].forEach(i => r.add(at(rbox(0.08, 0.12, 0.42, 0.03, PASTEL.ink), 0, 0.03, 0))) ;
+      r.children.slice(1).forEach((c, i) => { c.rotation.y = i * Math.PI / 3; });
+      g.add(r); return r;
+    });
+    g.add(at(cyl(0.03, 0.03, 0.7, PASTEL.ink, 8), 0.4, 1.35, 0));
+    const mic = at(ball(0.16, PASTEL.coral, { emissive: 0xff9b8a, emissiveIntensity: 0.2 }), 0.4, 1.75, 0); g.add(mic);
+    return { reels, mic };
+  }
+  // Mail room (Outlook): a coral mailbox with a flag that pops up, beside a little sorting shelf.
+  function buildMail(g) {
+    g.add(at(cyl(0.08, 0.08, 0.9, PASTEL.cream, 10), 0, 0.45, -0.5));
+    g.add(at(rbox(0.9, 0.7, 1.0, 0.12, PASTEL.coral), 0, 1.15, -0.5));
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.0, 20, 1, false, 0, Math.PI), mat(PASTEL.coral));
+    top.rotation.z = Math.PI / 2; top.rotation.y = Math.PI / 2; top.castShadow = true; g.add(at(top, 0, 1.5, -0.5));
+    g.add(at(rbox(0.06, 0.3, 0.5, 0.03, PASTEL.ink), 0.46, 1.25, -0.5));
+    const flag = new THREE.Group(); flag.position.set(0.1, 1.15, 0.02);
+    flag.add(at(rbox(0.05, 0.6, 0.06, 0.02, PASTEL.cream), 0, 0.3, 0)); flag.add(at(rbox(0.05, 0.22, 0.3, 0.03, 0xff6b6b), 0, 0.5, 0.14));
+    g.add(flag);
+    g.add(at(rbox(0.7, 1.4, 1.0, 0.1, PASTEL.mint), -0.1, 0.7, 0.75));
+    const letters = [0, 1, 2].map(i => { const l = at(rbox(0.04, 0.22, 0.32, 0.02, 0xffffff), 0.1, 0, -0.5); l.visible = false; g.add(l); l.userData.off = i / 3; return l; });
+    return { flag, letters };
+  }
+  // Web dish: a cream satellite dish on a stand that sweeps the sky, faster while searching the web.
+  function buildDish(g) {
+    g.add(at(cyl(0.6, 0.7, 0.3, PASTEL.mint), 0, 0.15, 0));
+    g.add(at(cyl(0.1, 0.12, 1.2, PASTEL.cream, 12), 0, 0.85, 0));
+    const head = new THREE.Group(); head.position.set(0, 1.5, 0);
+    const dish = new THREE.Mesh(new THREE.SphereGeometry(0.9, 28, 12, 0, Math.PI * 2, 0, Math.PI * 0.32), mat(PASTEL.cream, { side: THREE.DoubleSide }));
+    dish.rotation.x = Math.PI; dish.position.y = 0.75; dish.castShadow = true;
+    const tilt = new THREE.Group(); tilt.rotation.z = -0.7; tilt.add(dish);
+    tilt.add(at(cyl(0.03, 0.03, 0.8, PASTEL.ink, 8), 0, 0.3, 0));
+    const tip = at(ball(0.09, 0xffb347, { emissive: 0xffb347, emissiveIntensity: 0.5 }), 0, 0.7, 0); tilt.add(tip);
+    head.add(tilt); g.add(head);
+    return { head, tip };
+  }
+
+  function initFactory() {
+    const renderer = new THREE.WebGLRenderer({ canvas: crewCanvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+    renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x0d1028, 45, 80);
+    const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 200);
+    scene.add(new THREE.HemisphereLight(0xfff6ea, 0x1a1d3a, 1.25));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+    sun.position.set(-8, 26, 16); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+    Object.assign(sun.shadow.camera, { left: -32, right: 32, top: 24, bottom: -24, near: 1, far: 80 });
+    scene.add(sun);
+    // Floor: navy slab, faint grid, a soft mint rug under the work area and a walkway to HQ.
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(50, 0.4, 32), mat(0x1b1f45, { roughness: 0.95 }));
+    floor.position.set(1, -0.2, 0); floor.receiveShadow = true; scene.add(floor);
+    const grid = new THREE.GridHelper(50, 50, new THREE.Color(tc('#bad367')), new THREE.Color(tc('#bad367')));
+    grid.material.transparent = true; grid.material.opacity = 0.06; grid.position.set(1, 0.01, 0); scene.add(grid);
+    const rug = rbox(23, 0.04, 26, 0.6, 0x252a5c, { roughness: 1 }); rug.castShadow = false; scene.add(at(rug, 6.5, 0.03, 0));
+    const walk = mat(new THREE.Color(tc('#ffb347')), { emissive: new THREE.Color(tc('#ffb347')), emissiveIntensity: 0.25 });
+    [[-6.3, 0, 0.12, 27]].forEach(([x, z, w, d]) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.02, d), walk); m.position.set(x, 0.06, z); scene.add(m); });
+
+    F = { renderer, scene, camera, pads: [], stations: [], bots: new Map(), next: 0,
+          yaw: -0.22, pitch: 0.85, dist: 44, target: new THREE.Vector3(-1.5, 0, 0.5) };
+
+    // Team HQ: a raised charging bay with a glowing pad per team member.
+    scene.add(at(rbox(9, 0.3, 26, 0.3, 0x232857), HQ_X, 0.15, 0));
+    const hqSign = labelSprite('Team HQ · charging', '#bad367', { size: 34 }); hqSign.position.set(HQ_X, 3.4, -12); scene.add(hqSign);
+    for (let i = 0; i < 24; i++) {
+      const x = HQ_X - 2.6 + (i % 3) * 2.6, z = -10 + Math.floor(i / 3) * 2.9;
+      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.85, 0.12, 28),
+        mat(0x2d3570, { emissive: new THREE.Color(tc('#bad367')), emissiveIntensity: 0.2 }));
+      p.position.set(x, 0.36, z); p.receiveShadow = true; scene.add(p);
+      F.pads.push({ pos: new THREE.Vector3(x, 0.42, z), mesh: p });
+    }
+
+    // The factory floor: six desks, Larry's control desk, and the machines.
+    [[-0.5, -10], [-0.5, -5], [5, -10], [5, -5], [10.5, -10], [10.5, -5]].forEach(([x, z], i) =>
+      addStation('desk', x, z, buildDesk, [[0, -1.35]], i === 0 ? { text: 'Desks', y: 2.6 } : null));
+    addStation('control', 16, -7.5, buildControl, [[0, -1.45]], { text: "Larry's desk", y: 2.7 });
+    addStation('filing', -0.5, 1, buildFiling, [[-0.5, -1.4], [0.6, -1.4]], { text: 'Filing', y: 2.8 });
+    addStation('cruncher', 5, 1, buildCruncher, [[-0.6, -1.55], [0.6, -1.55]], { text: 'Data cruncher', y: 3.4 });
+    addStation('recorder', 10.5, 1, buildRecorder, [[-0.6, -1.35], [0.6, -1.35]], { text: 'Meeting recorder', y: 2.6 });
+    addStation('mail', -0.5, 7.5, buildMail, [[-0.4, -1.3], [0.7, -1.3]], { text: 'Mail room', y: 2.8 });
+    addStation('web', 5, 7.5, buildDish, [[-0.6, -1.3], [0.6, -1.3]], { text: 'Web dish', y: 3.5 });
+    addStation('press', 10.5, 7.5, g => {           // the print press: where finished files come out
+      g.add(at(rbox(1.4, 1.2, 2.0, 0.2, PASTEL.mint), 0, 0.6, 0));
+      g.add(at(rbox(0.5, 0.1, 1.2, 0.05, 0xffffff), 0.75, 0.75, 0));
+      const roller = at(cyl(0.16, 0.16, 1.4, PASTEL.cream, 16), 0, 1.3, 0); roller.rotation.x = Math.PI / 2; g.add(roller);
+      const sheet = at(rbox(0.6, 0.03, 0.9, 0.02, 0xffffff), 0.6, 0.85, 0); g.add(sheet);
+      return { roller, sheet };
+    }, [[-0.6, -1.4], [0.6, -1.4]], { text: 'Print press', y: 2.4 });
+    plant(16, -2, 1.6); plant(16, 3, 1.3); plant(16, 8.5, 1.7); plant(-3.6, -12, 1.3); plant(-3.6, 11.5, 1.4);
+
+    // Sparks: a small pool of points that fly off busy equipment.
+    const SPARKS = 160;
+    F.sparkPos = new Float32Array(SPARKS * 3); F.sparkVel = new Float32Array(SPARKS * 3); F.sparkLife = new Float32Array(SPARKS);
+    F.sparkGeo = new THREE.BufferGeometry(); F.sparkGeo.setAttribute('position', new THREE.BufferAttribute(F.sparkPos, 3));
+    scene.add(new THREE.Points(F.sparkGeo, new THREE.PointsMaterial({ color: new THREE.Color(tc('#ffb347')), size: 0.12, transparent: true, opacity: 0.95 })));
+
+    // Drag to turn the view, wheel to zoom, click a bot (or its name tag or bubble) to chat with it.
+    let drag = null;
+    const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+    const botAt = e => {
+      const r = crewCanvas.getBoundingClientRect();
+      ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      ray.setFromCamera(ndc, F.camera);
+      for (const hit of ray.intersectObjects([...F.bots.values()].map(b => b.group), true)) {
+        let o = hit.object; while (o && !o.userData.botName) o = o.parent;
+        if (o) return o.userData.botName;
+      }
+      return null;
+    };
+    crewCanvas.onpointerdown = e => { drag = { x: e.clientX, y: e.clientY, yaw: F.yaw, pitch: F.pitch, moved: false }; crewCanvas.setPointerCapture(e.pointerId); };
+    crewCanvas.onpointermove = e => {
+      if (!drag) { crewCanvas.style.cursor = botAt(e) ? 'pointer' : 'grab'; return; }
+      if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 5) drag.moved = true;
+      F.yaw = drag.yaw - (e.clientX - drag.x) * 0.006; F.pitch = Math.min(1.35, Math.max(0.35, drag.pitch + (e.clientY - drag.y) * 0.005)); };
+    crewCanvas.onpointerup = e => {
+      const click = drag && !drag.moved; drag = null;
+      if (click) { const name = botAt(e); if (name) chatWithBot(name); }
+    };
+    crewCanvas.onwheel = e => { e.preventDefault(); F.dist = Math.min(70, Math.max(14, F.dist + e.deltaY * 0.02)); };
+  }
+
+  // Which piece of equipment an activity happens at.
+  function equipmentFor(w) {
+    if (!w) return 'hq';
+    if (w.done) return 'hq';
+    const a = (w.activity || '').toLowerCase();
+    if (/outlook|mail/.test(a)) return 'mail';
+    if (/fireflies|transcript/.test(a)) return 'recorder';
+    if (/webfetch|websearch|web/.test(a)) return 'web';
+    if (/running a command/.test(a)) return 'cruncher';
+    if (/looking for files|searching/.test(a)) return 'filing';
+    if (/^writing|^editing/.test(a)) return Math.random() < 0.5 ? 'press' : 'desk';
+    if (/briefing|handed work/.test(a) && w.agent === 'Larry') return 'control';
+    return 'desk';
+  }
+
+  // A cute bot: white round head, dark visor with two glowing eyes, antenna, little arms and feet.
+  function makeBot(name) {
+    const colour = new THREE.Color(colourOf(name)), g = new THREE.Group(), body = new THREE.Group();
+    g.add(body);
+    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.34, 0.32, 6, 16), mat(colour, { roughness: 0.35 }));
+    torso.position.y = 0.62; torso.castShadow = true; body.add(torso);
+    const belly = new THREE.Mesh(new THREE.CircleGeometry(0.16, 20), mat(0xffffff, { emissive: colour, emissiveIntensity: 0.6 }));
+    belly.position.set(0, 0.62, 0.345); body.add(belly);
+    const head = new THREE.Group(); head.position.y = 1.32; body.add(head);
+    const skull = new THREE.Mesh(new THREE.SphereGeometry(0.46, 28, 20), mat(0xf2f4fb, { roughness: 0.3 }));
+    skull.scale.set(1.1, 0.9, 1); skull.castShadow = true; head.add(skull);
+    const visor = new THREE.Mesh(new THREE.SphereGeometry(0.4, 28, 16, Math.PI * 0.16, Math.PI * 0.68, Math.PI * 0.28, Math.PI * 0.4),
+      mat(0x0e1030, { roughness: 0.2, metalness: 0.5 }));
+    visor.scale.set(1.14, 0.92, 1.18); visor.position.z = 0.02; head.add(visor);
+    const eyeMat = new THREE.MeshBasicMaterial({ color: colour.clone().lerp(new THREE.Color(0xffffff), 0.35) });
+    const eyes = [-0.15, 0.15].map(x => { const e = new THREE.Mesh(new THREE.SphereGeometry(0.09, 14, 10), eyeMat);
+      e.position.set(x * 1.1, 0.03, 0.47); e.scale.set(1, 1.3, 0.5); head.add(e); return e; });
+    [-0.5, 0.5].forEach(x => { const ear = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.08, 16), mat(colour));
+      ear.rotation.z = Math.PI / 2; ear.position.set(x, 0, 0); head.add(ear); });
+    const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.3, 8), mat(0x9aa3c0)); stalk.position.y = 0.52; head.add(stalk);
+    const tipMat = new THREE.MeshStandardMaterial({ color: colour, emissive: colour, emissiveIntensity: 0.6 });
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.08, 14, 10), tipMat); tip.position.y = 0.7; head.add(tip);
+    const arms = [-1, 1].map(s => { const pivot = new THREE.Group(); pivot.position.set(0.42 * s, 0.78, 0);
+      const a = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.26, 4, 10), mat(colour)); a.position.y = -0.18; a.castShadow = true;
+      pivot.add(a); body.add(pivot); return pivot; });
+    const feet = [-1, 1].map(s => { const f = new THREE.Mesh(new THREE.SphereGeometry(0.14, 14, 10), mat(0x2d3570));
+      f.scale.set(1, 0.6, 1.3); f.position.set(0.17 * s, 0.1, 0.03); f.castShadow = true; g.add(f); return f; });
+    const tag = labelSprite(name, '#' + colour.getHexString(), { size: 30, scale: 0.0075 }); tag.position.set(0, -0.12, 0.5); g.add(tag);
+    g.scale.setScalar(1.4); g.userData.botName = name;
+    F.scene.add(g);
+    return { name, group: g, body, head, eyes, arms, feet, tip, tipMat, tag, bubble: null, bubbleText: '',
+             pos: g.position, target: new THREE.Vector3(), phase: Math.random() * 6, wait: 0, spot: -1, zone: null, work: null };
+  }
+
+  function sizeCrew() {
+    if (!F) initFactory();
+    const r = crewCanvas.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    F.renderer.setSize(r.width, r.height, false);
+    F.camera.aspect = r.width / r.height; F.camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(() => { if (crewOpen) sizeCrew(); }).observe(crewCanvas);
+
+  // Click a bot or a row: chat with that agent. One working in a team chat opens that same chat;
+  // one working for a job opens a new chat with its task already quoted; an idle one, a fresh chat.
+  function chatWithBot(name) {
+    const member = team.find(a => a.name.toLowerCase() === String(name).toLowerCase());
+    if (!member) { setStatus('error', `${name} is a helper, not someone you can chat with`, 3500); return; }
+    const w = crew.workers.find(x => x.agent === member.name && !x.done);
+    closeCrew();
+    if (!w) { showTeamChat(member.name); return; }
+    const [src, id, who] = w.key.split(':');
+    if (src === 'chat' && who === 'main') { showTeamChat(member.name, id); return; }
+    const about = [w.project && w.project !== 'General' ? w.project : '', w.task || w.activity].filter(Boolean).join(': ');
+    showTeamChat(member.name, null, `About the task you're working on now (${about}): `);
+  }
+  crewList.addEventListener('click', e => { const r = e.target.closest('.row[data-agent]'); if (r) chatWithBot(r.dataset.agent); });
+
+  // The side list: anything waiting on you first (approve, deny or answer right here), then who is
+  // working on what. The requests are redrawn only when they change, so a card never flickers.
+  const crewAsks = document.createElement('div'), crewRows = document.createElement('div');
+  crewList.append(crewAsks, crewRows);
+  let crewAsksKey = null;
+  function renderCrewAsks() {
+    const reqs = [...pendingByChat.values()];
+    const key = reqs.map(r => r.ticket + ':' + (r.plain ? r.plain.length : 0)).join();
+    if (key === crewAsksKey) return;
+    crewAsksKey = key;
+    crewAsks.innerHTML = '';
+    if (!reqs.length) return;
+    const g = document.createElement('div'); g.className = 'grp asks'; g.style.setProperty('--accent', tc('#ffb347'));
+    g.innerHTML = `<h4>Waiting for you · ${reqs.length}</h4>`;
+    reqs.forEach(r => {
+      const card = approvalCard(r, () => { pendingByChat.delete(r.chat); crewAsksKey = null; renderCrewAsks(); assignBots(); });
+      const open = document.createElement('button'); open.type = 'button'; open.className = 'link-btn';
+      open.textContent = `Open ${r.agent}'s chat`; open.onclick = () => { closeCrew(); showTeamChat(r.agent, r.chat); };
+      card.querySelector('.ap-actions').appendChild(open);
+      g.appendChild(card);
+    });
+    crewAsks.appendChild(g);
+  }
+  function renderCrewList() {
+    renderCrewAsks();
+    const by = new Map();
+    crew.workers.forEach(w => { if (!by.has(w.project)) by.set(w.project, []); by.get(w.project).push(w); });
+    if (!by.size) { crewRows.innerHTML = '<p class="empty">The factory is quiet and the team is charging. When you hand Larry a job or chat with an agent, their bot leaves Team HQ and runs between the desks and machines as it works.</p>'; return; }
+    crewRows.innerHTML = [...by].map(([p, ws]) => `<div class="grp" style="--accent:${PROJECT_COLOUR[p] || tc('#bad367')}"><h4>${escapeHtml(p)}</h4>` +
+      ws.map(w => `<div class="row${w.done ? ' done' : ''}" data-agent="${escapeHtml(w.agent)}" title="Chat with ${escapeHtml(w.agent)}" style="--accent:${colourOf(w.agent)}"><span class="src">${w.source === 'job' ? 'Job' : 'Team chat'}</span>` +
+        `<b>${escapeHtml(w.agent)}</b>${w.done ? ' · done' : ''}<div class="task">${escapeHtml(w.task || '')}</div>` +
+        `<div class="act">${escapeHtml(w.activity || '')}</div></div>`).join('') + '</div>').join('');
+  }
+
+  // Each poll: which bots are working, on what, and where that happens. A working bot keeps one desk
+  // as its home base and runs from it to the machine its current step needs; when done it goes to charge.
+  function assignBots() {
+    if (!F) return;
+    const names = [...new Set([...(crew.team || []), ...crew.workers.map(w => w.agent)])];
+    names.forEach((name, i) => {
+      const mine = crew.workers.filter(w => w.agent === name);
+      const w = mine.find(x => !x.done) || mine[0] || null;
+      let b = F.bots.get(name);
+      if (!b) {
+        b = makeBot(name); F.bots.set(name, b); b.home = i % F.pads.length;
+        b.pos.copy(F.pads[b.home].pos); b.target.copy(b.pos); b.kind = 'hq'; b.want = 'hq'; b.lock = 0; b.lastAct = null;
+      }
+      b.work = w;
+      const act = w ? `${w.done}|${w.activity}` : null;
+      if (act !== b.lastAct) {                                           // a new step: work out where it happens
+        b.lastAct = act;
+        let kind = equipmentFor(w);
+        if (kind === 'press' && Math.random() < 0.5) kind = 'desk';
+        if (name === 'Larry' && kind === 'desk') kind = 'control';
+        b.want = kind;
+      }
+      const asking = [...pendingByChat.values()].find(r => r.asker === name || (!w && r.agent === name));
+      const label = asking ? (asking.kind === 'question' ? '❓ has a question for you' : '⚠ waiting for your approval')
+        : w ? (w.done ? '✓ done' : `${w.project && w.project !== 'General' ? w.project + ' · ' : ''}${w.activity || w.task || 'working'}`) : '';
+      const short = label.length > 46 ? label.slice(0, 45) + '…' : label;
+      if (short !== b.bubbleText) {
+        if (b.bubble) { b.group.remove(b.bubble); b.bubble.material.map.dispose(); b.bubble.material.dispose(); b.bubble = null; }
+        if (short) {
+          const edge = w && PROJECT_COLOUR[w.project] ? PROJECT_COLOUR[w.project] : colourOf(name);
+          b.bubble = labelSprite(short, '#' + new THREE.Color(edge).getHexString(),
+            { size: 26, tail: true, bg: 'rgba(29,33,70,0.95)', ink: '#e8ecf5', scale: 0.0085 });
+          b.bubble.position.y = 2.6; b.group.add(b.bubble);
+        }
+        b.bubbleText = short;
+      }
+    });
+  }
+
+  function release(b) { if (b.spot) { b.spot.taken = null; b.spot = null; } }
+  function claim(b, kind) {
+    if (kind === 'hq') { release(b); if (b.desk) { b.desk.taken = null; b.desk = null; } return { pos: F.pads[b.home].pos, face: F.yaw }; }
+    if (kind === 'desk') {
+      if (!b.desk) { const d = F.stations.find(s => s.kind === 'desk' && !s.spots[0].taken); if (d) { b.desk = d.spots[0]; b.desk.taken = b; b.deskStation = d; } }
+      release(b);
+      if (b.desk) return { pos: b.desk.pos, face: 0, station: b.deskStation };
+    }
+    release(b);
+    const options = F.stations.filter(s => s.kind === kind);
+    for (const s of options) {
+      const free = s.spots.find(p => !p.taken);
+      if (free) { free.taken = b; b.spot = free; return { pos: free.pos, face: 0, station: s }; }
+    }
+    const s = options[0] || F.stations[0];                               // all spots busy: wait just behind
+    return { pos: s.spots[0].pos.clone().add(new THREE.Vector3(1.3, 0, Math.random() - 0.5)), face: 0, station: s };
+  }
+
+  function spark(atv) {
+    const i = F.next = (F.next + 1) % F.sparkLife.length;
+    F.sparkPos.set([atv.x, atv.y, atv.z], i * 3);
+    F.sparkVel.set([(Math.random() - 0.5) * 3, 2 + Math.random() * 2.5, (Math.random() - 0.5) * 3], i * 3);
+    F.sparkLife[i] = 0.7 + Math.random() * 0.4;
+  }
+
+  function drawCrew(now) {
+    const dt = Math.min(0.05, (now - lastT) / 1000), t = now / 1000; lastT = now;
+    if (!F) sizeCrew();
+    const tmp = new THREE.Vector3();
+    F.stations.forEach(s => { s.active = 0; });
+    for (const b of F.bots.values()) {
+      if (b.want !== b.kind && t >= b.lock) {                            // move on to the next piece of equipment
+        const c = claim(b, b.want); b.kind = b.want; b.target.copy(c.pos); b.face = c.face; b.station = c.station || null;
+        b.lock = t + 2.2;
+      }
+      const d = tmp.subVectors(b.target, b.pos); d.y = 0;
+      const dist = d.length(), moving = dist > 0.06;
+      const working = b.work && !b.work.done && b.kind !== 'hq';
+      if (moving) {
+        const step = Math.min(dist, (b.kind === 'hq' ? 3.2 : 4.6) * dt);
+        b.pos.addScaledVector(d.normalize(), step);
+        let turn = Math.atan2(d.x, d.z) - b.group.rotation.y; turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+        b.group.rotation.y += turn * Math.min(1, dt * 10);
+      } else {
+        if (b.station && working) b.station.active++;
+        const face = b.kind === 'hq' ? F.yaw : (b.face ?? F.yaw);
+        let turn = face - b.group.rotation.y; turn = Math.atan2(Math.sin(turn), Math.cos(turn)); b.group.rotation.y += turn * Math.min(1, dt * 5);
+      }
+      const k = t * 11 + b.phase;
+      b.body.position.y = moving ? Math.abs(Math.sin(k)) * 0.12 : Math.sin(t * 2 + b.phase) * 0.03;
+      b.body.rotation.z = moving ? Math.sin(k) * 0.06 : 0;
+      b.feet[0].position.z = moving ? Math.sin(k) * 0.16 : 0.03; b.feet[1].position.z = moving ? -Math.sin(k) * 0.16 : 0.03;
+      b.arms[0].rotation.x = moving ? Math.sin(k) * 0.9 : working ? -1.1 + Math.sin(t * 16 + b.phase) * 0.35 : 0.1;
+      b.arms[1].rotation.x = moving ? -Math.sin(k) * 0.9 : working ? -1.1 + Math.cos(t * 16 + b.phase) * 0.35 : 0.1;
+      b.head.rotation.y = working && !moving ? Math.sin(t * 1.5 + b.phase) * 0.3 : 0;
+      const blink = Math.sin(t * 1.1 + b.phase * 3) > 0.985 ? 0.15 : 1.3;
+      b.eyes.forEach(e => { e.scale.y = blink; });
+      const charging = b.kind === 'hq' && !moving;
+      b.tipMat.emissiveIntensity = working ? 0.8 + Math.sin(t * 9 + b.phase) * 0.7 : charging ? 0.35 + Math.sin(t * 2 + b.phase) * 0.25 : 0.6;
+      b.tipMat.emissive.set(working ? tc('#ffb347') : charging ? tc('#bad367') : '#' + b.tipMat.color.getHexString());
+      if (working && !moving && Math.random() < 0.03) spark(b.group.localToWorld(tmp.set(0, 2.05, 0)));
+      if (b.bubble) b.bubble.position.y = 2.6 + b.body.position.y;
+    }
+    // Charging pads pulse under resting bots; equipment comes to life while someone uses it.
+    F.pads.forEach((p, i) => { p.mesh.material.emissiveIntensity = 0.18 + Math.max(0, Math.sin(t * 2 + i)) * 0.12; });
+    for (const s of F.stations) {
+      const on = s.active > 0, P = s.parts;
+      (P.screens || []).forEach(sc => { sc.userData.tex.offset.y += on ? dt * 0.35 : 0; sc.material.color.setScalar(on ? 1 : 0.45); });
+      if (P.drawers) P.drawers.forEach((d, i) => { const want = on && Math.sin(t * 2.5 + i * 2) > 0.3 ? 0.95 : 0.55; d.position.x += (want - d.position.x) * Math.min(1, dt * 6); });
+      if (P.gears) { P.gears[0].rotation.y += (on ? 2.2 : 0.05) * dt; P.gears[1].rotation.y -= (on ? 2.9 : 0.06) * dt;
+        P.core.material.emissiveIntensity = on ? 0.6 + Math.sin(t * 6) * 0.3 : 0.15;
+        P.puffs.forEach(p => { const u = (t * 0.45 + p.userData.off) % 1; p.position.y = 2.35 + u * 1.6; p.scale.setScalar(on ? 0.6 + u * 0.9 : 0.001); p.material.opacity = 0.85 * (1 - u); }); }
+      if (P.reels) { P.reels.forEach((r, i) => { r.rotation.y += (on ? 3 : 0) * dt * (i ? 1 : 1.3); });
+        P.mic.material.emissiveIntensity = on ? 0.3 + Math.max(0, Math.sin(t * 7)) * 0.7 : 0.1; }
+      if (P.flag) { const want = on ? -Math.PI / 2 : 0; P.flag.rotation.x += (want - P.flag.rotation.x) * Math.min(1, dt * 5);
+        P.letters.forEach(l => { const u = (t * 0.6 + l.userData.off) % 1; l.visible = on; l.position.set(0.1 + u * 0.4, 1.6 + u * 1.2, -0.5 + Math.sin(u * 6) * 0.15); l.rotation.x = u * 2; }); }
+      if (P.head) { P.head.rotation.y += (on ? 1.6 : 0.15) * dt; P.tip.material.emissiveIntensity = on ? 0.5 + Math.max(0, Math.sin(t * 8)) : 0.3; }
+      if (P.roller) { P.roller.rotation.y += 0; P.roller.rotation.z += 0; P.roller.rotateY(on ? dt * 4 : 0);
+        const u = (t * 0.5) % 1; P.sheet.position.x = on ? 0.4 + u * 0.8 : 0.6; }
+      if (on && Math.random() < 0.08) spark(s.group.localToWorld(tmp.set(0, 2.2, 0)));
+    }
+    for (let i = 0; i < F.sparkLife.length; i++) {                       // sparks fly, fall and fade
+      if (F.sparkLife[i] <= 0) { F.sparkPos[i * 3 + 1] = -50; continue; }
+      F.sparkLife[i] -= dt; F.sparkVel[i * 3 + 1] -= 6 * dt;
+      for (let a = 0; a < 3; a++) F.sparkPos[i * 3 + a] += F.sparkVel[i * 3 + a] * dt;
+    }
+    F.sparkGeo.attributes.position.needsUpdate = true;
+    const sway = Math.sin(t * 0.12) * 0.1;                               // a slow drift so the scene feels alive
+    F.camera.position.set(F.target.x + Math.sin(F.yaw + sway) * Math.cos(F.pitch) * F.dist,
+      Math.sin(F.pitch) * F.dist, F.target.z + Math.cos(F.yaw + sway) * Math.cos(F.pitch) * F.dist);
+    F.camera.lookAt(F.target);
+    F.renderer.render(F.scene, F.camera);
+    crewFrame = requestAnimationFrame(drawCrew);
+  }
+
   window.GALAXY = { Graph, nodes, select, clearSelection, focusNodes };  // handy for later features / console
+})();
+// The job cards stop above the context card, which grows a row per working agent.
+(() => {
+  const box = document.getElementById('context');
+  const fit = () => document.documentElement.style.setProperty('--ctx-h', (box.offsetHeight || 0) + 'px');
+  new ResizeObserver(fit).observe(box);
+  new MutationObserver(fit).observe(box, { childList: true, subtree: true, characterData: true });
+  addEventListener('resize', fit);
+  fit();
 })();
 </script>
 </body>
