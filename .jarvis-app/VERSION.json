@@ -1,6 +1,95 @@
 {
-  "version": "2026.11.05.8",
+  "version": "2026.11.05.9",
+  "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes.",
   "notes": [
-    "Notes and deliverables now use the full width of the reader, and wide tables no longer get cut off."
+    "Updating once now brings in everything since your last update, and lists every change in one go.",
+    "Notes and deliverables now use the full width of the reader, and wide tables no longer get cut off.",
+    "Office: equipment names are now plates on the machines themselves, and the to-file paper piles sit at the front.",
+    "Office: a putting green beside Team HQ. Idle agents take turns, up to three putts each, and the team cheers a hole in one.",
+    "Open folder now shows the files in the main window: folders open in place, and files open with a click.",
+    "Creating a project now shows its progress, then opens the new project without the start screen.",
+    "Reloading the galaxy after the team rebuilds it no longer replays the start screen and greeting.",
+    "Ask Jarvis in your own words to open, close or filter things, such as \"close everything and show me my week\" or \"what's overdue for Acme\". Windows open in the middle of the screen.",
+    "New calendar window for any span: today, Friday, next week.",
+    "\"Write me a document on...\" has the team write it, and it opens on screen when finished.",
+    "Bot bubbles in Current work now show the task first, then the step, and no longer guess the wrong project.",
+    "The galaxy's clusters sit closer to the centre.",
+    "The galaxy's slow spin now circles your vault at the centre, not whatever you last clicked.",
+    "When the team finishes a job, Jarvis says who did it and what they completed.",
+    "Ask for a client's actions or meetings and they open in a small window of their own.",
+    "Ask for a project's notes and Notes opens on that project; a project's files now show as a folder tree.",
+    "Zoom buttons (âˆ’ âŒ‚ +) under the Index, and gentler zooming with the mouse wheel.",
+    "Answers explain themselves a little more and end with a question when there's a next step.",
+    "Jarvis can now update itself: an Update tile appears when there's a new version.",
+    "The galaxy is grouped into labelled hubs: Projects, Agents, Notes, Actions, Meetings and more.",
+    "The welcome screen no longer fails after Jarvis reloads itself."
+  ],
+  "history": [
+    {
+      "version": "2026.11.05.9",
+      "notes": [
+        "Updating once now brings in everything since your last update, and lists every change in one go."
+      ]
+    },
+    {
+      "version": "2026.11.05.8",
+      "notes": [
+        "Notes and deliverables now use the full width of the reader, and wide tables no longer get cut off."
+      ]
+    },
+    {
+      "version": "2026.11.05.7",
+      "notes": [
+        "Office: equipment names are now plates on the machines themselves, and the to-file paper piles sit at the front.",
+        "Office: a putting green beside Team HQ. Idle agents take turns, up to three putts each, and the team cheers a hole in one."
+      ]
+    },
+    {
+      "version": "2026.11.05.6",
+      "notes": [
+        "Open folder now shows the files in the main window: folders open in place, and files open with a click."
+      ]
+    },
+    {
+      "version": "2026.11.05.5",
+      "notes": [
+        "Creating a project now shows its progress, then opens the new project without the start screen.",
+        "Reloading the galaxy after the team rebuilds it no longer replays the start screen and greeting."
+      ]
+    },
+    {
+      "version": "2026.11.05.4",
+      "notes": [
+        "Ask Jarvis in your own words to open, close or filter things, such as \"close everything and show me my week\" or \"what's overdue for Acme\". Windows open in the middle of the screen.",
+        "New calendar window for any span: today, Friday, next week.",
+        "\"Write me a document on...\" has the team write it, and it opens on screen when finished.",
+        "Bot bubbles in Current work now show the task first, then the step, and no longer guess the wrong project.",
+        "The galaxy's clusters sit closer to the centre."
+      ]
+    },
+    {
+      "version": "2026.11.05.3",
+      "notes": [
+        "The galaxy's slow spin now circles your vault at the centre, not whatever you last clicked.",
+        "When the team finishes a job, Jarvis says who did it and what they completed."
+      ]
+    },
+    {
+      "version": "2026.11.05.2",
+      "notes": [
+        "Ask for a client's actions or meetings and they open in a small window of their own.",
+        "Ask for a project's notes and Notes opens on that project; a project's files now show as a folder tree.",
+        "Zoom buttons (âˆ’ âŒ‚ +) under the Index, and gentler zooming with the mouse wheel.",
+        "Answers explain themselves a little more and end with a question when there's a next step."
+      ]
+    },
+    {
+      "version": "2026.11.05.1",
+      "notes": [
+        "Jarvis can now update itself: an Update tile appears when there's a new version.",
+        "The galaxy is grouped into labelled hubs: Projects, Agents, Notes, Actions, Meetings and more.",
+        "The welcome screen no longer fails after Jarvis reloads itself."
+      ]
+    }
   ]
 }

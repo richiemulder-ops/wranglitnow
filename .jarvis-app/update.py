@@ -48,6 +48,14 @@ def _fetch(url, timeout):
         return r.read()
 
 
+def _notes_since(remote, current):
+    """Notes for every version newer than `current`, newest first, so one update lists all it brings."""
+    history = remote.get("history")
+    if not history:
+        return remote.get("notes", [])
+    return [n for v in history if _key(v.get("version")) > _key(current) for n in v.get("notes", [])]
+
+
 def check(force=False):
     if force or time.time() - _cache["at"] > CHECK_EVERY:
         try:
@@ -59,7 +67,7 @@ def check(force=False):
     here, there = local_version(), _cache["remote"] or {}
     newer = bool(there) and _key(there.get("version")) > _key(here.get("version"))
     return {"current": here.get("version"), "latest": there.get("version"), "available": newer,
-            "notes": there.get("notes", []) if newer else [],
+            "notes": _notes_since(there, here.get("version")) if newer else [],
             "problem": _cache["problem"]}   # the page treats an "error" key as a failed call
 
 
