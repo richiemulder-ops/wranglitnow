@@ -81,19 +81,21 @@ If it isn't installed, use Anthropic's official installer:
 irm https://claude.ai/install.ps1 | iex
 ```
 
-Then check that it is signed in to their Claude account. It runs on their subscription, so there is no API key and no extra cost:
+Then check that Claude Code is signed in **on its own**. It runs on their Claude subscription, so there is no API key and no extra cost.
+
+Important: your shell runs inside the Claude desktop app, which passes its own sign-in down through `ANTHROPIC_*` and `CLAUDE_CODE_*` settings. A plain `claude -p` here would borrow that sign-in and pass, and then Jarvis would fail with "Not logged in" the first time it is started from the desktop shortcut (after a restart, say). So clear those settings first, in the same command:
 
 ```powershell
-claude -p "Reply with the single word OK" --output-format text
+Get-ChildItem env: | Where-Object { $_.Name -match '^(ANTHROPIC_|CLAUDE_CODE_|CLAUDECODE$)' } | Remove-Item; claude auth status
 ```
 
-If that says it isn't logged in, open a sign-in window for them:
+If it shows `"loggedIn": true`, carry on. If it shows `false` (or an error), open a sign-in window for them, with the same settings cleared:
 
 ```powershell
-Start-Process powershell -ArgumentList '-NoExit', '-Command', 'claude'
+Start-Process powershell -ArgumentList '-NoExit', '-Command', "Get-ChildItem env: | Where-Object { `$_.Name -match '^(ANTHROPIC_|CLAUDE_CODE_|CLAUDECODE$)' } | Remove-Item; claude auth login"
 ```
 
-Tell them: "A window has opened. Follow the sign-in it shows (it opens your browser), then close that window and tell me when you're done." Then run the check again.
+Tell them: "A window has opened and your browser will ask you to sign in to your Claude account. Sign in, then close that window and tell me when you're done." Then run the check again and don't go on until it says `"loggedIn": true`.
 
 ## Step 4. Download and fill the knowledge folder
 

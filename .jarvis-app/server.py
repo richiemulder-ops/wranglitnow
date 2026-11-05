@@ -65,6 +65,28 @@ def find_claude():
             return c
     return None
 
+
+def claude_env():
+    """The environment `claude` runs in: your own Claude Code sign-in and nothing else. Settings a
+    parent app passes down (the Claude desktop app does, when its installer starts Jarvis) are
+    dropped, so Jarvis works the same whether the installer or the desktop shortcut started it."""
+    env = {k: v for k, v in os.environ.items()
+           if not (k.startswith(("ANTHROPIC_", "CLAUDE_CODE_")) or k == "CLAUDECODE")}
+    env["MCP_CONNECTION_NONBLOCKING"] = "0"   # wait for the connectors before the question runs
+    return env
+
+
+NOT_SIGNED_IN = ("Claude Code isn't signed in on this computer, so Jarvis can't reach Claude. To fix it: "
+                 "open PowerShell, type  claude auth login  and press Enter, sign in to your Claude account "
+                 "in the browser window that opens, then try again. You only need to do this once.")
+SIGN_IN_PROBLEM = re.compile(r"not logged in|run /login|invalid api key|oauth token (has )?expired|"
+                             r"authentication_error|please log ?in", re.I)
+
+
+def plain_error(text):
+    """A sign-in failure from `claude`, said in plain English with the fix; anything else unchanged."""
+    return NOT_SIGNED_IN if SIGN_IN_PROBLEM.search(text or "") else text
+
 # Vault folders the viewer may list and open (keys are all the browser can name).
 FOLDERS = {"inbox": "Team Inbox", "deliverables": "Deliverables"}
 OPENABLE = {".pdf", ".docx", ".doc", ".xlsx", ".xls", ".csv", ".pptx", ".md", ".txt",
@@ -567,8 +589,7 @@ def call_claude(model, prompt, system=None, tools=None, mcp_config=None, vault=F
             cmd += ["--allowedTools", ",".join(allowed)]
     # Drop API credentials so the CLI uses your Claude Code subscription login, and wait for
     # the connectors to finish connecting before the question runs.
-    env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")}
-    env["MCP_CONNECTION_NONBLOCKING"] = "0"
+    env = claude_env()
     entry = {"proc": None, "stopped": False}
     try:
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -597,13 +618,13 @@ def call_claude(model, prompt, system=None, tools=None, mcp_config=None, vault=F
         data = json.loads(out)
     except ValueError:
         detail = (err or out).strip().splitlines()
-        raise ChatError(502, f"claude -p failed: {detail[-1] if detail else f'exit code {proc.returncode}'}")
+        raise ChatError(502, plain_error(f"claude -p failed: {detail[-1] if detail else f'exit code {proc.returncode}'}"))
     log_usage("jarvis", data)
     if data.get("subtype") == "error_max_turns":
         raise ChatError(504, "I went through the vault and ran out of steps before finding it. "
                              "Try a narrower question, naming the meeting, person or project.")
     if data.get("is_error"):
-        raise ChatError(502, f"claude -p error: {data.get('result') or data.get('subtype') or 'unknown'}")
+        raise ChatError(502, plain_error(f"claude -p error: {data.get('result') or data.get('subtype') or 'unknown'}"))
     return (data.get("result") or "").strip() or "No answer came back.", context_of(data)
 
 
@@ -1491,8 +1512,7 @@ def run_job(job):
            "--allowedTools", ",".join(JOB_TOOLS)] + run_flags(f"job:{job['id']}")
     if job.get("resume"):
         cmd += ["--resume", job["resume"]]
-    env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")}
-    env["MCP_CONNECTION_NONBLOCKING"] = "0"
+    env = claude_env()
     report, ok, result = "", False, None
     try:
         # stderr joins stdout so a noisy error stream can never fill its pipe and stall the job.
@@ -1532,6 +1552,8 @@ def run_job(job):
             report = "Larry ran out of time (45 minutes) and was stopped."
         else:
             report = other[-1] if other else f"claude exited with code {proc.returncode}"
+        if not ok:
+            report = plain_error(report)
     except OSError as e:
         report = f"Couldn't start claude ({e})."
 
@@ -1703,8 +1725,7 @@ def _run_agent_turn(chat, agent_name, message):
         cmd += ["--resume", chat["session"]]
     user = (read_config().get("user_name") or "The user")
     prompt = message if chat.get("session") else AGENT_CHAT_PROMPT.format(user=user, message=message)
-    env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")}
-    env["MCP_CONNECTION_NONBLOCKING"] = "0"
+    env = claude_env()
     tracker = {"agents": {"main": {"name": chat["agent"], "used": 0, "peak": 0, "window": CONTEXT_WINDOW,
                                    "calls": 0, "done": False, "task": message[:120], "activity": "reading the message",
                                    "project": guess_project(message)}}, "compactions": 0, "activity": ""}
@@ -1746,6 +1767,8 @@ def _run_agent_turn(chat, agent_name, message):
             reply, ok = (result.get("result") or "").strip(), not result.get("is_error")
         else:
             reply = other[-1] if other else f"{chat['agent']} stopped without replying (code {proc.returncode})."
+        if not ok:
+            reply = plain_error(reply)
     except OSError as e:
         reply = f"Couldn't start claude ({e})."
     chat["messages"].append({"who": "agent", "text": reply or "No reply came back.", "time": time.strftime("%Y-%m-%d %H:%M"),
