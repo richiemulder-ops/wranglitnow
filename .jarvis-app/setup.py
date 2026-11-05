@@ -1,10 +1,15 @@
 """One-time Jarvis setup, run by Claude during install (see INSTALL-JARVIS.md in the vault).
 
-    python setup.py [--name "First name"] [--no-start]
+    python setup.py [--name "First name"] [--vault <knowledge folder>] [--install <Jarvis folder>] [--no-start]
+
+Jarvis is two folders: the app (the harness) in its own Jarvis folder, and your knowledge folder
+(the vault: plain markdown notes, which can live anywhere, OneDrive included). The app only knows
+the vault through the "vault" entry in app/config.json.
 
 Run from the vault's hidden `.jarvis-app` folder. It:
-  1. copies the app next to the vault:  <install>/app   (the vault is <install>/<vault folder>)
-  2. writes app/config.json with the vault path and no keys
+  1. copies the app into the Jarvis folder:  <install>/app
+     (--install; by default the folder recorded by an earlier setup, else the folder above the vault)
+  2. writes app/config.json with the vault path (--vault; by default the folder above this script) and no keys
   3. lets an embedded (portable) Python find the app's own files
   4. builds the note index and the galaxy from the vault
   5. records the user's first name in the vault (PKM/.user.yaml) when --name is given
@@ -23,9 +28,10 @@ import subprocess
 import sys
 
 SRC = os.path.dirname(os.path.abspath(__file__))          # <vault>/.jarvis-app
-VAULT = os.path.dirname(SRC)
+VAULT = os.path.dirname(SRC)                              # main() may point these elsewhere
 INSTALL = os.path.dirname(VAULT)
 APP = os.path.join(INSTALL, "app")
+WHERE = "install.json"   # in <vault>/.jarvis-app: the Jarvis folder this vault was set up with
 APP_FILES = ["server.py", "build.py", "approval_mcp.py", "launch.py", "setup.py", "update.py", "VERSION.json",
              os.path.join("viewer", "index.html")]
 DEFAULT_CONFIG = {"model": "claude-sonnet-5-5", "job_model": "claude-opus-5-5", "agent_permissions": "auto"}
@@ -33,6 +39,34 @@ DEFAULT_CONFIG = {"model": "claude-sonnet-5-5", "job_model": "claude-opus-5-5", 
 
 def say(msg):
     print("[setup] " + msg, flush=True)
+
+
+def locate(vault, install):
+    """Work out the vault and the Jarvis folder. Re-running setup with no options reuses the Jarvis
+    folder recorded last time, so it never makes a second copy of the app beside the vault."""
+    global VAULT, INSTALL, APP
+    VAULT = os.path.abspath(vault) if vault else VAULT
+    if not install:
+        try:
+            with open(os.path.join(VAULT, ".jarvis-app", WHERE), encoding="utf-8") as f:
+                install = (json.load(f) or {}).get("jarvis")
+        except (OSError, ValueError, AttributeError):
+            install = None
+    INSTALL = os.path.abspath(install or os.path.dirname(VAULT))
+    APP = os.path.join(INSTALL, "app")
+    if not os.path.isdir(VAULT):
+        sys.exit(f"[setup] Knowledge folder not found: {VAULT}")
+    if os.path.normcase(APP + os.sep).startswith(os.path.normcase(VAULT + os.sep)):
+        sys.exit("[setup] The Jarvis folder can't be inside the knowledge folder. Pick a folder outside it.")
+    say(f"Jarvis folder: {INSTALL}")
+    say(f"Knowledge folder: {VAULT}")
+
+
+def remember_install():
+    d = os.path.join(VAULT, ".jarvis-app")
+    if os.path.isdir(d):
+        with open(os.path.join(d, WHERE), "w", encoding="utf-8") as f:
+            json.dump({"jarvis": INSTALL}, f, indent=2)
 
 
 def copy_app():
@@ -126,10 +160,14 @@ foreach ($dir in @([Environment]::GetFolderPath('Desktop'), (Join-Path $env:APPD
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--name", default="")
+    ap.add_argument("--vault", default="", help="the knowledge folder (default: the folder this .jarvis-app is in)")
+    ap.add_argument("--install", default="", help="the Jarvis folder; the app goes in <install>/app")
     ap.add_argument("--no-start", action="store_true")
     ap.add_argument("--no-shortcuts", action="store_true")
     a = ap.parse_args()
+    locate(a.vault, a.install)
     copy_app()
+    remember_install()
     write_config()
     fix_embedded_python()
     build_index()
