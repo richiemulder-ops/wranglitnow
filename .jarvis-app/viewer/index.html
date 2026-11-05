@@ -285,7 +285,7 @@
     border: 1.5px solid rgba(186,211,103,0.55); border-radius: 5px; cursor: pointer; display: grid; place-content: center; }
   .check:checked { background: #a3e37a; border-color: #a3e37a; }
   .check:checked::after { content: "✓"; color: #04120a; font-size: 13px; font-weight: 800; line-height: 1; }
-  .doc { font-size: 14.5px; line-height: 1.65; color: #dfe5f2; max-width: 860px; }
+  .doc { font-size: 14.5px; line-height: 1.65; color: #dfe5f2; }
   .doc h1 { font-size: 22px; font-weight: 500; } .doc h2 { font-size: 17px; font-weight: 600; margin-top: 26px; }
   .doc h3 { font-size: 15px; font-weight: 600; }
   .doc a { color: #cfe49a; }
@@ -293,7 +293,7 @@
   .doc pre { background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; overflow-x: auto; }
   .doc blockquote { margin: 10px 0; padding: 4px 14px; border-left: 3px solid rgba(186,211,103,0.5); color: #c3cbe0; }
   .doc table { border-collapse: collapse; margin: 10px 0; font-size: 13.5px; display: block; overflow-x: auto; }
-  .doc th, .doc td { border: 1px solid var(--edge); padding: 5px 9px; text-align: left; vertical-align: top; }
+  .doc th, .doc td { border: 1px solid var(--edge); padding: 5px 9px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
   .doc img { max-width: 100%; }
   .fm { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 14px 0 6px; padding: 12px 14px;
     border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(186,211,103,0.1); font-size: 12.5px; }

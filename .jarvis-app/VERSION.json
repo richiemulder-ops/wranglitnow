@@ -1,7 +1,6 @@
 {
-  "version": "2026.11.05.7",
+  "version": "2026.11.05.8",
   "notes": [
-    "Office: equipment names are now plates on the machines themselves, and the to-file paper piles sit at the front.",
-    "Office: a putting green beside Team HQ. Idle agents take turns, up to three putts each, and the team cheers a hole in one."
+    "Notes and deliverables now use the full width of the reader, and wide tables no longer get cut off."
   ]
 }
