@@ -455,6 +455,14 @@
   .newproj .what code { color: var(--brand); }
   .newproj .msg-line { font-size: 13px; color: var(--dim); }
   .newproj .msg-line.err { color: #ffcf8a; }
+  /* While a project is being created: a working bar and the step it's on. */
+  .newproj .progress { display: none; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.06); overflow: hidden; }
+  .newproj.busy .progress { display: block; }
+  .newproj .progress i { display: block; height: 100%; width: 35%; border-radius: 2px; background: var(--brand);
+    animation: npslide 1.4s ease-in-out infinite; }
+  .newproj.busy .msg-line { color: var(--ink); }
+  .newproj.busy input, .newproj.busy textarea { opacity: 0.6; }
+  @keyframes npslide { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
   @media (max-width: 1000px) {
     #metrics { right: calc(var(--jarvis-size) + 40px); }
     #metrics .metric:nth-child(n+4) { display: none; }
@@ -3495,7 +3503,10 @@ const tc = THEME.colour;
         stop.classList.add('stop'); stop.title = 'Stop the team now';
       } else {
         btn('Read report', () => showAnswer(`The team's report · ${j.task}`, j.report, []));
-        if (j.rebuilt) btn('↻ Reload galaxy', () => location.reload());
+        if (j.rebuilt) btn('↻ Reload galaxy', () => {
+          try { sessionStorage.setItem('jarvis-skip-wake', '1'); } catch (_) {}   // no wake screen or greeting
+          location.reload();
+        });
       }
       el.appendChild(tools);
       jobsEl.appendChild(el);
@@ -3725,7 +3736,7 @@ const tc = THEME.colour;
             <textarea id="np-desc" maxlength="300" placeholder="One line for the Projects index, e.g. AASB S2 climate reporting for Brisbane Isuzu."></textarea>
             <div class="what">Creates <code>copilot/projects/&lt;name&gt;/</code> in RTM_PKM with its <code>project.md</code>
               (so Obsidian Copilot sees it), adds a row to <code>Projects.md</code>, and refreshes the galaxy.</div>
-            <div class="tools"></div><div class="msg-line"></div></form>`;
+            <div class="tools"></div><div class="progress"><i></i></div><div class="msg-line"></div></form>`;
         const form = content.querySelector('form'), msg = content.querySelector('.msg-line');
         const name = content.querySelector('#np-name'), desc = content.querySelector('#np-desc');
         const go = linkButton(content.querySelector('.tools'), 'Create project', () => form.requestSubmit());
@@ -3734,14 +3745,32 @@ const tc = THEME.colour;
         form.onsubmit = async e => {
           e.preventDefault();
           if (!name.value.trim()) return;
-          go.disabled = true; msg.className = 'msg-line';
-          msg.textContent = 'Creating the folder and refreshing the galaxy… about half a minute.';
+          // The server does it all in one go; show it working, with a running clock, so it never looks stuck.
+          go.disabled = true; go.textContent = 'Creating…'; msg.className = 'msg-line';
+          form.classList.add('busy'); name.disabled = desc.disabled = true;
+          const t0 = Date.now();
+          const step = () => {
+            const s = Math.round((Date.now() - t0) / 1000);
+            msg.textContent = (s < 3 ? 'Creating the project folder and project.md' : s < 6 ? 'Adding it to Projects.md'
+              : 'Rebuilding the galaxy so the project appears (about half a minute)') + ` … ${s}s`;
+          };
+          step();
+          const clock = setInterval(step, 1000);
+          setStatus('thinking', `creating ${name.value.trim()}…`);
           try {
             const r = await api('/api/projects', { name: name.value, description: desc.value });
-            try { sessionStorage.setItem('galaxy-open-project', r.name); } catch (_) {}
-            msg.textContent = `Created ${r.folder}. Reloading…`;
+            clearInterval(clock);
+            msg.textContent = `Created ${r.folder}. Opening it…`;
+            try {
+              sessionStorage.setItem('galaxy-open-project', r.name);
+              sessionStorage.setItem('jarvis-skip-wake', '1');   // straight back in: no wake screen or greeting
+            } catch (_) {}
             setTimeout(() => location.reload(), 600);
-          } catch (err) { msg.className = 'msg-line err'; msg.textContent = err.message; go.disabled = false; }
+          } catch (err) {
+            clearInterval(clock); setStatus('');
+            form.classList.remove('busy'); name.disabled = desc.disabled = false;
+            msg.className = 'msg-line err'; msg.textContent = err.message; go.disabled = false; go.textContent = 'Create project';
+          }
         };
       }
     }, false);
@@ -3752,7 +3781,7 @@ const tc = THEME.colour;
     if (fresh) {
       sessionStorage.removeItem('galaxy-open-project');
       const p = projects.find(x => x.name === fresh);
-      if (p) setTimeout(() => showProject(p), 1200);
+      if (p) setTimeout(() => { showProject(p); setStatus('thinking', `${p.name} is ready`, 4000); }, 1200);
     }
   } catch (_) {}
 

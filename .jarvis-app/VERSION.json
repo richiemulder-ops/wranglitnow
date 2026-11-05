@@ -1,10 +1,7 @@
 {
-  "version": "2026.11.05.4",
+  "version": "2026.11.05.5",
   "notes": [
-    "Ask Jarvis in your own words to open, close or filter things, such as \"close everything and show me my week\" or \"what's overdue for Acme\". Windows open in the middle of the screen.",
-    "New calendar window for any span: today, Friday, next week.",
-    "\"Write me a document on...\" has the team write it, and it opens on screen when finished.",
-    "Bot bubbles in Current work now show the task first, then the step, and no longer guess the wrong project.",
-    "The galaxy's clusters sit closer to the centre."
+    "Creating a project now shows its progress, then opens the new project without the start screen.",
+    "Reloading the galaxy after the team rebuilds it no longer replays the start screen and greeting."
   ]
 }
