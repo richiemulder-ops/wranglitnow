@@ -85,7 +85,9 @@
   .body .note.error { color: #ffcf8a; }
   .body h4 { margin: 10px 2px 2px; font-size: 10px; font-weight: 600; letter-spacing: 0.16em;
     text-transform: uppercase; color: var(--dim); }
-  #legend div { display: flex; align-items: center; gap: 9px; }
+  #legend div, #legend button { display: flex; align-items: center; gap: 9px; }
+  #legend button { font: inherit; color: inherit; background: none; border: 0; padding: 1px 0; cursor: pointer; text-align: left; }
+  #legend button span { color: var(--dim); } #legend button:hover span { color: var(--ink); }
   #legend i { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 10px currentColor; background: currentColor; }
 
   #panel { position: fixed; top: 0; right: 0; height: 100%; width: min(420px, 100vw); box-sizing: border-box;
@@ -777,17 +779,87 @@ const tc = THEME.colour;
                    tc('#4fa36b'), tc('#e8743b'), tc('#a3e37a'), tc('#ffb37a'), tc('#93c47d'), tc('#f2c14e')];
   const nodes = GRAPH.nodes;            // node.id === its index in this array
   const links = GRAPH.links;
+  const NOTE_COUNT = nodes.length, NOTE_LINKS = links.length;   // hubs are added after the notes
+
+  // ---- type hubs ------------------------------------------------------------------------
+  // One central dot per kind of note (as in the left rail), a dot per project, agent or sub-folder
+  // under it, and every note hanging off its hub. The type hubs ring a core dot for the vault.
+  // Each type: [name, colour, folder prefixes, folder depth that names a sub-hub (0: none)].
+  const TYPES = [
+    ['Projects', '#bad367', ['copilot/projects'], 3],
+    ['Agents', '#ffb347', ['Team'], 2],
+    ['Notes', '#d9ec8f', ['PKM'], 2],
+    ['Actions', '#a3e37a', ['Actions'], 0],
+    ['Meetings', '#f7853b', ['PKM/CRM/Meetings'], 0],
+    ['CRM', '#9fd3ff', ['PKM/CRM'], 3],
+    ['Deliverables', '#ffc46b', ['Deliverables'], 0],
+    ['Team Inbox', '#7fc35a', ['Team Inbox'], 0],
+    ['Knowledge', '#4fa36b', ['Team Knowledge'], 2],
+    ['Chats', '#e8743b', ['copilot/copilot-conversations'], 0],
+    ['System', '#8a93a8', [''], 0],
+  ];
+  const typeOf = folder => {   // the type whose folder prefix matches most closely
+    let best = null, len = -1;
+    TYPES.forEach(t => t[2].forEach(p => {
+      if ((p === '' || folder === p || folder.startsWith(p + '/')) && p.length > len) { best = t; len = p.length; }
+    }));
+    return best;
+  };
+  const hubLinks = [];   // kind: core (type hub to vault), sub (sub-hub to type hub), spoke (note to hub)
+  const addHub = (label, group, hub, path, excerpt) => {
+    const n = { id: nodes.length, label, group, folder: '(hub)', path, hub, excerpt };
+    nodes.push(n);
+    return n;
+  };
+  const core = addHub('Vault', 'Vault', 'core', '', `The vault: ${NOTE_COUNT.toLocaleString()} notes.`);
+  Object.assign(core, { fx: 0, fy: 0, fz: 0 });
+  const typeHub = {}, subHub = {};
+  nodes.slice(0, NOTE_COUNT).forEach(n => {
+    const t = typeOf(n.folder === '(root)' ? '' : n.folder);
+    n.group = t[0];
+    let hub = typeHub[t[0]];
+    if (!hub) {
+      hub = typeHub[t[0]] = addHub(t[0], t[0], 'type', t[2][0], '');
+      hubLinks.push({ source: hub.id, target: core.id, kind: 'core' });
+    }
+    const parts = n.folder.split('/');
+    if (t[3] && parts.length >= t[3]) {
+      const path = parts.slice(0, t[3]).join('/');
+      let sub = subHub[path];
+      if (!sub) {
+        sub = subHub[path] = addHub(parts[t[3] - 1].split(' - ')[0], t[0], 'sub', path, '');
+        hubLinks.push({ source: sub.id, target: hub.id, kind: 'sub' });
+      }
+      hub = sub;
+    }
+    hubLinks.push({ source: n.id, target: hub.id, kind: 'spoke' });
+  });
+  // Type hubs sit evenly on a sphere around the core, so each kind of note gets its own region.
+  const typeHubs = Object.values(typeHub), HUB_RADIUS = 850;
+  typeHubs.forEach((h, i) => {
+    const y = 1 - (2 * (i + 0.5)) / typeHubs.length, r = Math.sqrt(1 - y * y), a = i * Math.PI * (3 - Math.sqrt(5));
+    Object.assign(h, { fx: Math.cos(a) * r * HUB_RADIUS, fy: y * HUB_RADIUS, fz: Math.sin(a) * r * HUB_RADIUS });
+  });
+  nodes.slice(NOTE_COUNT).forEach(h => {
+    if (h.hub === 'core') return;
+    const notes = hubLinks.filter(l => l.kind === 'spoke' && (l.target === h.id ||
+      (h.hub === 'type' && nodes[l.target].hub === 'sub' && nodes[l.target].group === h.label))).length;
+    const subs = hubLinks.filter(l => l.kind === 'sub' && l.target === h.id).length;
+    h.excerpt = `${h.hub === 'type' ? h.label : h.group + ' · ' + h.label}: ${notes.toLocaleString()} notes` +
+      (subs ? ` in ${subs} groups` : '') + (h.path ? `\nFolder: ${h.path}` : '') + '\nClick a note below to open it.';
+  });
 
   // ---- groups, colours, neighbours --------------------------------------------------
   const groupCounts = {};
-  nodes.forEach(n => { groupCounts[n.group] = (groupCounts[n.group] || 0) + 1; });
-  const groups = Object.keys(groupCounts).sort((a, b) => groupCounts[b] - groupCounts[a]);
-  const groupColor = {};
-  groups.forEach((g, i) => { groupColor[g] = PALETTE[i % PALETTE.length]; });
+  nodes.slice(0, NOTE_COUNT).forEach(n => { groupCounts[n.group] = (groupCounts[n.group] || 0) + 1; });
+  const groups = TYPES.map(t => t[0]).filter(g => groupCounts[g]);
+  const groupColor = { Vault: tc('#e6f2b8') };
+  TYPES.forEach(t => { groupColor[t[0]] = tc(t[1]); });
 
   // Full adjacency: drives the panel's "connected notes" and the focus overlay.
   const neighbors = nodes.map(() => new Set());
   links.forEach(l => { neighbors[l.source].add(l.target); neighbors[l.target].add(l.source); });
+  hubLinks.forEach(l => { neighbors[l.source].add(l.target); neighbors[l.target].add(l.source); });
 
   // Backbone: at rest each note keeps only its few strongest links (ties go to the
   // less-connected partner so hubs don't turn into starbursts). Only these are drawn and
@@ -801,14 +873,18 @@ const tc = THEME.colour;
     ids.sort((a, b) => (links[b].w || 1) - (links[a].w || 1) || partnerDegree(a) - partnerDegree(b));
     ids.slice(0, BACKBONE_PER_NODE).forEach(i => backboneIdx.add(i));
   });
-  const backbone = [...backboneIdx].map(i => ({ source: links[i].source, target: links[i].target }));
+  const backbone = [...backboneIdx].map(i => ({ source: links[i].source, target: links[i].target }))
+    .concat(hubLinks.map(l => ({ ...l })));   // the hub structure is always part of the layout
   const backbonePairs = backbone.map(l => [l.source, l.target]);  // kept as ids: the graph swaps them for objects
 
   document.getElementById('stats').textContent =
-    `${nodes.length.toLocaleString()} notes · ${links.length.toLocaleString()} connections`;
-  document.getElementById('legend').innerHTML = '<div class="title">Index</div>' + groups.map(g =>
-    `<div style="color:${groupColor[g]}"><i></i><span style="color:var(--dim)">${escapeHtml(g)} · ${groupCounts[g]}</span></div>`
-  ).join('');
+    `${NOTE_COUNT.toLocaleString()} notes · ${NOTE_LINKS.toLocaleString()} connections`;
+  // The legend lists the type hubs; click one to fly to it and light up its notes.
+  const legendEl = document.getElementById('legend');
+  legendEl.innerHTML = '<div class="title">Index</div>' + groups.map(g =>
+    `<button type="button" data-g="${escapeHtml(g)}" style="color:${groupColor[g]}" title="Show ${escapeHtml(g)} in the galaxy">` +
+    `<i></i><span>${escapeHtml(g)} · ${groupCounts[g]}</span></button>`).join('');
+  legendEl.querySelectorAll('button').forEach(b => { b.onclick = () => select(typeHub[b.dataset.g]); });
 
   // ---- node dot texture: a hard-edged disc with a thin, faint halo ------------------------
   const DOT_CORE = 0.4;   // core diameter as a share of the sprite
@@ -833,12 +909,34 @@ const tc = THEME.colour;
     });
     const s = new THREE.Sprite(mat);
     // Log scale keeps hubs readable without letting them swallow their neighbourhood.
-    const core = 5 + Math.log2(1 + neighbors[node.id].size) * 1.6;
+    const core = node.hub ? { core: 30, type: 22, sub: 11 }[node.hub] : 5 + Math.log2(1 + neighbors[node.id].size) * 1.6;
     const size = core / DOT_CORE;
     s.scale.set(size, size, 1);
     s.userData.baseSize = s.userData.cur = size;
     sprites[node.id] = s;
-    return s;
+    if (node.hub !== 'type') return s;
+    // The big buckets carry their name, floating just above the dot.
+    const g = new THREE.Group();
+    g.add(s);
+    const label = hubLabel(node.label, groupColor[node.group], 1);
+    label.position.y = core * 0.9 + 12;
+    g.add(label);
+    return g;
+  }
+  function hubLabel(text, colour, k) {
+    const c = document.createElement('canvas'), ctx = c.getContext('2d'), px = 44;
+    ctx.font = `600 ${px}px system-ui, sans-serif`;
+    c.width = Math.ceil(ctx.measureText(text).width) + 24; c.height = px + 20;
+    ctx.font = `600 ${px}px system-ui, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = 8;
+    ctx.fillStyle = colour; ctx.fillText(text, c.width / 2, c.height / 2);
+    const tex = new THREE.CanvasTexture(c);
+    tex.anisotropy = 4;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false }));
+    sp.scale.set(c.width * 0.75 * k, c.height * 0.75 * k, 1);
+    sp.renderOrder = 5;
+    return sp;
   }
 
   // ---- graph ---------------------------------------------------------------------------
@@ -854,6 +952,7 @@ const tc = THEME.colour;
     .nodeLabel(n => escapeHtml(n.label))
     .nodeThreeObject(makeNodeObject)
     .linkColor(linkColor)
+    .linkVisibility(l => l.kind !== 'spoke')   // note-to-hub spokes shape the layout but aren't drawn
     .linkOpacity(1)
     .linkWidth(0)
     .enableNodeDrag(false)
@@ -863,16 +962,20 @@ const tc = THEME.colour;
     .onBackgroundClick(clearSelection);
 
   Graph.renderer().setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-  Graph.d3Force('charge').strength(-45);
-  Graph.d3Force('link').distance(30).strength(0.35);
+  // Notes gather round their hub; links between notes still pull related clusters together.
+  Graph.d3Force('charge').strength(n => n.hub ? -300 : -60);
+  Graph.d3Force('link')
+    .distance(l => ({ spoke: 75, sub: 170, core: HUB_RADIUS }[l.kind] || 30))
+    .strength(l => ({ spoke: 0.6, sub: 0.7, core: 0 }[l.kind] ?? 0.03));
 
   // Frame the whole galaxy once the first layout settles (unless the user is already exploring).
   // No automatic zoom-to-fit when the layout settles: the camera stays where it starts (or wherever
   // you've moved it), rather than pulling out 5-10 seconds after load.
 
   // Backbone links: a fine visible web at rest, nearly gone while something is in focus.
-  function linkColor() {
-    if (highlight.size === 0) return linksLive ? tc('rgba(205,228,140,0.3)') : tc('rgba(170,200,120,0.16)');
+  function linkColor(l) {
+    if (l && l.kind && highlight.size === 0) return tc(l.kind === 'core' ? 'rgba(230,242,184,0.4)' : 'rgba(230,242,184,0.3)');
+    if (highlight.size === 0) return linksLive ? tc('rgba(205,228,140,0.22)') : tc('rgba(170,200,120,0.08)');
     return tc('rgba(170,200,120,0.035)');
   }
 
@@ -1106,9 +1209,10 @@ const tc = THEME.colour;
     const pg = document.getElementById('p-group');
     pg.textContent = node.group; pg.style.color = color;
     document.getElementById('p-title').textContent = node.label;
-    document.getElementById('p-folder').textContent = node.folder;
+    document.getElementById('p-folder').textContent = node.hub ? (node.path || 'Vault') : node.folder;
     document.getElementById('p-excerpt').textContent = node.excerpt || '(empty note)';
-    renderDocButtons(document.getElementById('p-actions'), nodePath(node));
+    if (node.hub) document.getElementById('p-actions').innerHTML = '';
+    else renderDocButtons(document.getElementById('p-actions'), nodePath(node));
 
     const ids = [...neighbors[node.id]].sort((a, b) => neighbors[b].size - neighbors[a].size);
     document.getElementById('p-ncount').textContent = `Connected notes · ${ids.length}`;
@@ -2746,7 +2850,7 @@ const tc = THEME.colour;
                 : DAY_QUIPS[bootDay] && Math.random() < 0.6 ? pickFresh(DAY_QUIPS[bootDay], 'day' + bootDay) : '';
   const GREETING = `Good ${partOfDay}${SETUP.address ? ', ' + SETUP.address : SETUP.user_name ? ', ' + SETUP.user_name : ''}. J.A.R.V.I.S. at your service. ` +
                    (dayLine ? dayLine + ' ' : '') +
-                   `${nodes.length.toLocaleString()} notes indexed, all present and accounted for, ` +
+                   `${NOTE_COUNT.toLocaleString()} notes indexed, all present and accounted for, ` +
                    `${pickFresh(NOTE_QUIPS, 'notes')}. ${pickFresh(TEAM_QUIPS, 'team')}`;
   let skipWake = false;
   try { skipWake = sessionStorage.getItem('jarvis-skip-wake') === '1'; sessionStorage.removeItem('jarvis-skip-wake'); } catch (_) {}
@@ -3769,7 +3873,7 @@ const tc = THEME.colour;
     const parts = build(g) || {};
     if (sign) stationSign(g, sign.text, sign.y);
     const st = { kind, group: g, parts, active: 0,
-                 spots: spots.map(([sx, sz]) => ({ pos: new THREE.Vector3(x + sx * EQUIP, 0.02, z + sz * EQUIP), taken: null })) };
+                 spots: spots.map(([sx, sz, face]) => ({ pos: new THREE.Vector3(x + sx * EQUIP, 0.02, z + sz * EQUIP), taken: null, face })) };
     F.stations.push(st);
     return st;
   }
@@ -3867,6 +3971,88 @@ const tc = THEME.colour;
     head.add(tilt); g.add(head);
     return { head, tip };
   }
+  // Water cooler: a cream cabinet with two taps and a big blue jug that bubbles while someone drinks.
+  function buildCooler(g) {
+    g.add(at(rbox(0.8, 1.15, 0.8, 0.12, PASTEL.cream), 0, 0.575, 0));
+    [[-0.15, 0x6fb6ff], [0.15, 0xff6b6b]].forEach(([z, c]) => g.add(at(rbox(0.14, 0.1, 0.1, 0.03, c), 0.45, 0.95, z)));
+    g.add(at(rbox(0.22, 0.04, 0.5, 0.02, PASTEL.ink), 0.48, 0.72, 0));
+    g.add(at(cyl(0.12, 0.16, 0.14, 0x9fd4ff, 16), 0, 1.2, 0));
+    const jug = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.8, 24),
+      new THREE.MeshStandardMaterial({ color: 0x9fd4ff, transparent: true, opacity: 0.45, roughness: 0.1, metalness: 0.1 }));
+    g.add(at(jug, 0, 1.67, 0));
+    const water = new THREE.Mesh(new THREE.CylinderGeometry(0.29, 0.29, 0.6, 20),
+      new THREE.MeshStandardMaterial({ color: 0x4f9dff, transparent: true, opacity: 0.6, emissive: 0x4f9dff, emissiveIntensity: 0.15 }));
+    g.add(at(water, 0, 1.6, 0));
+    const bubbles = [0, 1, 2, 3].map(i => { const b = ball(0.05, 0xffffff, { transparent: true, opacity: 0.8 }); b.castShadow = false;
+      g.add(at(b, (i % 2 - 0.5) * 0.2, 1.35, (i - 1.5) * 0.1)); b.userData.off = i / 4; return b; });
+    g.add(at(rbox(0.2, 0.5, 0.2, 0.05, PASTEL.mint), 0, 0.85, 0.52));       // cup holder on the side
+    g.add(at(cyl(0.08, 0.06, 0.16, 0xffffff, 12), 0, 1.15, 0.52));
+    return { bubbles, water };
+  }
+  // The CEO's desk: a wide executive desk with a lamp that glows while someone is waiting, an in-tray and a
+  // rubber stamp that thumps down when you sign something off. The CEO bot sits behind it, facing the room.
+  function buildCeoDesk(g) {
+    g.add(at(rbox(1.5, 0.16, 2.8, 0.08, PASTEL.wood), 0, 0.95, 0));
+    g.add(at(rbox(0.12, 0.85, 2.7, 0.06, PASTEL.lilac), 0.66, 0.47, 0));
+    [-1.15, 1.15].forEach(z => g.add(at(rbox(1.3, 0.87, 0.45, 0.08, PASTEL.lilac), 0, 0.44, z)));
+    g.add(at(rbox(0.12, 0.6, 0.85, 0.08, PASTEL.cream), -0.3, 1.5, 1.05));
+    const scr = at(screen(0.7, 0.44, '#ffd166'), -0.23, 1.5, 1.05); g.add(scr);
+    g.add(at(cyl(0.04, 0.12, 0.45, PASTEL.cream, 10), -0.35, 1.25, -1.15));
+    const lamp = at(ball(0.2, 0xbad367, { emissive: 0xbad367, emissiveIntensity: 0.25 }), -0.3, 1.55, -1.15); g.add(lamp);
+    g.add(at(rbox(0.5, 0.12, 0.6, 0.04, PASTEL.mint), 0.2, 1.08, 0.45));          // in-tray with papers
+    g.add(at(rbox(0.42, 0.06, 0.5, 0.02, 0xffffff), 0.2, 1.15, 0.45));
+    g.add(at(rbox(0.36, 0.02, 0.44, 0.02, 0xfff3c4), 0.3, 1.04, -0.45));         // the sheet being signed
+    const stamp = new THREE.Group(); stamp.position.set(0.3, 1.12, -0.45);
+    stamp.add(at(rbox(0.2, 0.08, 0.26, 0.03, 0xff6b6b), 0, 0, 0));
+    stamp.add(at(cyl(0.04, 0.04, 0.2, PASTEL.wood, 8), 0, 0.14, 0));
+    stamp.add(at(ball(0.08, PASTEL.wood), 0, 0.27, 0));
+    g.add(stamp);
+    g.add(at(rbox(0.08, 0.14, 0.6, 0.03, PASTEL.ink), 0.6, 1.1, 0));             // nameplate
+    return { screens: [scr], lamp, stamp, stampY: 1.12 };
+  }
+  // Sky for the windows: a soft gradient, a few clouds and a city skyline with lit windows.
+  function skyTexture() {
+    const c = document.createElement('canvas'); c.width = 512; c.height = 160; const g = c.getContext('2d');
+    const grd = g.createLinearGradient(0, 0, 0, 160);
+    grd.addColorStop(0, '#6f9fe8'); grd.addColorStop(0.65, '#bcd6ff'); grd.addColorStop(1, '#ffe3c2');
+    g.fillStyle = grd; g.fillRect(0, 0, 512, 160);
+    g.fillStyle = 'rgba(255,255,255,0.85)';
+    [[60, 34, 30], [86, 28, 22], [230, 50, 34], [258, 44, 20], [400, 30, 28], [425, 36, 18]].forEach(([x, y, r]) => {
+      g.beginPath(); g.ellipse(x, y, r, r * 0.42, 0, 0, Math.PI * 2); g.fill(); });
+    for (let x = 0; x < 512;) {
+      const w = 18 + Math.random() * 26, h = 24 + Math.random() * 56;
+      g.fillStyle = '#3a4380'; g.fillRect(x, 160 - h, w - 4, h);
+      g.fillStyle = '#ffe9a8';
+      for (let wy = 160 - h + 6; wy < 156; wy += 8) for (let wx = x + 4; wx < x + w - 8; wx += 6) if (Math.random() < 0.35) g.fillRect(wx, wy, 2, 3);
+      x += w;
+    }
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping;
+    return t;
+  }
+  // A wall running along local x from 0 to len, with evenly spaced windows. Its room side faces local +z.
+  function buildWall(len, nWin, sky) {
+    const g = new THREE.Group(), H = 5, SILL = 1.3, HEAD = 4.1, T = 0.35, WIN = 3.4, gap = (len - nWin * WIN) / (nWin + 1);
+    const wallMat = mat(0x2a2f66, { roughness: 0.9, metalness: 0 }), trim = mat(PASTEL.cream, { roughness: 0.6, metalness: 0 });
+    const box = (w, h, d, m, x, y, z = 0) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+      b.position.set(x, y, z); b.castShadow = true; b.receiveShadow = true; g.add(b); };
+    box(len, SILL, T, wallMat, len / 2, SILL / 2);
+    box(len, H - HEAD, T, wallMat, len / 2, (H + HEAD) / 2);
+    for (let i = 0; i <= nWin; i++) box(gap, HEAD - SILL, T, wallMat, i * (gap + WIN) + gap / 2, (SILL + HEAD) / 2);
+    for (let i = 0; i < nWin; i++) {
+      const cx = gap + i * (gap + WIN) + WIN / 2, cy = (SILL + HEAD) / 2, view = sky.clone();
+      view.needsUpdate = true; view.repeat.x = 0.35; view.offset.x = (i * 0.37) % 1;
+      const pane = new THREE.Mesh(new THREE.PlaneGeometry(WIN, HEAD - SILL),
+        new THREE.MeshBasicMaterial({ map: view, color: 0xdde6ff, side: THREE.DoubleSide }));
+      pane.position.set(cx, cy, 0); g.add(pane);
+      box(WIN + 0.3, 0.14, T + 0.25, trim, cx, SILL);
+      box(WIN, 0.1, T + 0.05, trim, cx, HEAD);
+      box(0.1, HEAD - SILL, T * 0.6, trim, cx, cy);
+      box(WIN, 0.08, T * 0.6, trim, cx, cy + 0.35);
+    }
+    box(len, 0.25, T + 0.08, trim, len / 2, 0.125);
+    box(len, 0.16, T + 0.1, trim, len / 2, H);
+    return g;
+  }
 
   function initFactory() {
     const renderer = new THREE.WebGLRenderer({ canvas: crewCanvas, antialias: true, alpha: true });
@@ -3900,8 +4086,35 @@ const tc = THEME.colour;
       const p = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.85, 0.12, 28),
         mat(0x2d3570, { emissive: new THREE.Color(tc('#bad367')), emissiveIntensity: 0.2 }));
       p.position.set(x, 0.36, z); p.receiveShadow = true; scene.add(p);
-      F.pads.push({ pos: new THREE.Vector3(x, 0.42, z), mesh: p });
+      F.pads.push({ pos: new THREE.Vector3(x, 0.42, z), mesh: p, col: i % 3, boost: 0 });
     }
+    // Power: a battery pack at each end of HQ, wired through every column of charging pads. Pulses of
+    // charge run from battery to battery along the wires and light each pad (and its bot) as they pass.
+    const COLS = [HQ_X - 2.6, HQ_X, HQ_X + 2.6], BUS = 12.4, END = 13.9, lime = new THREE.Color(tc('#bad367'));
+    const juice = mat(lime, { emissive: lime, emissiveIntensity: 0.35 });
+    const wire = (x1, z1, x2, z2) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.05, Math.hypot(x2 - x1, z2 - z1)), juice);
+      m.position.set((x1 + x2) / 2, 0.33, (z1 + z2) / 2); m.rotation.y = Math.atan2(x2 - x1, z2 - z1); scene.add(m);
+    };
+    COLS.forEach(x => { wire(x, -BUS, x, BUS); [-1, 1].forEach(s => wire(x, s * BUS, HQ_X, s * END)); });
+    F.batteries = [-1, 1].map(s => {
+      const g = new THREE.Group(); g.position.set(HQ_X, 0, s * (END + 0.7)); scene.add(g);
+      g.add(at(rbox(3.4, 2.3, 1.4, 0.28, PASTEL.mint), 0, 1.15, 0));
+      g.add(at(rbox(3.5, 0.3, 1.5, 0.12, PASTEL.cream), 0, 2.35, 0));
+      g.add(at(rbox(3.5, 0.3, 1.5, 0.12, PASTEL.cream), 0, 0.15, 0));
+      g.add(at(cyl(0.18, 0.18, 0.3, 0xff6b6b, 14), -0.9, 2.6, 0)); g.add(at(cyl(0.18, 0.18, 0.3, PASTEL.ink, 14), 0.9, 2.6, 0));
+      g.add(at(rbox(1.9, 1.75, 0.08, 0.04, PASTEL.ink), 0, 1.25, 0.71));     // the charge gauge
+      const bars = [0, 1, 2, 3, 4].map(i => { const m = rbox(1.6, 0.24, 0.06, 0.04, lime, { emissive: lime, emissiveIntensity: 0.1 });
+        g.add(at(m, 0, 0.6 + i * 0.32, 0.76)); return m; });
+      const sign = labelSprite('⚡ Power', '#bad367', { size: 28, scale: 0.0085 }); sign.position.set(0, 3.3, 0); g.add(sign);
+      return { bars };
+    });
+    const pulseMat = new THREE.MeshBasicMaterial({ color: 0xeaffb8 });
+    F.pulses = []; F.power = { BUS, END };
+    COLS.forEach((x, c) => { for (let k = 0; k < 3; k++) {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 8), pulseMat); scene.add(m);
+      F.pulses.push({ mesh: m, x, col: c, off: k / 3 + c * 0.11, dir: c === 1 ? -1 : 1, z: 0 });
+    } });
 
     // The factory floor: six desks, Larry's control desk, and the machines.
     [[-0.5, -10], [-0.5, -5], [5, -10], [5, -5], [10.5, -10], [10.5, -5]].forEach(([x, z], i) =>
@@ -3920,6 +4133,35 @@ const tc = THEME.colour;
       return { roller, sheet };
     }, [[-0.6, -1.4], [0.6, -1.4]], { text: 'Print press', y: 2.4 });
     plant(16, -2, 1.6); plant(16, 3, 1.3); plant(16, 8.5, 1.7); plant(-3.6, -12, 1.3); plant(-3.6, 11.5, 1.4);
+
+    // The office shell: a back wall and a side wall, both with windows. Each hides itself when the
+    // view swings round behind it, so it never blocks the floor.
+    const sky = skyTexture();
+    const back = buildWall(50.6, 8, sky); back.position.set(-24.4, 0, -16.2); scene.add(back);
+    const side = buildWall(32.4, 5, sky); side.rotation.y = Math.PI / 2; side.position.set(-24.2, 0, 16.2); scene.add(side);
+    F.walls = { back, side };
+
+    // The water cooler, in the corner by the windows: bots on long tasks wander over for a drink.
+    const toCooler = (sx, sz) => [sx, sz, Math.atan2(-sx, -sz)];
+    addStation('water', -20.6, -12.6, buildCooler, [toCooler(-0.95, 0.55), toCooler(0.95, 0.55), toCooler(0, 1.3)],
+      { text: 'Water cooler', y: 2.6 }).calm = true;
+    plant(-22.8, -14.6, 1.2);
+
+    // The CEO's desk: every approval goes through here. A bot that needs your OK walks over, waits beside
+    // the desk while you decide, gets stamped off and walks back to finish the job.
+    const CEO_X = 22, CEO_Z = -2.5, seatZ = CEO_Z - 0.95 * EQUIP, toCeo = (sx, sz) => [sx, sz, Math.atan2(-sx, -0.95 - sz)];
+    const ceoRug = rbox(7.5, 0.04, 7, 0.5, 0x2e2a5c, { roughness: 1 }); ceoRug.castShadow = false; scene.add(at(ceoRug, CEO_X, 0.04, CEO_Z - 0.3));
+    F.ceoDesk = addStation('ceo', CEO_X, CEO_Z, buildCeoDesk, [toCeo(-2, -0.3), toCeo(2, -0.3), toCeo(-2, 0.9), toCeo(2, 0.9)],
+      { text: 'CEO · approvals', y: 2.9 });
+    F.ceoDesk.calm = true;
+    scene.add(at(rbox(1.1, 0.18, 1.0, 0.08, PASTEL.ink), CEO_X, 0.72, seatZ - 0.1));
+    scene.add(at(cyl(0.08, 0.1, 0.65, PASTEL.cream, 10), CEO_X, 0.33, seatZ - 0.1));
+    scene.add(at(rbox(1.25, 1.6, 0.2, 0.1, PASTEL.ink), CEO_X, 1.6, seatZ - 0.65));
+    F.ceo = makeBot('CEO', '#ffd166');                                  // not in F.bots, so it can't be clicked
+    F.ceo.group.position.set(CEO_X, 0.4, seatZ); F.ceo.tag.visible = false; F.ceo.feet.forEach(f => { f.visible = false; });
+    const tie = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.3, 4), mat(0xff6b6b)); tie.rotation.x = Math.PI;
+    F.ceo.body.add(at(tie, 0, 0.82, 0.33));
+    F.stampAt = -9;
 
     // Sparks: a small pool of points that fly off busy equipment.
     const SPARKS = 160;
@@ -3967,14 +4209,27 @@ const tc = THEME.colour;
     return 'desk';
   }
 
+  // The Carbonhalo logo mark in brand lime on a clear background, drawn once and shared by every bot's chest.
+  const LOGO_PATH = 'M44.3513.0012A45.2618,45.2618,0,0,1,71.3378,8.9134c12.0207,8.9112,9.4169,22.413-.3761,22.413a22.5864,22.5864,0,0,1-21.5-15.597C46.91,7.8744,44.3513.0012,44.3513.0012ZM1.2359,31.3264A45.2622,45.2622,0,0,1,18.0513,8.4147c12.1895-8.6786,24.226-2.03,21.2,7.2838a22.5866,22.5866,0,0,1-21.4775,15.628Zm86.2309,0a45.2624,45.2624,0,0,1-.1368,28.42c-4.76,14.186-18.4061,15.8819-21.4323,6.5683a22.5864,22.5864,0,0,1,8.19-25.2675ZM17.7045,82.0116A45.2631,45.2631,0,0,1,1.1105,58.9392C-3.3766,44.6643,6.6662,35.2716,14.5889,41.0277a22.5867,22.5867,0,0,1,8.2262,25.2557C20.2628,74.1384,17.7045,82.0116,17.7045,82.0116Zm53.2937,0a45.2628,45.2628,0,0,1-27.0711,8.6521C28.9644,90.52,23.1347,78.0662,31.0574,72.31a22.5864,22.5864,0,0,1,26.5616-.0192Z';
+  let logoTex = null;
+  function logoTexture() {
+    if (logoTex) return logoTex;
+    const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
+    const k = 236 / 91.6415; g.translate(10, 10 + (236 - 90.7938 * k) / 2); g.scale(k, k);
+    g.fillStyle = '#bad367'; g.fill(new Path2D(LOGO_PATH), 'evenodd');
+    logoTex = new THREE.CanvasTexture(c); logoTex.colorSpace = THREE.SRGBColorSpace; logoTex.anisotropy = 4;
+    return logoTex;
+  }
   // A cute bot: white round head, dark visor with two glowing eyes, antenna, little arms and feet.
-  function makeBot(name) {
-    const colour = new THREE.Color(colourOf(name)), g = new THREE.Group(), body = new THREE.Group();
+  function makeBot(name, tint) {
+    const colour = new THREE.Color(tint || colourOf(name)), g = new THREE.Group(), body = new THREE.Group();
     g.add(body);
     const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.34, 0.32, 6, 16), mat(colour, { roughness: 0.35 }));
     torso.position.y = 0.62; torso.castShadow = true; body.add(torso);
-    const belly = new THREE.Mesh(new THREE.CircleGeometry(0.16, 20), mat(0xffffff, { emissive: colour, emissiveIntensity: 0.6 }));
-    belly.position.set(0, 0.62, 0.345); body.add(belly);
+    const bellyMat = new THREE.MeshStandardMaterial({ map: logoTexture(), emissiveMap: logoTexture(), emissive: 0xffffff,
+      emissiveIntensity: 0.5, transparent: true, roughness: 0.4, metalness: 0 });
+    const belly = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34), bellyMat);
+    belly.position.set(0, 0.62, 0.35); body.add(belly);
     const head = new THREE.Group(); head.position.y = 1.32; body.add(head);
     const skull = new THREE.Mesh(new THREE.SphereGeometry(0.46, 28, 20), mat(0xf2f4fb, { roughness: 0.3 }));
     skull.scale.set(1.1, 0.9, 1); skull.castShadow = true; head.add(skull);
@@ -3994,10 +4249,12 @@ const tc = THEME.colour;
       pivot.add(a); body.add(pivot); return pivot; });
     const feet = [-1, 1].map(s => { const f = new THREE.Mesh(new THREE.SphereGeometry(0.14, 14, 10), mat(0x2d3570));
       f.scale.set(1, 0.6, 1.3); f.position.set(0.17 * s, 0.1, 0.03); f.castShadow = true; g.add(f); return f; });
+    const cup = at(cyl(0.07, 0.055, 0.14, 0xffffff, 12), 0, -0.42, 0.04); cup.rotation.x = 2.0; cup.visible = false; arms[1].add(cup);
+    const paper = at(rbox(0.3, 0.03, 0.38, 0.01, 0xfff3c4), 0, -0.42, 0.12); paper.rotation.x = 1.2; paper.visible = false; arms[0].add(paper);
     const tag = labelSprite(name, '#' + colour.getHexString(), { size: 30, scale: 0.0075 }); tag.position.set(0, -0.12, 0.5); g.add(tag);
     g.scale.setScalar(1.4); g.userData.botName = name;
     F.scene.add(g);
-    return { name, group: g, body, head, eyes, arms, feet, tip, tipMat, tag, bubble: null, bubbleText: '',
+    return { name, group: g, body, head, eyes, arms, feet, tip, tipMat, bellyMat, tag, cup, paper, bubble: null, bubbleText: '',
              pos: g.position, target: new THREE.Vector3(), phase: Math.random() * 6, wait: 0, spot: -1, zone: null, work: null };
   }
 
@@ -4070,7 +4327,8 @@ const tc = THEME.colour;
       let b = F.bots.get(name);
       if (!b) {
         b = makeBot(name); F.bots.set(name, b); b.home = i % F.pads.length;
-        b.pos.copy(F.pads[b.home].pos); b.target.copy(b.pos); b.kind = 'hq'; b.want = 'hq'; b.lock = 0; b.lastAct = null;
+        b.pos.copy(F.pads[b.home].pos); b.target.copy(b.pos); b.kind = 'hq'; b.want = 'hq'; b.workWant = 'hq'; b.lock = 0; b.lastAct = null;
+        b.asking = false; b.thirsty = false; b.lastDrink = performance.now() / 1000;
       }
       b.work = w;
       const act = w ? `${w.done}|${w.activity}` : null;
@@ -4079,10 +4337,17 @@ const tc = THEME.colour;
         let kind = equipmentFor(w);
         if (kind === 'press' && Math.random() < 0.5) kind = 'desk';
         if (name === 'Larry' && kind === 'desk') kind = 'control';
-        b.want = kind;
+        b.workWant = kind;
       }
+      // Waiting on you beats everything: the bot goes to the CEO's desk until you decide. A thirsty bot
+      // on a long task detours to the water cooler. Otherwise it goes where its current step happens.
       const asking = [...pendingByChat.values()].find(r => r.asker === name || (!w && r.agent === name));
+      if (b.asking && !asking) { F.stampAt = performance.now() / 1000; F.stampSparked = false; }
+      b.asking = !!asking;
+      if (b.asking) b.thirsty = false;
+      b.want = b.asking ? 'ceo' : b.thirsty ? 'water' : b.workWant;
       const label = asking ? (asking.kind === 'question' ? '❓ has a question for you' : '⚠ waiting for your approval')
+        : b.thirsty ? '💧 quick drink, then back to it'
         : w ? (w.done ? '✓ done' : `${w.project && w.project !== 'General' ? w.project + ' · ' : ''}${w.activity || w.task || 'working'}`) : '';
       const short = label.length > 46 ? label.slice(0, 45) + '…' : label;
       if (short !== b.bubbleText) {
@@ -4110,7 +4375,7 @@ const tc = THEME.colour;
     const options = F.stations.filter(s => s.kind === kind);
     for (const s of options) {
       const free = s.spots.find(p => !p.taken);
-      if (free) { free.taken = b; b.spot = free; return { pos: free.pos, face: 0, station: s }; }
+      if (free) { free.taken = b; b.spot = free; return { pos: free.pos, face: free.face ?? 0, station: s }; }
     }
     const s = options[0] || F.stations[0];                               // all spots busy: wait just behind
     return { pos: s.spots[0].pos.clone().add(new THREE.Vector3(1.3, 0, Math.random() - 0.5)), face: 0, station: s };
@@ -4128,6 +4393,21 @@ const tc = THEME.colour;
     if (!F) sizeCrew();
     const tmp = new THREE.Vector3();
     F.stations.forEach(s => { s.active = 0; });
+    // Power: pulses run battery to battery along each wire, jogging in to the battery at either end;
+    // a pad brightens as one passes under it, and the batteries' gauges fill in a slow chase.
+    const { BUS, END } = F.power;
+    F.pulses.forEach(p => {
+      const u = (t * 0.09 + p.off) % 1, z = (p.dir > 0 ? u : 1 - u) * 2 * END - END;
+      const f = Math.min(1, Math.max(0, Math.abs(z) - BUS) / (END - BUS));
+      p.z = z; p.mesh.position.set(p.x + (HQ_X - p.x) * f, 0.4, z);
+    });
+    F.pads.forEach((p, i) => {
+      p.boost = 0; F.pulses.forEach(q => { if (q.col === p.col) p.boost = Math.max(p.boost, 1 - Math.abs(q.z - p.pos.z)); });
+      p.mesh.material.emissiveIntensity = 0.18 + Math.max(0, Math.sin(t * 2 + i)) * 0.12 + p.boost * 0.7;
+    });
+    F.batteries.forEach((bt, j) => { const lit = Math.floor(((t * 0.3 + j * 0.5) % 1) * (bt.bars.length + 1));
+      bt.bars.forEach((bar, k) => { bar.material.emissiveIntensity = k < lit ? 0.9 : 0.08; }); });
+    const DRINK_AFTER = 45;                                              // seconds of steady work before a water break
     for (const b of F.bots.values()) {
       if (b.want !== b.kind && t >= b.lock) {                            // move on to the next piece of equipment
         const c = claim(b, b.want); b.kind = b.want; b.target.copy(c.pos); b.face = c.face; b.station = c.station || null;
@@ -4135,34 +4415,69 @@ const tc = THEME.colour;
       }
       const d = tmp.subVectors(b.target, b.pos); d.y = 0;
       const dist = d.length(), moving = dist > 0.06;
-      const working = b.work && !b.work.done && b.kind !== 'hq';
+      const busy = b.work && !b.work.done;
+      const atWater = b.kind === 'water' && !moving, atCeo = b.kind === 'ceo' && !moving;
+      const working = busy && !['hq', 'water', 'ceo'].includes(b.kind);
       if (moving) {
         const step = Math.min(dist, (b.kind === 'hq' ? 3.2 : 4.6) * dt);
         b.pos.addScaledVector(d.normalize(), step);
         let turn = Math.atan2(d.x, d.z) - b.group.rotation.y; turn = Math.atan2(Math.sin(turn), Math.cos(turn));
         b.group.rotation.y += turn * Math.min(1, dt * 10);
       } else {
-        if (b.station && working) b.station.active++;
+        if (b.station && (working || atWater || atCeo)) b.station.active++;
         const face = b.kind === 'hq' ? F.yaw : (b.face ?? F.yaw);
         let turn = face - b.group.rotation.y; turn = Math.atan2(Math.sin(turn), Math.cos(turn)); b.group.rotation.y += turn * Math.min(1, dt * 5);
       }
+      // Water breaks: after a long stretch of work, go for a drink, sip for a few seconds, then go back.
+      if (!busy) { b.lastDrink = t; if (b.thirsty) { b.thirsty = false; assignBots(); } }
+      else if (!b.thirsty && !b.asking && t - b.lastDrink > DRINK_AFTER) { b.thirsty = true; b.drinkEnd = 0; assignBots(); }
+      if (atWater && b.thirsty) {
+        if (!b.drinkEnd) b.drinkEnd = t + 6;
+        else if (t > b.drinkEnd) { b.thirsty = false; b.lastDrink = t; assignBots(); }
+      }
       const k = t * 11 + b.phase;
-      b.body.position.y = moving ? Math.abs(Math.sin(k)) * 0.12 : Math.sin(t * 2 + b.phase) * 0.03;
+      b.body.position.y = moving ? Math.abs(Math.sin(k)) * 0.12 : atCeo ? Math.abs(Math.sin(t * 3 + b.phase)) * 0.05 : Math.sin(t * 2 + b.phase) * 0.03;
       b.body.rotation.z = moving ? Math.sin(k) * 0.06 : 0;
       b.feet[0].position.z = moving ? Math.sin(k) * 0.16 : 0.03; b.feet[1].position.z = moving ? -Math.sin(k) * 0.16 : 0.03;
-      b.arms[0].rotation.x = moving ? Math.sin(k) * 0.9 : working ? -1.1 + Math.sin(t * 16 + b.phase) * 0.35 : 0.1;
-      b.arms[1].rotation.x = moving ? -Math.sin(k) * 0.9 : working ? -1.1 + Math.cos(t * 16 + b.phase) * 0.35 : 0.1;
+      b.arms[0].rotation.x = moving ? Math.sin(k) * 0.9 : atCeo ? -1.25 + Math.sin(t * 2 + b.phase) * 0.08
+        : working ? -1.1 + Math.sin(t * 16 + b.phase) * 0.35 : 0.1;
+      b.arms[1].rotation.x = moving ? -Math.sin(k) * 0.9 : atWater ? -2.3 + Math.sin(t * 1.4 + b.phase) * 0.2
+        : working ? -1.1 + Math.cos(t * 16 + b.phase) * 0.35 : 0.1;
       b.head.rotation.y = working && !moving ? Math.sin(t * 1.5 + b.phase) * 0.3 : 0;
+      b.head.rotation.x = atWater ? -0.2 + Math.sin(t * 1.4 + b.phase) * 0.08 : 0;
+      b.cup.visible = atWater; b.paper.visible = b.kind === 'ceo';
       const blink = Math.sin(t * 1.1 + b.phase * 3) > 0.985 ? 0.15 : 1.3;
       b.eyes.forEach(e => { e.scale.y = blink; });
-      const charging = b.kind === 'hq' && !moving;
-      b.tipMat.emissiveIntensity = working ? 0.8 + Math.sin(t * 9 + b.phase) * 0.7 : charging ? 0.35 + Math.sin(t * 2 + b.phase) * 0.25 : 0.6;
+      const charging = b.kind === 'hq' && !moving, pad = F.pads[b.home];
+      b.tipMat.emissiveIntensity = working ? 0.8 + Math.sin(t * 9 + b.phase) * 0.7
+        : charging ? 0.35 + Math.sin(t * 2 + b.phase) * 0.25 + pad.boost * 1.2 : 0.6;
       b.tipMat.emissive.set(working ? tc('#ffb347') : charging ? tc('#bad367') : '#' + b.tipMat.color.getHexString());
+      // The chest logo glows: a quick throb while working, a slow breath on the pad that flares as charge passes.
+      b.bellyMat.emissiveIntensity = working ? 0.9 + Math.max(0, Math.sin(t * 6 + b.phase)) * 0.9
+        : charging ? 0.35 + Math.sin(t * 2 + b.phase) * 0.2 + pad.boost * 1.4 : 0.6;
       if (working && !moving && Math.random() < 0.03) spark(b.group.localToWorld(tmp.set(0, 2.05, 0)));
+      if (charging && pad.boost > 0.7 && Math.random() < 0.12) spark(b.group.localToWorld(tmp.set(0, 2.05, 0)));
       if (b.bubble) b.bubble.position.y = 2.6 + b.body.position.y;
     }
-    // Charging pads pulse under resting bots; equipment comes to life while someone uses it.
-    F.pads.forEach((p, i) => { p.mesh.material.emissiveIntensity = 0.18 + Math.max(0, Math.sin(t * 2 + i)) * 0.12; });
+    // The CEO reads over whoever is waiting (lamp pulsing amber: it's on you), and when you decide,
+    // brings the stamp down with a green flash and the bot heads back to work.
+    const C = F.ceo, CP = F.ceoDesk.parts, visitors = F.ceoDesk.active, since = t - F.stampAt;
+    const thud = since < 0.9 ? Math.sin(since / 0.9 * Math.PI) : 0;
+    C.head.rotation.y = visitors ? Math.sin(t * 0.9) * 0.45 : Math.sin(t * 0.35) * 0.15;
+    C.head.rotation.x = visitors ? 0.15 + Math.sin(t * 2.2) * 0.05 : 0;
+    C.arms[0].rotation.x = -0.95; C.arms[1].rotation.x = -0.95 - thud * 0.9;
+    C.body.position.y = Math.sin(t * 1.6) * 0.02;
+    C.eyes.forEach(e => { e.scale.y = Math.sin(t * 0.9 + 2) > 0.985 ? 0.15 : 1.3; });
+    C.tipMat.emissiveIntensity = 0.5 + Math.sin(t * 2) * 0.2;
+    C.bellyMat.emissiveIntensity = since < 1.6 ? 1.8 :0.6 + Math.sin(t * 1.5) * 0.15;
+    CP.stamp.position.y = CP.stampY + thud * 0.3;
+    const signed = since < 1.6;
+    CP.lamp.material.emissive.set(signed || !visitors ? tc('#bad367') : tc('#ffb347'));
+    CP.lamp.material.emissiveIntensity = signed ? 1.3 : visitors ? 0.5 + Math.max(0, Math.sin(t * 5)) * 0.7 : 0.25;
+    if (since > 0.45 && !F.stampSparked) {
+      F.stampSparked = true; const hit = CP.stamp.getWorldPosition(new THREE.Vector3());
+      for (let i = 0; i < 10; i++) spark(hit);
+    }
     for (const s of F.stations) {
       const on = s.active > 0, P = s.parts;
       (P.screens || []).forEach(sc => { sc.userData.tex.offset.y += on ? dt * 0.35 : 0; sc.material.color.setScalar(on ? 1 : 0.45); });
@@ -4177,7 +4492,8 @@ const tc = THEME.colour;
       if (P.head) { P.head.rotation.y += (on ? 1.6 : 0.15) * dt; P.tip.material.emissiveIntensity = on ? 0.5 + Math.max(0, Math.sin(t * 8)) : 0.3; }
       if (P.roller) { P.roller.rotation.y += 0; P.roller.rotation.z += 0; P.roller.rotateY(on ? dt * 4 : 0);
         const u = (t * 0.5) % 1; P.sheet.position.x = on ? 0.4 + u * 0.8 : 0.6; }
-      if (on && Math.random() < 0.08) spark(s.group.localToWorld(tmp.set(0, 2.2, 0)));
+      if (P.bubbles) P.bubbles.forEach(bb => { const u = (t * (on ? 0.9 : 0.12) + bb.userData.off) % 1; bb.position.y = 1.32 + u * 0.55; });
+      if (on && !s.calm && Math.random() < 0.08) spark(s.group.localToWorld(tmp.set(0, 2.2, 0)));
     }
     for (let i = 0; i < F.sparkLife.length; i++) {                       // sparks fly, fall and fade
       if (F.sparkLife[i] <= 0) { F.sparkPos[i * 3 + 1] = -50; continue; }
@@ -4189,6 +4505,7 @@ const tc = THEME.colour;
     F.camera.position.set(F.target.x + Math.sin(F.yaw + sway) * Math.cos(F.pitch) * F.dist,
       Math.sin(F.pitch) * F.dist, F.target.z + Math.cos(F.yaw + sway) * Math.cos(F.pitch) * F.dist);
     F.camera.lookAt(F.target);
+    F.walls.back.visible = F.camera.position.z > -16; F.walls.side.visible = F.camera.position.x > -24;
     F.renderer.render(F.scene, F.camera);
     crewFrame = requestAnimationFrame(drawCrew);
   }
