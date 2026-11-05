@@ -95,7 +95,7 @@ If it shows `"loggedIn": true`, carry on. If it shows `false` (or an error), ope
 Start-Process powershell -ArgumentList '-NoExit', '-Command', "Get-ChildItem env: | Where-Object { `$_.Name -match '^(ANTHROPIC_|CLAUDE_CODE_|CLAUDECODE$)' } | Remove-Item; claude auth login"
 ```
 
-Tell them: "A window has opened and your browser will ask you to sign in to your Claude account. Sign in, then close that window and tell me when you're done." Then run the check again and don't go on until it says `"loggedIn": true`.
+Tell them: "A window has opened and your browser will ask you to sign in to your Claude account. Sign in, then close that window and tell me when you're done." Then run the check again and don't go on until it says `"loggedIn": true`. Being signed in to the Claude desktop app is not enough: Claude Code has its own sign-in. Never work around a failed sign-in (no editing their notes by hand in place of activation); stop and get them signed in first. If they skip it, Jarvis shows a **Sign in** card when it opens, which does the same thing.
 
 ## Step 4. Download and fill the knowledge folder
 

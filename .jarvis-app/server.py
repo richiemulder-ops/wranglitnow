@@ -87,6 +87,85 @@ def plain_error(text):
     """A sign-in failure from `claude`, said in plain English with the fix; anything else unchanged."""
     return NOT_SIGNED_IN if SIGN_IN_PROBLEM.search(text or "") else text
 
+
+# Claude Code's own sign-in. Being signed in to the Claude desktop app doesn't sign in Claude Code,
+# so Jarvis checks it and, if needed, runs `claude auth login` for you from a button on the page.
+_auth = {"checked": 0.0, "signed_in": None, "email": "", "login": None, "url": "", "output": ""}
+_auth_lock = threading.Lock()
+LOGIN_URL = re.compile(r"https://\S+oauth/authorize\S+")
+
+
+def claude_auth(refresh=False):
+    """Whether Claude Code is signed in on this computer, plus any sign-in in progress."""
+    with _auth_lock:
+        login = _auth["login"]
+        running = bool(login and login.poll() is None)
+        if refresh or running or _auth["signed_in"] is not True or time.time() - _auth["checked"] > 300:
+            exe = find_claude()
+            if not exe:
+                _auth.update(signed_in=None, email="", checked=time.time())
+            else:
+                try:
+                    r = subprocess.run([exe, "auth", "status", "--json"], capture_output=True, text=True,
+                                       encoding="utf-8", errors="replace", env=claude_env(), timeout=30,
+                                       creationflags=0x08000000 if os.name == "nt" else 0)
+                    data = json.loads(r.stdout or "{}")
+                    _auth.update(signed_in=bool(data.get("loggedIn")), email=data.get("email") or "")
+                except (OSError, ValueError, subprocess.TimeoutExpired):
+                    _auth.update(signed_in=False, email="")
+                _auth["checked"] = time.time()
+        if _auth["signed_in"] and running:   # signed in through the browser: the helper is done
+            kill_tree(login)
+            running = False
+        return {"installed": find_claude() is not None, "signedIn": _auth["signed_in"], "email": _auth["email"],
+                "signingIn": running, "url": _auth["url"] if running else "",
+                "needsCode": running}   # the browser shows a code to paste only if it can't hand it back itself
+
+
+def claude_login():
+    """Start `claude auth login`: it opens the browser, where one click on Authorize signs Claude Code in."""
+    exe = find_claude()
+    if not exe:
+        raise ChatError(500, "Claude Code isn't installed on this computer.")
+    with _auth_lock:
+        if _auth["login"] and _auth["login"].poll() is None:
+            kill_tree(_auth["login"])   # a fresh start opens the browser again
+        proc = subprocess.Popen([exe, "auth", "login", "--claudeai"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+                                env=claude_env(), creationflags=0x08000000 if os.name == "nt" else 0,
+                                start_new_session=os.name != "nt")
+        _auth.update(login=proc, url="", output="", signed_in=None)
+
+    def read():
+        for line in proc.stdout:
+            with _auth_lock:
+                _auth["output"] = (_auth["output"] + line)[-4000:]
+                m = LOGIN_URL.search(line)
+                if m:
+                    _auth["url"] = m.group(0)
+    threading.Thread(target=read, daemon=True).start()
+    threading.Timer(900, lambda: kill_tree(proc)).start()   # give up after 15 minutes
+    for _ in range(20):   # long enough for the browser link to appear
+        if _auth["url"] or proc.poll() is not None:
+            break
+        time.sleep(0.25)
+    return claude_auth(refresh=True)
+
+
+def claude_login_code(code):
+    """The code the browser shows, when the sign-in asks for it to be pasted."""
+    code = str(code or "").strip()
+    login = _auth["login"]
+    if not code or not login or login.poll() is not None:
+        raise ChatError(400, "Start the sign-in first.")
+    login.stdin.write(code + "\n")
+    login.stdin.flush()
+    for _ in range(40):
+        if login.poll() is not None:
+            break
+        time.sleep(0.25)
+    return claude_auth(refresh=True)
+
 # Vault folders the viewer may list and open (keys are all the browser can name).
 FOLDERS = {"inbox": "Team Inbox", "deliverables": "Deliverables"}
 OPENABLE = {".pdf", ".docx", ".doc", ".xlsx", ".xls", ".csv", ".pptx", ".md", ".txt",
@@ -2804,6 +2883,8 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
                 self._json(200, transcript(q.get("path", "")))
             elif url.path == "/api/update":
                 self._json(200, update_status(q.get("force") == "1"))
+            elif url.path == "/api/claude-auth":
+                self._json(200, claude_auth(q.get("refresh") == "1"))
             else:
                 self._json(404, {"error": "Not found."})
         except ChatError as e:
@@ -2841,7 +2922,7 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
             return
         if path in ("/api/open", "/api/reveal", "/api/trash", "/api/action", "/api/fleeting", "/api/models", "/api/projects", "/api/agent-chat",
                     "/api/agent-chat/stop", "/api/jobs/stop", "/api/stop-answer", "/api/approval", "/api/approval/decide", "/api/hires/approve", "/api/hires/decline", "/api/setup", "/api/logo",
-                    "/api/update"):
+                    "/api/update", "/api/claude-auth/login", "/api/claude-auth/code"):
             if not self._trusted():
                 self._json(403, {"error": "Forbidden."})
                 return
@@ -2881,6 +2962,10 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
                     self._json(200, set_models(body.get("chat"), body.get("jobs"), body.get("permissions")))
                 elif path == "/api/update":
                     self._json(200, update_now())
+                elif path == "/api/claude-auth/login":
+                    self._json(200, claude_login())
+                elif path == "/api/claude-auth/code":
+                    self._json(200, claude_login_code(body.get("code")))
                 elif path == "/api/fleeting":
                     self._json(200, save_fleeting(body.get("title", ""), body.get("body", ""), body.get("path")))
                 else:

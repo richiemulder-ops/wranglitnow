@@ -1,7 +1,8 @@
 {
-  "version": "2026.11.06.1",
+  "version": "2026.11.06.2",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes.",
   "notes": [
+    "If Claude Code isn't signed in on your computer, Jarvis now shows a Sign in card. Click Sign in, then Authorize in your browser, and you're done. Being signed in to the Claude desktop app doesn't sign in Claude Code, which Jarvis runs on.",
     "Jarvis now always uses your own Claude sign-in, so it keeps working after a restart. If Claude Code isn't signed in, Jarvis tells you how to fix it instead of showing \"Not logged in\".",
     "Setup can now keep Jarvis in its own folder and link it to a knowledge folder anywhere, OneDrive included.",
     "Office: the CEO reads a book while nobody needs them, and now and then gets up for a workout in the new gym in front of the desk (treadmill, dumbbells, squat rack).",
@@ -29,6 +30,12 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.06.2",
+      "notes": [
+        "If Claude Code isn't signed in on your computer, Jarvis now shows a Sign in card. Click Sign in, then Authorize in your browser, and you're done. Being signed in to the Claude desktop app doesn't sign in Claude Code, which Jarvis runs on."
+      ]
+    },
     {
       "version": "2026.11.06.1",
       "notes": [

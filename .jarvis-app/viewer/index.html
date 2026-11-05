@@ -1340,7 +1340,11 @@ const tc = THEME.colour;
       body: body ? JSON.stringify(body) : undefined
     });
     const data = await res.json().catch(() => ({ error: `Server error ${res.status}` }));
-    if (!res.ok || data.error) throw new Error(data.error || `Server error ${res.status}`);
+    if (!res.ok || data.error) {
+      const msg = data.error || `Server error ${res.status}`;
+      if (window.jarvisSignInProblem) window.jarvisSignInProblem(msg);
+      throw new Error(msg);
+    }
     return data;
   }
 
@@ -4160,6 +4164,77 @@ const tc = THEME.colour;
     };
     setTimeout(wait, 3000);
   }
+
+  // ---- Claude Code sign-in ------------------------------------------------------------------
+  // Jarvis runs on Claude Code, which has its own sign-in: being signed in to the Claude desktop
+  // app doesn't count. When it isn't signed in, a card says so, and Sign in opens the browser,
+  // where one click on Authorize does it. The card goes once Claude Code is signed in.
+  const authCard = document.createElement('div');
+  authCard.id = 'claudeAuth';
+  authCard.hidden = true;
+  authCard.style.cssText = 'position:fixed;left:50%;top:96px;transform:translateX(-50%);z-index:60;width:min(520px,calc(100vw - 32px));' +
+    'background:#141b2d;border:1px solid #ffb347;border-radius:14px;padding:16px 18px;color:#e8ecf4;font:14px/1.45 inherit;box-shadow:0 8px 30px rgba(0,0,0,.45)';
+  authCard.innerHTML = `
+    <div style="font-weight:600;margin-bottom:6px">Sign in to Claude Code</div>
+    <div class="msg" style="opacity:.85">Jarvis runs on Claude Code, which needs its own one-time sign-in. Being signed in to the Claude desktop app doesn't cover it.</div>
+    <div class="code" hidden style="margin-top:10px">
+      <div style="opacity:.85;margin-bottom:6px">If your browser shows a code, paste it here:</div>
+      <input type="text" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #3a4560;background:#0d1322;color:inherit">
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">
+      <button class="go" style="padding:8px 16px;border-radius:999px;border:0;background:#ffb347;color:#141b2d;font-weight:600;cursor:pointer">Sign in</button>
+      <button class="send" hidden style="padding:8px 16px;border-radius:999px;border:0;background:#ffb347;color:#141b2d;font-weight:600;cursor:pointer">Send code</button>
+      <a class="link" hidden target="_blank" rel="noopener" style="color:#9fd3ff">Open the sign-in page again</a>
+      <span class="state" style="opacity:.7;font-size:13px"></span>
+    </div>`;
+  document.body.appendChild(authCard);
+  const authEl = s => authCard.querySelector(s);
+  let authTimer = null;
+  function showAuth(a) {
+    if (!a || a.signedIn !== false || !a.installed) {
+      authCard.hidden = true;
+      return;
+    }
+    authCard.hidden = false;
+    authEl('.go').textContent = a.signingIn ? 'Start again' : 'Sign in';
+    authEl('.state').textContent = a.signingIn ? 'Waiting for you to click Authorize in your browser…' : '';
+    authEl('.link').hidden = !a.url;
+    if (a.url) authEl('.link').href = a.url;
+    authEl('.code').hidden = authEl('.send').hidden = !a.needsCode;
+  }
+  async function checkAuth(refresh) {
+    let a;
+    try { a = await api('/api/claude-auth' + (refresh ? '?refresh=1' : '')); } catch (_) { return; }
+    const was = !authCard.hidden;
+    showAuth(a);
+    clearTimeout(authTimer);
+    if (a.signingIn) authTimer = setTimeout(() => checkAuth(), 2500);
+    if (was && a.signedIn) {   // just signed in: fetch what failed before
+      refreshAfterSignIn();
+    }
+    return a;
+  }
+  function refreshAfterSignIn() {
+    try { refreshMeeting(); } catch (_) {}
+  }
+  authEl('.go').onclick = async () => {
+    authEl('.state').textContent = 'Opening your browser…';
+    try { showAuth(await api('/api/claude-auth/login', {})); }
+    catch (err) { authEl('.state').textContent = err.message; return; }
+    clearTimeout(authTimer);
+    authTimer = setTimeout(() => checkAuth(), 2500);
+  };
+  authEl('.send').onclick = async () => {
+    const code = authEl('.code input').value.trim();
+    if (!code) return;
+    authEl('.state').textContent = 'Checking…';
+    try { showAuth(await api('/api/claude-auth/code', { code })); }
+    catch (err) { authEl('.state').textContent = err.message; }
+    checkAuth(true);
+  };
+  checkAuth(true);
+  // Any answer that fails for want of a sign-in brings the card back.
+  window.jarvisSignInProblem = msg => { if (/isn't signed in|not logged in|\/login/i.test(msg || '')) checkAuth(true); };
 
   // ---- current work -----------------------------------------------------------------------
   // A tile that pulses while anyone is working, and a screen where each agent is a little bot:
