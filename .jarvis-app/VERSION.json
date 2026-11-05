@@ -1,8 +1,9 @@
 {
-  "version": "2026.11.05.1",
+  "version": "2026.11.05.2",
   "notes": [
-    "Jarvis can now update itself: an Update tile appears when there's a new version.",
-    "The galaxy is grouped into labelled hubs: Projects, Agents, Notes, Actions, Meetings and more.",
-    "The welcome screen no longer fails after Jarvis reloads itself."
+    "Ask for a client's actions or meetings and they open in a small window of their own.",
+    "Ask for a project's notes and Notes opens on that project; a project's files now show as a folder tree.",
+    "Zoom buttons (− ⌂ +) under the Index, and gentler zooming with the mouse wheel.",
+    "Answers explain themselves a little more and end with a question when there's a next step."
   ]
 }

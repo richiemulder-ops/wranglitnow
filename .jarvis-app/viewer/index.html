@@ -88,6 +88,11 @@
   #legend div, #legend button { display: flex; align-items: center; gap: 9px; }
   #legend button { font: inherit; color: inherit; background: none; border: 0; padding: 1px 0; cursor: pointer; text-align: left; }
   #legend button span { color: var(--dim); } #legend button:hover span { color: var(--ink); }
+  #legend .zoom { gap: 6px; margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--edge); }
+  #legend .zoom button { width: 28px; height: 26px; justify-content: center; padding: 0; border-radius: 8px;
+    border: 1px solid var(--edge); background: rgba(255,255,255,0.04); color: var(--ink); font-size: 15px; line-height: 1; }
+  #legend .zoom button:hover { background: rgba(186,211,103,0.18); }
+  #legend .zoom button.fit { font-size: 12px; }
   #legend i { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 10px currentColor; background: currentColor; }
 
   #panel { position: fixed; top: 0; right: 0; height: 100%; width: min(420px, 100vw); box-sizing: border-box;
@@ -103,12 +108,43 @@
   #panel h3 { margin: 22px 0 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.18em;
     text-transform: uppercase; color: var(--dim); }
   /* A project's deliverables: the same rows as the Team Inbox card. */
-  #p-deliverables { flex: 0 1 auto; max-height: 34vh; overflow-y: auto; padding-right: 4px; }
+  #p-deliverables { flex: 0 1 auto; max-height: 46vh; overflow-y: auto; padding-right: 4px; }
   #p-deliverables[hidden], #p-dhead[hidden] { display: none; }
   #p-deliverables .tools { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; }
   #p-deliverables .note { font-size: 12px; color: var(--dim); margin: 2px 0 6px; }
   #p-deliverables .note.error { color: #ffcf8a; }
   #p-deliverables .item { margin-bottom: 4px; }
+  /* A project's files as a folder tree: folders open in place. */
+  .tree .item { margin-bottom: 2px; padding-top: 6px; padding-bottom: 6px; }
+  .tree .item .tw { display: inline-block; width: 10px; overflow: visible; flex: none; color: var(--dim); font-style: normal; font-size: 10px; }
+  .tree .kids[hidden] { display: none; }
+  .tree-root { font-size: 11.5px; color: var(--dim); margin: 0 0 6px; word-break: break-all; }
+  /* Pop-ups: small windows for a list you asked Jarvis for. Several can be open at once. */
+  .popwin { position: fixed; z-index: 8; width: min(440px, calc(100vw - 24px)); height: min(520px, calc(100vh - 140px));
+    display: flex; flex-direction: column; border-radius: 14px; background: rgba(14, 17, 44, 0.96); backdrop-filter: blur(16px);
+    border: 1px solid var(--edge); border-top: 2px solid var(--accent); box-shadow: 0 18px 50px rgba(0,0,0,0.55);
+    animation: rise 0.25s ease-out; --accent: #cfe49a; }
+  .popwin header { display: flex; align-items: center; gap: 8px; padding: 12px 12px 10px 16px; border-bottom: 1px solid var(--edge);
+    cursor: grab; user-select: none; }
+  .popwin header .titles { flex: 1; min-width: 0; }
+  .popwin header .kicker { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); }
+  .popwin header h3 { margin: 2px 0 0; font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .popwin header .x { width: 26px; height: 26px; flex: none; border-radius: 50%; border: 1px solid var(--edge);
+    background: transparent; color: var(--dim); cursor: pointer; font: inherit; font-size: 12px; }
+  .popwin header .x:hover { color: var(--ink); }
+  .popwin .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 14px; border-bottom: 1px solid var(--edge); }
+  .popwin .bar:empty { display: none; }
+  .popwin input[type=search] { flex: 1; min-width: 120px; background: rgba(255,255,255,0.05); border: 1px solid var(--edge);
+    border-radius: 8px; color: var(--ink); font: inherit; font-size: 12.5px; padding: 6px 9px; outline: none; }
+  .popwin .link-btn.on { background: rgba(186,211,103,0.32); border-color: rgba(186,211,103,0.6); }
+  .popwin .count { font-size: 11.5px; color: var(--dim); }
+  .popwin .content { flex: 1; overflow-y: auto; padding: 2px 14px 14px; }
+  .popwin .row-item { padding: 9px 2px; }
+  .popwin .row-item .t { font-size: 13px; }
+  .popwin .empty, .popwin .loading { padding: 18px 2px; color: var(--dim); font-size: 12.5px; }
+  .popwin .loading.error { color: #ffcf8a; }
+  .fleet .about { font-size: 12px; color: var(--dim); line-height: 1.5; margin: 0 0 8px; max-height: 8em; overflow-y: auto; white-space: pre-line; }
+  .fleet .tabs { display: flex; gap: 6px; margin: 0 0 8px; }
   #neighbors { overflow-y: auto; overflow-x: hidden; flex: 1 1 0; min-height: 60px; display: flex; flex-wrap: wrap;
     gap: 6px; align-content: flex-start; }
   #neighbors button { font: inherit; font-size: 12px; color: var(--ink); background: rgba(255,255,255,0.05);
@@ -885,6 +921,22 @@ const tc = THEME.colour;
     `<button type="button" data-g="${escapeHtml(g)}" style="color:${groupColor[g]}" title="Show ${escapeHtml(g)} in the galaxy">` +
     `<i></i><span>${escapeHtml(g)} · ${groupCounts[g]}</span></button>`).join('');
   legendEl.querySelectorAll('button').forEach(b => { b.onclick = () => select(typeHub[b.dataset.g]); });
+  // Zoom buttons: a gentle step in or out towards whatever the view is centred on; ⌂ goes back to the whole galaxy.
+  legendEl.insertAdjacentHTML('beforeend', '<div class="zoom"><button type="button" data-z="out" title="Zoom out">−</button>' +
+    '<button type="button" data-z="fit" class="fit" title="Whole galaxy">⌂</button><button type="button" data-z="in" title="Zoom in">+</button></div>');
+  function zoomBy(factor) {
+    const cam = Graph.camera().position, t = Graph.controls().target;
+    const d = cam.distanceTo(t), want = Math.max(40, Math.min(6000, d * factor));
+    const k = want / (d || 1);
+    pauseDrift(6000);
+    Graph.cameraPosition({ x: t.x + (cam.x - t.x) * k, y: t.y + (cam.y - t.y) * k, z: t.z + (cam.z - t.z) * k }, { x: t.x, y: t.y, z: t.z }, 450);
+  }
+  legendEl.querySelector('.zoom').onclick = e => {
+    const z = e.target.closest('button') && e.target.closest('button').dataset.z;
+    if (z === 'in') zoomBy(0.75);
+    else if (z === 'out') zoomBy(1.33);
+    else if (z === 'fit') { pauseDrift(6000); Graph.cameraPosition({ x: 0, y: 300, z: 1700 }, { x: 0, y: 0, z: 0 }, 900); }
+  };
 
   // ---- node dot texture: a hard-edged disc with a thin, faint halo ------------------------
   const DOT_CORE = 0.4;   // core diameter as a share of the sprite
@@ -962,6 +1014,7 @@ const tc = THEME.colour;
     .onBackgroundClick(clearSelection);
 
   Graph.renderer().setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  Graph.controls().zoomSpeed = 0.25;   // the wheel zooms in smaller steps (the default jumps too far per notch)
   // Notes gather round their hub; links between notes still pull related clusters together.
   Graph.d3Force('charge').strength(n => n.hub ? -300 : -60);
   Graph.d3Force('link')
@@ -1515,31 +1568,36 @@ const tc = THEME.colour;
   }
 
   // A searchable list view; `row(item)` returns { el } contents, `match(item)` the search text.
-  function listView({ kicker, title, accent, load, filters, row, match, empty }) {
-    let state = { q: '', filter: filters ? filters[0].key : null };
+  // A searchable list (with optional filter buttons) drawn into any bar and content: the workspace or a pop-up.
+  async function listInto(bar, content, { load, filters, row, match, empty }, state) {
+    const search = document.createElement('input');
+    search.type = 'search'; search.placeholder = 'Search…'; search.value = state.q;
+    bar.appendChild(search);
+    const btns = (filters || []).map(f => linkButton(bar, f.label, () => { state.filter = f.key; paint(); }));
+    const count = document.createElement('span'); count.className = 'count'; bar.appendChild(count);
+    loadingInto(content, 'Loading…');
+    let items;
+    try { items = await load(); } catch (err) { failInto(content, err); return null; }
+    function paint() {
+      btns.forEach((b, i) => b.classList.toggle('on', filters[i].key === state.filter));
+      const q = state.q.toLowerCase();
+      const shown = items.filter(it => (!filters || filters.find(f => f.key === state.filter).test(it)) &&
+                                       (!q || match(it).toLowerCase().includes(q)));
+      count.textContent = `${shown.length} of ${items.length}`;
+      content.innerHTML = shown.length ? '' : `<div class="empty">${escapeHtml(empty)}</div>`;
+      shown.slice(0, 400).forEach(it => content.appendChild(row(it, paint)));
+    }
+    search.oninput = () => { state.q = search.value; paint(); };
+    paint();
+    return paint;
+  }
+  function listView({ kicker, title, accent, load, filters, row, match, empty }, start = {}) {
+    let state = { q: start.q || '', filter: start.filter || (filters ? filters[0].key : null) };
     openView({
       kicker, title, accent,
       render: async (bar, content) => {
-        const search = document.createElement('input');
-        search.type = 'search'; search.placeholder = 'Search…'; search.value = state.q;
-        bar.appendChild(search);
-        const btns = (filters || []).map(f => linkButton(bar, f.label, () => { state.filter = f.key; paint(); }));
-        const count = document.createElement('span'); count.className = 'count'; bar.appendChild(count);
-        loadingInto(content, 'Loading…');
-        let items;
-        try { items = await load(); } catch (err) { return failInto(content, err); }
-        function paint() {
-          btns.forEach((b, i) => b.classList.toggle('on', filters[i].key === state.filter));
-          const q = state.q.toLowerCase();
-          const shown = items.filter(it => (!filters || filters.find(f => f.key === state.filter).test(it)) &&
-                                           (!q || match(it).toLowerCase().includes(q)));
-          count.textContent = `${shown.length} of ${items.length}`;
-          content.innerHTML = shown.length ? '' : `<div class="empty">${escapeHtml(empty)}</div>`;
-          shown.slice(0, 400).forEach(it => content.appendChild(row(it, paint)));
-        }
-        search.oninput = () => { state.q = search.value; paint(); };
-        paint();
-        workEl.current.repaint = paint;
+        const paint = await listInto(bar, content, { load, filters, row, match, empty }, state);
+        if (paint) workEl.current.repaint = paint;
       }
     }, false);
   }
@@ -1563,48 +1621,103 @@ const tc = THEME.colour;
 
   // Actions: tick them off right here. The tick rewrites only the note's done: line.
   let openActionCount = null;
-  function showActions() {
+  const ACTION_FILTERS = [{ key: 'open', label: 'Open', test: a => !a.done }, { key: 'done', label: 'Done', test: a => a.done },
+                          { key: 'all', label: 'All', test: () => true }];
+  const actionMatch = a => `${a.action} ${a.owner} ${a.org} ${a.meeting} ${a.id}`;
+  function actionRow(a) {
+    const meta = [`#${a.id}`, a.owner && crmLink(a.owner, 'PKM/CRM/People'), a.org && crmLink(a.org, 'PKM/CRM/Organizations'),
+                  a.due && `due ${escapeHtml(prettyDate(a.due))}`, a.raised && `raised ${escapeHtml(prettyDate(a.raised))}`,
+                  a.meeting && crmLink(a.meeting, 'PKM/CRM/Meetings')].filter(Boolean).join(' · ');
+    const el = rowEl(a.done ? 'done' : '', `<input type="checkbox" class="check" ${a.done ? 'checked' : ''} ` +
+      `aria-label="Done"><div class="main"><div class="t">${escapeHtml(a.action)}</div><div class="m">${meta}</div></div>`,
+      () => openDoc(a.path, true));
+    const box = el.querySelector('.check');
+    box.onchange = async () => {
+      const done = box.checked;
+      el.classList.toggle('done', done);
+      try {
+        await api('/api/action', { path: a.path, done });
+        a.done = done;
+        openActionCount += done ? -1 : 1; updateActionsCard(); refreshMetrics();
+        setStatus('thinking', done ? `ticked off #${a.id}` : `#${a.id} is open again`, 2500);
+      } catch (err) {
+        box.checked = !done; el.classList.toggle('done', !done);
+        setStatus('error', err.message, 4000);
+      }
+    };
+    return el;
+  }
+  function showActions(start) {
     listView({
       kicker: 'Actions', title: 'Your action list', accent: tc('#a3e37a'), empty: 'Nothing here. Enviable.',
-      filters: [{ key: 'open', label: 'Open', test: a => !a.done }, { key: 'done', label: 'Done', test: a => a.done },
-                { key: 'all', label: 'All', test: () => true }],
-      load: async () => (await api('/api/actions')).actions,
-      match: a => `${a.action} ${a.owner} ${a.org} ${a.meeting} ${a.id}`,
-      row: (a, repaint) => {
-        const meta = [`#${a.id}`, a.owner && crmLink(a.owner, 'PKM/CRM/People'), a.org && crmLink(a.org, 'PKM/CRM/Organizations'),
-                      a.due && `due ${escapeHtml(prettyDate(a.due))}`, a.raised && `raised ${escapeHtml(prettyDate(a.raised))}`,
-                      a.meeting && crmLink(a.meeting, 'PKM/CRM/Meetings')].filter(Boolean).join(' · ');
-        const el = rowEl(a.done ? 'done' : '', `<input type="checkbox" class="check" ${a.done ? 'checked' : ''} ` +
-          `aria-label="Done"><div class="main"><div class="t">${escapeHtml(a.action)}</div><div class="m">${meta}</div></div>`,
-          () => openDoc(a.path, true));
-        const box = el.querySelector('.check');
-        box.onchange = async () => {
-          const done = box.checked;
-          el.classList.toggle('done', done);
-          try {
-            await api('/api/action', { path: a.path, done });
-            a.done = done;
-            openActionCount += done ? -1 : 1; updateActionsCard(); refreshMetrics();
-            setStatus('thinking', done ? `ticked off #${a.id}` : `#${a.id} is open again`, 2500);
-          } catch (err) {
-            box.checked = !done; el.classList.toggle('done', !done);
-            setStatus('error', err.message, 4000);
-          }
-        };
-        return el;
-      }
-    });
+      filters: ACTION_FILTERS, load: async () => (await api('/api/actions')).actions, match: actionMatch, row: actionRow
+    }, start);
   }
 
-  function showMeetings() {
+  const meetingMatch = m => `${m.title} ${m.org} ${m.date}`;
+  const meetingRow = m => rowEl('', `<div class="when">${escapeHtml(prettyDate(m.date))}</div><div class="main">` +
+    `<div class="t">${escapeHtml(m.title)}</div><div class="m">${[m.org && crmLink(m.org, 'PKM/CRM/Organizations'),
+      m.attendees && `${m.attendees} attendees`, m.fireflies && '🎙 Fireflies'].filter(Boolean).join(' · ')}</div></div>`,
+    () => openDoc(m.path, true));
+  function showMeetings(start) {
     listView({
       kicker: 'Meetings', title: 'Meeting history', accent: tc('#ff9f43'), empty: 'No meetings match.',
-      load: async () => (await api('/api/meetings')).meetings,
-      match: m => `${m.title} ${m.org} ${m.date}`,
-      row: m => rowEl('', `<div class="when">${escapeHtml(prettyDate(m.date))}</div><div class="main">` +
-        `<div class="t">${escapeHtml(m.title)}</div><div class="m">${[m.org && crmLink(m.org, 'PKM/CRM/Organizations'),
-          m.attendees && `${m.attendees} attendees`, m.fireflies && '🎙 Fireflies'].filter(Boolean).join(' · ')}</div></div>`,
-        () => openDoc(m.path, true))
+      load: async () => (await api('/api/meetings')).meetings, match: meetingMatch, row: meetingRow
+    }, start);
+  }
+
+  // Pop-ups: a small window of its own for a list you asked Jarvis for (a client's actions or
+  // meetings, a project's files). Several can be open; drag one by its title bar, ✕ or Esc closes it.
+  const popups = [];
+  function popup({ kicker, title, accent, render }) {
+    const el = document.createElement('div');
+    el.className = 'popwin'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', `${kicker}: ${title}`);
+    el.style.setProperty('--accent', accent || tc('#cfe49a'));
+    el.innerHTML = `<header><div class="titles"><div class="kicker">${escapeHtml(kicker)}</div><h3>${escapeHtml(title)}</h3></div>` +
+      `<span class="hdr-tools"></span><button class="x" type="button" title="Close">✕</button></header>` +
+      `<div class="bar"></div><div class="content"></div>`;
+    // Each new one opens a little down and to the right of the last, so none hides another.
+    const step = popups.length % 6, w = Math.min(440, innerWidth - 24);
+    el.style.left = Math.max(12, Math.min(innerWidth - w - 12, innerWidth / 2 - w / 2 + 40 + step * 28)) + 'px';
+    el.style.top = (96 + step * 28) + 'px';
+    document.body.appendChild(el); popups.push(el);
+    const close = () => { el.remove(); popups.splice(popups.indexOf(el), 1); };
+    el.querySelector('.x').onclick = close;
+    el.addEventListener('pointerdown', () => { if (el.nextElementSibling) document.body.appendChild(el); }, true);   // to the front
+    el.querySelector('header').onpointerdown = e => {
+      if (e.target.closest('button, select, input, a')) return;
+      e.preventDefault();
+      const b = el.getBoundingClientRect(), x0 = e.clientX, y0 = e.clientY;
+      const move = ev => {
+        el.style.left = Math.max(0, Math.min(innerWidth - 80, b.left + ev.clientX - x0)) + 'px';
+        el.style.top = Math.max(0, Math.min(innerHeight - 40, b.top + ev.clientY - y0)) + 'px';
+      };
+      const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+      window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+    };
+    el.close = close;
+    render(el.querySelector('.bar'), el.querySelector('.content'), el.querySelector('.hdr-tools'));
+    return el;
+  }
+  const orgName = slug => slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+  // "Bring up the actions for Acme": that client's actions (or meetings) in a pop-up.
+  function popClientList({ what, org, label, search, status }) {
+    const meetings = what === 'meetings';
+    const who = org ? orgName(org) : label;
+    popup({
+      kicker: meetings ? 'Meetings' : 'Actions', accent: meetings ? tc('#ff9f43') : tc('#a3e37a'),
+      title: who || (meetings ? 'All meetings' : 'All actions'),
+      render: (bar, content, tools) => {
+        const opts = meetings
+          ? { load: async () => (await api('/api/meetings')).meetings.filter(m => !org || m.org === org),
+              match: meetingMatch, row: meetingRow, empty: `No meetings filed${who ? ' for ' + who : ''}.` }
+          : { load: async () => (await api('/api/actions')).actions.filter(a => !org || a.org === org),
+              filters: ACTION_FILTERS, match: actionMatch, row: actionRow, empty: `Nothing here${who ? ' for ' + who : ''}.` };
+        listInto(bar, content, opts, { q: search || '', filter: meetings ? null : status || 'open' });
+        linkButton(tools, '⤢', () => (meetings ? showMeetings : showActions)({ q: org || search || '', filter: status }),
+                   'Open the full list in the workspace');
+      }
     });
   }
 
@@ -1640,9 +1753,11 @@ const tc = THEME.colour;
   const DRAFT_KEY = 'galaxy-note-draft';
   let noteRec = null;   // dictation runs on its own recogniser, separate from the ask-bar mic
 
-  function showNotes(editPath = null, listen = false) {
+  function showNotes(editPath = null, listen = false, projectName = null) {
+    const project = projectName && projects.find(p => p.name === projectName);
     openView({
-      kicker: 'Notes', title: editPath ? editPath.split('/').pop().replace(/\.md$/, '') : 'New fleeting note', accent: tc('#d9ec8f'),
+      kicker: project ? `Notes · ${project.name}` : 'Notes',
+      title: editPath ? editPath.split('/').pop().replace(/\.md$/, '') : 'New fleeting note', accent: project ? project.color : tc('#d9ec8f'),
       render: async (bar, content) => {
         let current = editPath, dirty = false, dictating = false, base = '';
         linkButton(bar, '＋ New note', () => { stopDictation(); showNotes(); });
@@ -1652,6 +1767,21 @@ const tc = THEME.colour;
             <textarea placeholder="Type, or press Dictate and talk. Pauses and full stops won't stop it."></textarea>
             <div class="tools"></div></div>
           <div class="fleet"><h4>Fleeting notes</h4><input type="search" placeholder="Search notes…"><div class="list"></div></div></div>`;
+        // On a project: its description, then its notes, with the fleeting notes a tab away.
+        let showing = project ? 'project' : 'fleeting';
+        if (project) {
+          const fleet = content.querySelector('.fleet'), h4 = fleet.querySelector('h4');
+          h4.textContent = project.name;
+          const about = document.createElement('div'); about.className = 'about';
+          about.textContent = project.description || 'No description in Projects.md yet.';
+          const tabs = document.createElement('div'); tabs.className = 'tabs';
+          const tabBtns = [['project', `Project notes · ${project.nodes.length}`], ['fleeting', 'Fleeting notes']].map(([k, label]) =>
+            linkButton(tabs, label, () => { showing = k; tabBtns.forEach(b => b.classList.toggle('on', b.dataset.k === k)); paintList(); }));
+          tabBtns.forEach((b, i) => { b.dataset.k = i ? 'fleeting' : 'project'; b.classList.toggle('on', !i); });
+          h4.after(about, tabs);
+          linkButton(bar, '✦ Show in galaxy', () => { closeWork(); showProject(project); });
+          linkButton(bar, '📁 Files', () => popProjectFiles(project));
+        }
         const titleEl = content.querySelector('.note-title'), textEl = content.querySelector('textarea');
         const tools = content.querySelector('.editor .tools'), listEl = content.querySelector('.fleet .list');
         const searchEl = content.querySelector('.fleet input');
@@ -1735,6 +1865,13 @@ const tc = THEME.colour;
         function paintList() {
           const q = searchEl.value.toLowerCase();
           listEl.innerHTML = '';
+          if (showing === 'project') {
+            const own = project.nodes.map(id => nodes[id]).filter(n => !q || `${n.label} ${n.folder}`.toLowerCase().includes(q));
+            if (!own.length) listEl.innerHTML = '<div class="empty">No notes match.</div>';
+            own.slice(0, 300).forEach(n => listEl.appendChild(rowEl('', `<div class="main"><div class="t">${escapeHtml(n.label)}</div>` +
+              `<div class="m">${escapeHtml(n.folder.replace(/\//g, ' / '))}</div></div>`, () => openDoc(nodePath(n), true))));
+            return;
+          }
           const shown = fleeting.filter(n => !q || `${n.name} ${n.topic} ${n.preview}`.toLowerCase().includes(q));
           if (!shown.length) listEl.innerHTML = '<div class="empty">No notes match.</div>';
           shown.forEach(n => listEl.appendChild(rowEl(n.path === current ? 'current' : '',
@@ -2181,10 +2318,10 @@ const tc = THEME.colour;
   }
 
 
-  const actionsSub = launcher({ icon: ICON.actions, title: 'Actions', sub: 'Tick off what’s done', color: tc('#a3e37a'), open: showActions });
+  const actionsSub = launcher({ icon: ICON.actions, title: 'Actions', sub: 'Tick off what’s done', color: tc('#a3e37a'), open: () => showActions() });
   function updateActionsCard() { if (openActionCount != null) actionsSub.textContent = `${openActionCount} open`; }
   api('/api/actions').then(d => { openActionCount = d.actions.filter(a => !a.done).length; updateActionsCard(); }).catch(() => {});
-  launcher({ icon: ICON.meetings, title: 'Meetings', sub: 'History and transcripts', color: tc('#ff9f43'), open: showMeetings });
+  launcher({ icon: ICON.meetings, title: 'Meetings', sub: 'History and transcripts', color: tc('#ff9f43'), open: () => showMeetings() });
   launcher({ icon: ICON.crm, title: 'CRM', sub: 'Organisations and contacts', color: tc('#f2c14e'), open: () => showCrm('organizations') });
 
   // Team Inbox and Deliverables: live folder listings. Notes fly to their dot; documents open in
@@ -2208,17 +2345,61 @@ const tc = THEME.colour;
         title: (e.dir ? 'Open this folder' : ext === 'md' ? 'Read this note' : 'Open on your desktop') + ' · right-click for more',
         onClick: open
       });
-      row.oncontextmenu = ev => {
-        ev.preventDefault();
-        contextMenu(ev.clientX, ev.clientY, [
-          { label: e.dir ? 'Open folder' : ext === 'md' ? 'Read note' : 'Open', run: open },
-          ...(e.dir || ext === 'md' ? [{ label: 'Open on desktop', run: () => openInDesktop(key, e.path) }] : []),
-          { label: 'Show in File Explorer', run: () => api('/api/reveal', { name: key, path: e.path }).catch(err => setStatus('error', err.message, 4000)) },
-          null,
-          { label: e.dir ? 'Delete folder…' : 'Delete…', danger: true, run: () => trashEntry(key, root, e, refresh) },
-        ]);
-      };
+      entryMenu(row, e, { key, root, open, refresh });
     });
+  }
+  function entryMenu(row, e, { key, root, open, refresh }) {
+    const ext = e.name.includes('.') ? e.name.split('.').pop().toLowerCase() : '';
+    row.oncontextmenu = ev => {
+      ev.preventDefault();
+      contextMenu(ev.clientX, ev.clientY, [
+        { label: e.dir ? 'Open folder' : ext === 'md' ? 'Read note' : 'Open', run: open },
+        ...(e.dir || ext === 'md' ? [{ label: 'Open on desktop', run: () => openInDesktop(key, e.path) }] : []),
+        { label: 'Show in File Explorer', run: () => api('/api/reveal', { name: key, path: e.path }).catch(err => setStatus('error', err.message, 4000)) },
+        null,
+        { label: e.dir ? 'Delete folder…' : 'Delete…', danger: true, run: () => trashEntry(key, root, e, refresh) },
+      ]);
+    };
+  }
+
+  // A folder as a tree: each folder opens in place (loaded the first time), files open as in the lists.
+  async function folderTree(box, { key, color, refresh }, path = '', depth = 0) {
+    const data = await api(`/api/folder?name=${encodeURIComponent(key)}&path=${encodeURIComponent(path)}`);
+    const root = data.folder;
+    data.entries.forEach(e => {
+      const ext = e.name.includes('.') ? e.name.split('.').pop().toLowerCase() : '';
+      let kids = null;
+      const toggle = async () => {
+        if (!kids) {
+          kids = document.createElement('div'); kids.className = 'kids';
+          row.after(kids);
+          kids.innerHTML = `<div class="note" style="padding-left:${22 + depth * 14}px">Loading…</div>`;
+          try {
+            const inner = document.createElement('div');
+            await folderTree(inner, { key, color, refresh }, e.path, depth + 1);
+            kids.innerHTML = '';
+            if (inner.childElementCount) kids.append(...inner.children);
+            else kids.innerHTML = `<div class="note" style="padding-left:${22 + (depth + 1) * 14}px">Empty.</div>`;
+          } catch (err) { kids.innerHTML = `<div class="note error">${escapeHtml(err.message)}</div>`; return; }
+        } else kids.hidden = !kids.hidden;
+        const open = !kids.hidden;
+        row.querySelector('.tw').textContent = open ? '▾' : '▸';
+        row.querySelector('em').textContent = open ? '📂' : '📁';
+      };
+      const open = () => e.dir ? toggle() : ext === 'md' ? openDoc(`${root}/${e.path}`) : openInDesktop(key, e.path);
+      const row = itemButton(box, {
+        name: e.name, icon: e.dir ? '📁' : FILE_ICONS[ext] || '📄', color,
+        sub: e.dir ? `Folder · ${fmtDate(e.modified)}` : `${fmtDate(e.modified)} · ${fmtSize(e.size)}`,
+        title: (e.dir ? 'Show what is in this folder' : ext === 'md' ? 'Read this note' : 'Open on your desktop') + ' · right-click for more',
+        onClick: open
+      });
+      row.style.paddingLeft = (8 + depth * 14) + 'px';
+      const tw = document.createElement('small'); tw.className = 'tw'; tw.textContent = e.dir ? '▸' : '';
+      row.querySelector('.name').prepend(tw);
+      row.querySelector('.sub') && (row.querySelector('.sub').style.paddingLeft = '18px');
+      entryMenu(row, e, { key, root, open: e.dir ? () => openInDesktop(key, e.path) : open, refresh });
+    });
+    return data;
   }
 
   // Delete from a card: after a confirm, it moves to the vault's .trash folder (as Obsidian does),
@@ -2486,7 +2667,7 @@ const tc = THEME.colour;
     });
     box.scrollTop = 0;
     document.getElementById('p-excerpt').scrollTop = 0;
-    projectDeliverables(p.kind === 'Project' ? p : null, '');
+    projectDeliverables(p.kind === 'Project' ? p : null);
 
     const panel = document.getElementById('panel');
     panel.classList.add('open');
@@ -2494,41 +2675,63 @@ const tc = THEME.colour;
     document.body.classList.add('panel-open');
   }
 
-  // A project's deliverables are whatever the team has filed in its workspace folder
-  // (copilot/projects/<name>/), less the files that run the project itself.
+  // A project's files are whatever the team has filed in its workspace folder
+  // (copilot/projects/<name>/), less the files that run the project itself, shown as a folder tree.
   let deliverablesFor = 0;
-  async function projectDeliverables(p, path = '') {
+  async function projectDeliverables(p) {
     const head = document.getElementById('p-dhead'), box = document.getElementById('p-deliverables');
     const token = ++deliverablesFor;   // a newer panel wins over a slow listing
     head.hidden = box.hidden = !p;
     if (!p) return;
-    const key = 'project:' + p.name;
-    head.textContent = 'Deliverables';
+    head.textContent = 'Files';
     box.innerHTML = '<div class="note">Loading…</div>';
+    const tree = document.createElement('div'); tree.className = 'tree';
     let data;
-    try { data = await api(`/api/folder?name=${encodeURIComponent(key)}&path=${encodeURIComponent(path)}`); }
+    try { data = await folderTree(tree, { key: 'project:' + p.name, color: p.color, refresh: () => projectDeliverables(p) }); }
     catch (err) { if (token === deliverablesFor) box.innerHTML = `<div class="note error">${escapeHtml(err.message)}</div>`; return; }
     if (token !== deliverablesFor) return;
-    const count = data.entries.length;
-    head.textContent = path ? `Deliverables · ${path.split('/').pop()}` : `Deliverables · ${count}`;
+    head.textContent = `Files · ${data.entries.length}`;
     box.innerHTML = '';
     const tools = document.createElement('div'); tools.className = 'tools';
-    if (path) linkButton(tools, '← Back', () => projectDeliverables(p, path.split('/').slice(0, -1).join('/')));
-    linkButton(tools, 'Open folder ↗', () => openInDesktop(key, path), `Open ${data.folder}${path ? '/' + path : ''} in File Explorer`);
+    linkButton(tools, 'Open folder ↗', () => openInDesktop('project:' + p.name, ''), `Open ${data.folder} in File Explorer`);
+    linkButton(tools, '⤢ Pop out', () => popProjectFiles(p), 'Show the folder tree in its own window');
     box.appendChild(tools);
-    if (!count) {
+    const where = document.createElement('div'); where.className = 'tree-root'; where.textContent = data.folder + '/';
+    box.appendChild(where);
+    if (!data.entries.length) {
       const n = document.createElement('div'); n.className = 'note';
-      n.textContent = path ? 'Empty.' : "Nothing filed in this project's folder yet.";
+      n.textContent = "Nothing filed in this project's folder yet.";
       box.appendChild(n);
     }
-    folderEntries(box, data, { key, root: data.folder, color: p.color, load: sub => projectDeliverables(p, sub),
-                               refresh: () => projectDeliverables(p, path) });
+    box.appendChild(tree);
     box.scrollTop = 0;
+  }
+  function popProjectFiles(p) {
+    popup({
+      kicker: 'Project files', title: p.name, accent: p.color,
+      render: async (bar, content) => {
+        const key = 'project:' + p.name;
+        const paint = async () => {
+          loadingInto(content, 'Loading…');
+          const tree = document.createElement('div'); tree.className = 'tree';
+          try {
+            const data = await folderTree(tree, { key, color: p.color, refresh: paint });
+            content.innerHTML = `<div class="tree-root" style="margin-top:10px">${escapeHtml(data.folder)}/</div>`;
+            content.appendChild(data.entries.length ? tree : Object.assign(document.createElement('div'),
+              { className: 'empty', textContent: "Nothing filed in this project's folder yet." }));
+          } catch (err) { failInto(content, err); }
+        };
+        linkButton(bar, 'Open folder ↗', () => openInDesktop(key, ''));
+        linkButton(bar, '↻ Refresh', paint);
+        paint();
+      }
+    });
   }
 
   document.getElementById('close').onclick = clearSelection;
   window.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
+      if (popups.length) { popups[popups.length - 1].close(); return; }
       if (workEl.classList.contains('open') && !workEl.classList.contains('min')) { closeWork(); return; }   // close the workspace first
       clearSelection(); stopSpeaking();
       document.getElementById('answer').classList.remove('show');
@@ -2574,6 +2777,8 @@ const tc = THEME.colour;
     }
     else if (a.type === 'open') setStatus('thinking', `opened ${a.path.split('/').pop()} on your desktop`, 4000);
     else if (a.type === 'chat') showTeamChat(a.agent, a.chat || null);
+    else if (a.type === 'list') popClientList(a);
+    else if (a.type === 'projectnotes') showNotes(null, false, a.project);
     else if (a.type === 'error') setStatus('error', a.message, 6000);
   }
 

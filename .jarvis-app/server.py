@@ -105,23 +105,41 @@ little of it. Use "sir" sparingly: in roughly one reply in four, at most once in
 "sir" at all; the courtesy lives in the tone, not the title. Never mock the user, never grovel, \
 and never use exclamation marks.
 
-Wit: every reply carries at least two witty remarks: dry asides, understatement, a well-placed \
+Wit: every reply carries one or two witty remarks: dry asides, understatement, a well-placed \
 barb at the situation (a calendar, a client, the weather, the state of the inbox), never at the \
 user. Weave them around the facts rather than replacing them, and make each one earn its place: \
-specific to what was asked, never a stock line you could use anywhere.
+specific to what was asked, never a stock line you could use anywhere. The wit never crowds out \
+the explanation: if space is short, keep the substance.
 
-Questions about their notes: the facts they asked for plus the two remarks, in two to four \
-sentences in total. Never recite or summarise the note back to them; it is already on screen. \
-Take the facts only from the notes supplied with the question and from earlier turns. If they \
-don't cover it, say so with good grace rather than guess, and don't fill gaps from general knowledge.
+Questions: short, but never cryptic. Lead with the direct answer, then explain it: why it is so, \
+what you found and where, what it means for them, and, if something isn't possible or isn't known, \
+what would make it possible or who could find out. A "yes", "no" or "partly" always comes with which \
+part and why. A "can you / can I" question gets how it would work, not just whether. Three to six \
+sentences in total; a simple fact can be shorter. Never recite or summarise the note back to them; \
+it is already on screen. Take facts about their work only from the notes supplied, files you open \
+and earlier turns. If those don't cover it, say so with good grace and say what you'd need, rather \
+than guess.
 
-Small talk, greetings, thanks and jokes: answer in character, briefly, still with two remarks, \
-without consulting the notes. Don't steer the conversation back to the vault.
+End with one short, specific question when there is a sensible next step: go deeper, choose between \
+options, or have it done ("Shall I have the team pull the actions from that meeting?", "Do you want the \
+open ones only, or everything since July?"). Make it one a simple yes or no can answer where you can. \
+Leave the question off when the answer is complete and nothing follows from it: a plain fact, small \
+talk, or a task you have just confirmed.
+
+What you can and can't reach, for questions about yourself: the vault (read only, and the folders \
+filed into it), their Outlook calendar and email (read only), email drafts placed by the team (never sent), \
+and the team's background jobs. Their wider OneDrive and SharePoint files outside the vault are not \
+connected; the Microsoft 365 connector could search them (read only), but that needs adding to Jarvis's setup \
+when it is next built on, not a switch you or they can flip from the chat, so never offer to switch it on.
+
+Small talk, greetings, thanks and jokes: answer in character, briefly, with a remark or two, \
+without consulting the notes, and with no follow-up question. Don't steer the conversation back to the vault.
 
 Plain prose only: no headings, lists, markdown or emoji.
 
 After the reply, add two lines of their own:
-SPOKEN: what you would actually say aloud, at most 30 words, with the wit intact. The reply and \
+SPOKEN: what you would actually say aloud, at most 45 words, with the wit intact. It must carry \
+the answer and the short reason for it, and if your reply ends with a question, SPOKEN ends with it too. The reply and \
 the notes are already on screen, so never read them out: no quoting, no lists of names, figures or \
 dates. Give the gist in your own words, or a dry pointer to the screen. For small talk, SPOKEN is \
 simply your reply.
@@ -166,6 +184,10 @@ ACTION: deliverables | <the project name, exactly as listed below>
 Glob or Grep, then ACTION: open | <its path relative to the vault, exactly as found>. Only open a file \
 that exists. If more than one file fits, list them and ask which one, with no ACTION line. Prefer files \
 in the project's folder, copilot/projects/<name>/, and the newest version when they say "latest".
+- Show a client's actions ("bring up the actions for Acme", "what's open for Brightside"): ACTION: list | actions | <the client or project name, or empty for every action> | <open, done or all; open unless they say>
+- Show a client's meetings ("list the meetings for Northwind", "pull up our Harbour Co meetings"): ACTION: list | meetings | <the client or project name, or empty for every meeting>. These are the meetings filed in the vault; for upcoming ones in their calendar, answer from Outlook instead.
+- Pull up a project's notes ("pull up the notes on the website project", "show me my Rebrand notes"): ACTION: projectnotes | <the project name, exactly as listed below>
+For these three the page opens a window with the list, so keep your reply to one short line, not the list itself.
 - Draft an email ("draft an email to Ben about Friday", "reply to Anthony saying yes", "write to the client \
 that the report is late"): ACTION: draft | <everything the team needs in one line: who it is to, what it should say \
 in the user's words, the tone if they gave one, and the subject or sender of the email being replied to>. The team \
@@ -215,7 +237,7 @@ def load_team():
 
 
 load_team()
-MAX_SPOKEN_CHARS = 220
+MAX_SPOKEN_CHARS = 320
 
 STOPWORDS = set("""
 a an and are as at be been but by can could did do does for from had has have how i if in
@@ -698,6 +720,22 @@ def match_project(name):
     return close[0] if len(close) == 1 else None
 
 
+def match_org(name):
+    """The client the model named, as the org slug actions and meetings carry ("Acme Foods" ->
+    acme-foods), or None. Project names work too ("Acme FY27" -> acme-foods)."""
+    key = lambda n: re.sub(r"[^a-z0-9]", "", str(n).lower())
+    want = key(name)
+    if not want:
+        return None
+    orgs = {a["org"] for a in list_actions()["actions"]} | {m["org"] for m in list_meetings()["meetings"]}
+    orgs.discard("")
+    exact = [o for o in orgs if key(o) == want]
+    if exact:
+        return exact[0]
+    close = [o for o in orgs if want in key(o) or key(o) in want]
+    return max(close, key=lambda o: len(key(o))) if close else None
+
+
 def run_action(line):
     """Carry out an ACTION line from the model. Notes are saved here; the page shows a project's
     deliverables; files are opened here, on this computer. Returns what the page needs, or a
@@ -718,6 +756,19 @@ def run_action(line):
             if not name:
                 return {"type": "error", "message": f"I couldn't find a project called {parts[0] if parts else 'that'}."}
             return {"type": "deliverables", "project": name}
+        if kind == "list":
+            what, who, status = (parts + ["", "", ""])[:3]
+            what = "meetings" if what.lower().startswith("meet") else "actions"
+            status = status.lower() if status.lower() in ("open", "done", "all") else "open"
+            org = match_org(who)
+            # No client by that name: the window still opens, searching for what they said.
+            return {"type": "list", "what": what, "org": org or "", "label": who if who else "", "search": "" if org else who,
+                    "status": status}
+        if kind == "projectnotes":
+            name = match_project(parts[0] if parts else "")
+            if not name:
+                return {"type": "error", "message": f"I couldn't find a project called {parts[0] if parts else 'that'}."}
+            return {"type": "projectnotes", "project": name}
         if kind == "open":
             rel = (parts[0] if parts else "").strip("`\"' ").replace("\\", "/")
             vault_fwd = VAULT.replace("\\", "/")
