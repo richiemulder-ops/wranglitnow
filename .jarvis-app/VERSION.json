@@ -1,9 +1,7 @@
 {
-  "version": "2026.11.05.2",
+  "version": "2026.11.05.3",
   "notes": [
-    "Ask for a client's actions or meetings and they open in a small window of their own.",
-    "Ask for a project's notes and Notes opens on that project; a project's files now show as a folder tree.",
-    "Zoom buttons (− ⌂ +) under the Index, and gentler zooming with the mouse wheel.",
-    "Answers explain themselves a little more and end with a question when there's a next step."
+    "The galaxy's slow spin now circles your vault at the centre, not whatever you last clicked.",
+    "When the team finishes a job, Jarvis says who did it and what they completed."
   ]
 }

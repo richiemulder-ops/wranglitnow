@@ -3301,6 +3301,19 @@ const tc = THEME.colour;
   ];
   const pick = list => list[Math.floor(Math.random() * list.length)];
 
+  // Who did a finished job and what it was, for saying aloud: the specialists Larry handed work to
+  // (Larry himself if he did it alone), and their brief, else the task cut to its first clause.
+  function jobDoneBy(j) {
+    const team = (j.agents || []).filter(a => a.name && a.name !== 'Larry' && a.name !== 'Subagent');
+    const names = [...new Set(team.map(a => a.name))];
+    const who = !names.length ? 'Larry' : names.length === 1 ? names[0]
+      : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+    const brief = names.length === 1 && team.find(a => a.task) ? team.find(a => a.task).task : j.task || 'the job';
+    let what = brief.split(/(?<=[.;])\s|\s\(|, (?:and |then )/)[0].replace(/[.;:,]+$/, '');
+    if (what.length > 90) what = what.slice(0, 90).replace(/\s+\S*$/, '') + '…';
+    return { who, what: what.charAt(0).toLowerCase() + what.slice(1) };
+  }
+
   function trackJob(job) {
     jobs.set(job.id, job);
     renderJobs();
@@ -3316,10 +3329,17 @@ const tc = THEME.colour;
       if (!before && j.status !== 'running' && data.now - (j.finished || 0) > 1800) return;
       jobs.set(j.id, j);
       if (before && before.status === 'running' && j.status !== 'running') {
-        // The team's answer comes back through the front desk: shown in the chat card, its gist spoken.
-        const gist = (j.report || '').replace(/[#*`_>\[\]]/g, '').split(/(?<=[.!?])\s|\n/).map(s => s.trim()).find(Boolean) || '';
-        if (j.status === 'done' && j.report) showAnswer(`The team reports · ${j.task}`, j.report, []);
-        speak(j.status === 'done' && gist && gist.length <= 200 ? gist : pick(j.status === 'done' ? DONE_LINES : FAIL_LINES));
+        // The team's answer comes back through the front desk: shown in the chat card, and spoken as
+        // who finished what, then the report's first real sentence (headings such as "Result" skipped).
+        const { who, what } = jobDoneBy(j);
+        const gist = (j.report || '').split('\n').map(l => l.trim())
+          .filter(l => l && !/^#/.test(l) && !/^[\w &/-]{1,30}:?$/.test(l.replace(/[*_`]/g, '')))
+          .join(' ').replace(/[#*`_>\[\]]/g, '').split(/(?<=[.!?])\s/).map(s => s.trim()).find(Boolean) || '';
+        const has = who.includes(' and ') ? 'have' : 'has';
+        if (j.status === 'done' && j.report) showAnswer(`${who} ${has} completed · ${j.task}`, j.report, []);
+        speak(j.status === 'done'
+          ? `${who} ${has} completed: ${what}.` + (gist && gist.length <= 200 ? ' ' + gist : '')
+          : `${who} couldn't finish: ${what}. ` + pick(FAIL_LINES));
       }
     });
     renderJobs(data.now);
@@ -3600,6 +3620,13 @@ const tc = THEME.colour;
     animateJarvis(performance.now());
     if (performance.now() > driftResumeAt) {
       const cam = Graph.camera(), ctr = Graph.controls().target;
+      // With nothing selected, drift back to circling the vault's core dot (it sits at the origin),
+      // rather than whatever the view last flew to. The camera moves with the centre, so it glides.
+      if (selected === null && highlight.size === 0 && ctr.lengthSq() > 1) {
+        const k = 0.015, sx = -ctr.x * k, sy = -ctr.y * k, sz = -ctr.z * k;
+        ctr.set(ctr.x + sx, ctr.y + sy, ctr.z + sz);
+        cam.position.set(cam.position.x + sx, cam.position.y + sy, cam.position.z + sz);
+      }
       const dx = cam.position.x - ctr.x, dz = cam.position.z - ctr.z;
       const a = 0.0006;
       cam.position.x = ctr.x + dx * Math.cos(a) - dz * Math.sin(a);
