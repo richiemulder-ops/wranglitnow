@@ -2859,6 +2859,7 @@ const tc = THEME.colour;
 
   // Wake screen: any click or key wakes Jarvis (unlockSpeech above has already started the greeting).
   let waking = true;
+  let onboardStarted = false;   // declared before wakeUp: a skip-wake reload calls maybeOnboard straight away
   function wakeUp() {
     if (!waking) return;
     waking = false;
@@ -3567,7 +3568,6 @@ const tc = THEME.colour;
       img.src = url;
     });
   }
-  let onboardStarted = false;
   async function maybeOnboard(force) {
     if (onboardStarted) return;
     let info;
@@ -3773,7 +3773,31 @@ const tc = THEME.colour;
   const HQ = 'Team HQ';
   let crew = { team: [], workers: [] }, crewOpen = false, crewFrame = 0, lastT = 0;
 
+  // What's waiting to be filed, counted the same way as the To file tile: files in Team Inbox (not folders
+  // or README) and fleeting notes not yet in a topic folder. Team Inbox is cheap to list, so it's checked
+  // every poll; the fleeting list is slower, so every 30 seconds.
+  const pileCount = { 'pile-inbox': 0, 'pile-notes': 0 };
+  let pileNotesAt = 0;
+  async function pollPiles() {
+    try {
+      const r = await api('/api/folder?name=inbox&path=');
+      pileCount['pile-inbox'] = r.entries.filter(e => !e.dir && !/^[._]/.test(e.name) && e.name.toUpperCase() !== 'README.MD').length;
+    } catch (_) {}
+    if (Date.now() - pileNotesAt > 30000) {
+      pileNotesAt = Date.now();
+      try {
+        const r = await api('/api/fleeting'), pre = r.folder + '/';
+        pileCount['pile-notes'] = r.notes.filter(n => {
+          const rel = n.path.startsWith(pre) ? n.path.slice(pre.length) : n.path;
+          return !rel.includes('/') && rel.toUpperCase() !== 'README.MD';
+        }).length;
+      } catch (_) {}
+    }
+    setPiles();
+  }
+
   async function pollCrew() {
+    if (crewOpen) pollPiles();
     try { crew = await api('/api/current-work'); } catch (_) { return; }
     const live = crew.workers.filter(w => !w.done);
     const projects = [...new Set(live.map(w => w.project))];
@@ -3789,7 +3813,7 @@ const tc = THEME.colour;
 
   function openCrew() {
     crewEl.hidden = false; crewOpen = true;
-    sizeCrew(); assignBots(); renderCrewList();
+    sizeCrew(); assignBots(); renderCrewList(); pileNotesAt = 0; pollPiles();
     clearInterval(crewTimer); crewTimer = setInterval(pollCrew, 2000);
     lastT = performance.now(); cancelAnimationFrame(crewFrame); crewFrame = requestAnimationFrame(drawCrew);
   }
@@ -3989,6 +4013,12 @@ const tc = THEME.colour;
     g.add(at(cyl(0.08, 0.06, 0.16, 0xffffff, 12), 0, 1.15, 0.52));
     return { bubbles, water };
   }
+  // A paper pile: a low wooden tray whose stack of bundles is redrawn to match what's waiting to be filed.
+  function buildPile(g) {
+    g.add(at(rbox(1.5, 0.08, 1.7, 0.04, PASTEL.wood), 0, 0.04, 0));
+    const bundles = new THREE.Group(); g.add(bundles);
+    return { bundles };
+  }
   // The CEO's desk: a wide executive desk with a lamp that glows while someone is waiting, an in-tray and a
   // rubber stamp that thumps down when you sign something off. The CEO bot sits behind it, facing the room.
   function buildCeoDesk(g) {
@@ -4163,6 +4193,19 @@ const tc = THEME.colour;
     F.ceo.body.add(at(tie, 0, 0.82, 0.33));
     F.stampAt = -9;
 
+    // The to-file corner, against the back wall: one pile for files in Team Inbox and one for loose fleeting
+    // notes. Each pile grows with what's waiting; bots on a filing job carry bundles from here to the cabinet.
+    const pileSpots = [[-1.1, 0.2, Math.PI / 2], [1.1, 0.2, -Math.PI / 2], [0, 1.3, Math.PI]];
+    F.piles = [
+      { key: 'pile-inbox', x: 20.5, z: -14.3, name: 'Team Inbox', ink: '#7fc35a', tints: [0xf3d59a, 0xe9c47c, 0xffffff] },
+      { key: 'pile-notes', x: 24.2, z: -14.3, name: 'Notes to file', ink: '#ffc46b', tints: [0xfffaf0, 0xf6efe2, 0xfff3a0] },
+    ].map(p => {
+      const st = addStation(p.key, p.x, p.z, buildPile, pileSpots); st.calm = true;
+      return { ...p, st, mats: p.tints.map(c => mat(c, { roughness: 0.85, metalness: 0 })), shown: -1, label: null };
+    });
+    F.pileGeo = new THREE.BoxGeometry(0.55, 0.07, 0.7);
+    setPiles();
+
     // Sparks: a small pool of points that fly off busy equipment.
     const SPARKS = 160;
     F.sparkPos = new Float32Array(SPARKS * 3); F.sparkVel = new Float32Array(SPARKS * 3); F.sparkLife = new Float32Array(SPARKS);
@@ -4251,10 +4294,11 @@ const tc = THEME.colour;
       f.scale.set(1, 0.6, 1.3); f.position.set(0.17 * s, 0.1, 0.03); f.castShadow = true; g.add(f); return f; });
     const cup = at(cyl(0.07, 0.055, 0.14, 0xffffff, 12), 0, -0.42, 0.04); cup.rotation.x = 2.0; cup.visible = false; arms[1].add(cup);
     const paper = at(rbox(0.3, 0.03, 0.38, 0.01, 0xfff3c4), 0, -0.42, 0.12); paper.rotation.x = 1.2; paper.visible = false; arms[0].add(paper);
+    const carry = at(rbox(0.46, 0.16, 0.36, 0.03, 0xf3d59a), 0, 0.72, 0.52); carry.visible = false; body.add(carry);   // a bundle being filed
     const tag = labelSprite(name, '#' + colour.getHexString(), { size: 30, scale: 0.0075 }); tag.position.set(0, -0.12, 0.5); g.add(tag);
     g.scale.setScalar(1.4); g.userData.botName = name;
     F.scene.add(g);
-    return { name, group: g, body, head, eyes, arms, feet, tip, tipMat, bellyMat, tag, cup, paper, bubble: null, bubbleText: '',
+    return { name, group: g, body, head, eyes, arms, feet, tip, tipMat, bellyMat, tag, cup, paper, carry, bubble: null, bubbleText: '',
              pos: g.position, target: new THREE.Vector3(), phase: Math.random() * 6, wait: 0, spot: -1, zone: null, work: null };
   }
 
@@ -4340,12 +4384,15 @@ const tc = THEME.colour;
         b.workWant = kind;
       }
       // Waiting on you beats everything: the bot goes to the CEO's desk until you decide. A thirsty bot
-      // on a long task detours to the water cooler. Otherwise it goes where its current step happens.
+      // on a long task detours to the water cooler. A bot on a filing job ferries bundles from the to-file
+      // piles. Otherwise it goes where its current step happens.
       const asking = [...pendingByChat.values()].find(r => r.asker === name || (!w && r.agent === name));
       if (b.asking && !asking) { F.stampAt = performance.now() / 1000; F.stampSparked = false; }
       b.asking = !!asking;
       if (b.asking) b.thirsty = false;
-      b.want = b.asking ? 'ceo' : b.thirsty ? 'water' : b.workWant;
+      b.tidy = isTidying(w);
+      if (!b.tidy && b.carrying) { b.carrying = null; setPiles(); }
+      b.want = wantOf(b);
       const label = asking ? (asking.kind === 'question' ? '❓ has a question for you' : '⚠ waiting for your approval')
         : b.thirsty ? '💧 quick drink, then back to it'
         : w ? (w.done ? '✓ done' : `${w.project && w.project !== 'General' ? w.project + ' · ' : ''}${w.activity || w.task || 'working'}`) : '';
@@ -4361,6 +4408,48 @@ const tc = THEME.colour;
         b.bubbleText = short;
       }
     });
+  }
+
+  // A filing job: the task or step says to file, tidy, clean up, sweep or sort out the inbox, notes or folders.
+  const TIDY = /\b(filing|file (?:the|these|those|my|all|any|new|them|it|everything)|tid(?:y|ying)|clean(?:ing)? ?up|sweep(?:ing)?|sort(?:ing)? (?:out|through)|put away|archiv(?:e|ing))\b[^.]{0,60}\b(inbox|notes?|fleeting|files|folders?|deliverables)\b|\b(inbox|fleeting)\b[^.]{0,40}\b(filed|filing|tidied|tidy|cleaned|sorted|swept)\b/i;
+  const isTidying = w => !!(w && !w.done && TIDY.test(`${w.task || ''} ${w.activity || ''}`));
+  // Bundles still on a pile: what's waiting there, less any a bot is already carrying away.
+  const pileLeft = key => pileCount[key] - [...(F ? F.bots.values() : [])].filter(b => b.carrying === key).length;
+  function pickPile(b) {
+    const text = `${b.work?.task || ''} ${b.work?.activity || ''}`.toLowerCase();
+    const first = /inbox/.test(text) ? 'pile-inbox' : /note|fleeting/.test(text) ? 'pile-notes'
+      : pileLeft('pile-inbox') >= pileLeft('pile-notes') ? 'pile-inbox' : 'pile-notes';
+    const other = first === 'pile-inbox' ? 'pile-notes' : 'pile-inbox';
+    return pileLeft(first) > 0 ? first : pileLeft(other) > 0 ? other : null;
+  }
+  // Notes go in the filing cabinet; inbox files go to the cabinet, a desk or the print press.
+  const dropFor = key => key === 'pile-notes' ? 'filing' : ['filing', 'filing', 'desk', 'press'][Math.floor(Math.random() * 4)];
+  function wantOf(b) {
+    if (b.asking) return 'ceo';
+    if (b.thirsty) return 'water';
+    if (b.tidy && b.carrying) return b.dropAt;
+    const pile = b.tidy && pickPile(b);
+    return pile || b.workWant;
+  }
+  // Redraw each pile when its count changes: bundles stacked in four columns of up to 12, a tag with the count.
+  function setPiles() {
+    if (!F || !F.piles) return;
+    for (const p of F.piles) {
+      const n = Math.max(0, pileLeft(p.key));
+      if (n === p.shown) continue;
+      p.shown = n;
+      const g = p.st.parts.bundles; g.clear();
+      const cols = [[-0.3, -0.36], [0.3, 0.36], [0.3, -0.36], [-0.3, 0.36]];
+      for (let i = 0; i < Math.min(n, 48); i++) {
+        const [cx, cz] = cols[Math.floor(i / 12)], lvl = i % 12, j = s => Math.sin((i + 1) * s);
+        const m = new THREE.Mesh(F.pileGeo, p.mats[(i * 7) % p.mats.length]);
+        m.position.set(cx + j(12.9) * 0.05, 0.12 + lvl * 0.075, cz + j(78.2) * 0.05); m.rotation.y = j(37.7) * 0.25;
+        m.castShadow = true; m.receiveShadow = true; g.add(m);
+      }
+      if (p.label) { F.scene.remove(p.label); p.label.material.map.dispose(); p.label.material.dispose(); }
+      p.label = labelSprite(n ? `${p.name} · ${n} to file` : `${p.name} · all filed ✓`, p.ink, { size: 26, scale: 0.0085 });
+      p.label.position.set(p.x, 3, p.z); F.scene.add(p.label);
+    }
   }
 
   function release(b) { if (b.spot) { b.spot.taken = null; b.spot = null; } }
@@ -4435,14 +4524,29 @@ const tc = THEME.colour;
         if (!b.drinkEnd) b.drinkEnd = t + 6;
         else if (t > b.drinkEnd) { b.thirsty = false; b.lastDrink = t; assignBots(); }
       }
+      // Filing runs: at a pile, pick up a bundle (the pile drops by one); at the cabinet, desk or press,
+      // put it away; then head back for the next while there's anything left.
+      const atPile = !moving && b.kind.startsWith('pile');
+      if (b.tidy && !moving && b.kind === b.want && (atPile || (b.carrying && b.kind === b.dropAt))) {
+        if (!b.legEnd) b.legEnd = t + 1.4;
+        else if (t > b.legEnd) {
+          b.legEnd = 0;
+          if (atPile) { b.carrying = b.kind; b.dropAt = dropFor(b.kind); } else b.carrying = null;
+          b.want = wantOf(b); setPiles();
+        }
+      }
+      const holding = !!b.carrying && !atPile;
+      b.carry.visible = holding;
+      b.carry.material.color.set(b.carrying === 'pile-notes' ? 0xfffaf0 : 0xf3d59a);
       const k = t * 11 + b.phase;
       b.body.position.y = moving ? Math.abs(Math.sin(k)) * 0.12 : atCeo ? Math.abs(Math.sin(t * 3 + b.phase)) * 0.05 : Math.sin(t * 2 + b.phase) * 0.03;
       b.body.rotation.z = moving ? Math.sin(k) * 0.06 : 0;
       b.feet[0].position.z = moving ? Math.sin(k) * 0.16 : 0.03; b.feet[1].position.z = moving ? -Math.sin(k) * 0.16 : 0.03;
-      b.arms[0].rotation.x = moving ? Math.sin(k) * 0.9 : atCeo ? -1.25 + Math.sin(t * 2 + b.phase) * 0.08
-        : working ? -1.1 + Math.sin(t * 16 + b.phase) * 0.35 : 0.1;
-      b.arms[1].rotation.x = moving ? -Math.sin(k) * 0.9 : atWater ? -2.3 + Math.sin(t * 1.4 + b.phase) * 0.2
-        : working ? -1.1 + Math.cos(t * 16 + b.phase) * 0.35 : 0.1;
+      const reach = -0.75 + Math.sin(t * 4 + b.phase) * 0.25;           // rummaging through a pile
+      b.arms[0].rotation.x = holding ? -1.15 : moving ? Math.sin(k) * 0.9 : atCeo ? -1.25 + Math.sin(t * 2 + b.phase) * 0.08
+        : atPile ? reach : working ? -1.1 + Math.sin(t * 16 + b.phase) * 0.35 : 0.1;
+      b.arms[1].rotation.x = holding ? -1.15 : moving ? -Math.sin(k) * 0.9 : atWater ? -2.3 + Math.sin(t * 1.4 + b.phase) * 0.2
+        : atPile ? reach : working ? -1.1 + Math.cos(t * 16 + b.phase) * 0.35 : 0.1;
       b.head.rotation.y = working && !moving ? Math.sin(t * 1.5 + b.phase) * 0.3 : 0;
       b.head.rotation.x = atWater ? -0.2 + Math.sin(t * 1.4 + b.phase) * 0.08 : 0;
       b.cup.visible = atWater; b.paper.visible = b.kind === 'ceo';
