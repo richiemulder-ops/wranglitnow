@@ -3759,6 +3759,47 @@ const tc = THEME.colour;
     render();
   }
 
+  // ---- updates ------------------------------------------------------------------------------
+  // A tile that shows only when GitHub has a newer Jarvis. Click it to install: Jarvis copies in
+  // the new app files (your notes and settings stay as they are), restarts and reloads this page.
+  const tUpdate = tile(tc('#9fd3ff'), 'Update', () => installUpdate());
+  tUpdate.el.hidden = true;
+  let updateInfo = null, updating = false;
+  async function checkUpdate() {
+    if (updating) return;
+    try { updateInfo = await api('/api/update'); } catch (_) { return; }
+    tUpdate.el.hidden = !updateInfo.available;
+    if (updateInfo.available) tUpdate.set(`<small>New version</small>`, 'Click to update',
+      `Jarvis ${updateInfo.latest} is ready (you have ${updateInfo.current}).\n` + (updateInfo.notes || []).map(n => '• ' + n).join('\n'));
+  }
+  checkUpdate();
+  setInterval(checkUpdate, 6 * 60 * 60 * 1000);
+  async function installUpdate() {
+    if (updating || !updateInfo || !updateInfo.available) return;
+    const notes = (updateInfo.notes || []).map(n => '• ' + n).join('\n');
+    if (!confirm(`Update Jarvis to ${updateInfo.latest}?\n\n${notes ? "What's new:\n" + notes + '\n\n' : ''}` +
+                 'Your notes and settings stay as they are. Jarvis restarts, which takes about 20 seconds.')) return;
+    updating = true;
+    tUpdate.set('<small>Updating…</small>', 'Downloading');
+    try { await api('/api/update', {}); }
+    catch (err) { updating = false; tUpdate.set('<small>Not updated</small>', escapeHtml(err.message), err.message); return; }
+    tUpdate.set('<small>Restarting…</small>', 'Back in a moment');
+    const want = updateInfo.latest, started = Date.now();
+    const wait = async () => {
+      try {
+        const u = await api('/api/update');
+        if (u.current === want) {
+          try { sessionStorage.setItem('jarvis-skip-wake', '1'); } catch (_) {}
+          location.reload();
+          return;
+        }
+      } catch (_) {}
+      if (Date.now() - started < 90000) setTimeout(wait, 2000);
+      else tUpdate.set('<small>Restart Jarvis</small>', 'Use the desktop shortcut', 'The update installed but Jarvis did not come back on its own. Start it from the desktop shortcut.');
+    };
+    setTimeout(wait, 3000);
+  }
+
   // ---- current work -----------------------------------------------------------------------
   // A tile that pulses while anyone is working, and a screen where each agent is a little bot:
   // idle ones wait in Team HQ, working ones walk to their project's zone and say what they're doing.

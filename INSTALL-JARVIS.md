@@ -12,6 +12,8 @@ How to behave:
 
 This guide is for **Windows**. On a Mac, follow the same steps with the notes marked *Mac*.
 
+**Already installed?** If they asked you to *update* Jarvis, skip to [Update an existing install](#update-an-existing-install) at the end.
+
 ---
 
 ## Step 1. Ask two questions (in one message)
@@ -116,7 +118,32 @@ That's it. Don't list what you did unless they ask.
 
 ### Later
 
-- **Update Jarvis:** repeat Step 4 into a temporary folder, copy only its `.jarvis-app` over the old one in `My Vault`, then run Step 5 again. Their notes and settings stay.
+- **Update Jarvis:** Jarvis shows an **Update** tile in its top bar when a new version is out; one click installs it. For older installs without that tile, see below.
 - **Stop Jarvis:** run `& "<PY>" "<ROOT>\app\launch.py" --stop`, or restart the PC.
 - **Rerun the welcome:** in the browser console, run `JARVIS_ONBOARD()`.
 - **Uninstall:** delete the `<ROOT>` folder and the two Jarvis shortcuts. That removes everything, including the private Python copy.
+
+---
+
+## Update an existing install
+
+For someone who already has Jarvis. Their notes and settings must not change: only the app files are replaced.
+
+1. Find the install. The desktop **Jarvis** shortcut points at `<ROOT>\app\launch.py`, and its target is the Python to use (`PY`; if it's `pythonw.exe`, use `python.exe` from the same folder). Or look for `Documents\Jarvis\app\config.json`: its `vault` entry is the vault folder.
+2. Stop Jarvis: `& "<PY>" "<ROOT>\app\launch.py" --stop` (fine if it says it isn't running).
+3. Download the latest app into a temporary folder and copy only its `.jarvis-app` over the old one:
+
+```powershell
+$root = "<ROOT>"; $vault = "<VAULT>"   # the vault folder, usually "$root\My Vault"
+$tmp = Join-Path $env:TEMP "jarvis-update"
+Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
+Invoke-WebRequest "https://github.com/richiemulder-ops/wranglitnow/archive/refs/heads/main.zip" -OutFile "$tmp.zip"
+Expand-Archive "$tmp.zip" $tmp -Force
+Copy-Item "$tmp\wranglitnow-main\.jarvis-app\*" "$vault\.jarvis-app" -Recurse -Force
+Remove-Item $tmp, "$tmp.zip" -Recurse -Force
+```
+
+4. Run setup again (no name needed; it keeps `config.json` and `data\`, and restarts Jarvis): `& "<PY>" "$vault\.jarvis-app\setup.py"`
+5. Tell them: "Jarvis is updated and open again. From now on, an **Update** tile appears in the top bar whenever there's a new version: one click and it's done."
+
+Never touch anything else in the vault: no notes, no `.claude` files, no `Team` folders.

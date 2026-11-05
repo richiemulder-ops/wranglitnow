@@ -30,6 +30,8 @@ import uuid
 import urllib.parse
 from collections import Counter, OrderedDict
 
+import update
+
 PORT = int(os.environ.get("JARVIS_PORT") or 4700)
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, "viewer")
@@ -2632,6 +2634,8 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
                 self._json(200, public_chat(_load_chat(q.get("id", ""))))
             elif url.path == "/api/transcript":
                 self._json(200, transcript(q.get("path", "")))
+            elif url.path == "/api/update":
+                self._json(200, update_status(q.get("force") == "1"))
             else:
                 self._json(404, {"error": "Not found."})
         except ChatError as e:
@@ -2668,7 +2672,8 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
                 self._json(400, {"error": "Bad request."})
             return
         if path in ("/api/open", "/api/reveal", "/api/trash", "/api/action", "/api/fleeting", "/api/models", "/api/projects", "/api/agent-chat",
-                    "/api/agent-chat/stop", "/api/jobs/stop", "/api/stop-answer", "/api/approval", "/api/approval/decide", "/api/hires/approve", "/api/hires/decline", "/api/setup", "/api/logo"):
+                    "/api/agent-chat/stop", "/api/jobs/stop", "/api/stop-answer", "/api/approval", "/api/approval/decide", "/api/hires/approve", "/api/hires/decline", "/api/setup", "/api/logo",
+                    "/api/update"):
             if not self._trusted():
                 self._json(403, {"error": "Forbidden."})
                 return
@@ -2706,6 +2711,8 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
                     self._json(200, create_project(body.get("name", ""), body.get("description", "")))
                 elif path == "/api/models":
                     self._json(200, set_models(body.get("chat"), body.get("jobs"), body.get("permissions")))
+                elif path == "/api/update":
+                    self._json(200, update_now())
                 elif path == "/api/fleeting":
                     self._json(200, save_fleeting(body.get("title", ""), body.get("body", ""), body.get("path")))
                 else:
@@ -2754,6 +2761,33 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header("Set-Cookie", f"galaxy_sid={new_sid}; Path=/; HttpOnly; SameSite=Strict")
         self.end_headers()
         self.wfile.write(body)
+
+
+# ---- updates from GitHub (update.py) --------------------------------------------------------
+def update_status(force=False):
+    return update.check(force)
+
+
+def update_now():
+    """Install the latest version, then restart. Refuses while any agent is working."""
+    if any(j.get("status") == "running" for j in list_jobs().get("jobs", [])) or             any(not w.get("done") for w in current_work().get("workers", [])):
+        raise ChatError(409, "The team is still working. Update once they've finished.")
+    try:
+        version = update.apply(VAULT)
+    except Exception as e:   # network, a bad download, a file in use: report it, keep running
+        raise ChatError(502, f"The update didn't install ({e}). Jarvis is still running the old version.")
+    threading.Thread(target=_restart, daemon=True).start()
+    return {"ok": True, "version": version}
+
+
+def _restart():
+    """Hand over to launch.py, which waits for this server to stop and starts the new one."""
+    time.sleep(1.0)
+    flags = (0x00000008 | 0x00000200) if os.name == "nt" else 0   # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+    subprocess.Popen([sys.executable, os.path.join(HERE, "launch.py"), "--restart"], cwd=HERE,
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                     creationflags=flags, close_fds=True, start_new_session=os.name != "nt")
+    os._exit(0)
 
 
 if __name__ == "__main__":

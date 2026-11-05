@@ -26,7 +26,8 @@ SRC = os.path.dirname(os.path.abspath(__file__))          # <vault>/.jarvis-app
 VAULT = os.path.dirname(SRC)
 INSTALL = os.path.dirname(VAULT)
 APP = os.path.join(INSTALL, "app")
-APP_FILES = ["server.py", "build.py", "approval_mcp.py", "launch.py", os.path.join("viewer", "index.html")]
+APP_FILES = ["server.py", "build.py", "approval_mcp.py", "launch.py", "setup.py", "update.py", "VERSION.json",
+             os.path.join("viewer", "index.html")]
 DEFAULT_CONFIG = {"model": "claude-sonnet-5-5", "job_model": "claude-opus-5-5", "agent_permissions": "auto"}
 
 

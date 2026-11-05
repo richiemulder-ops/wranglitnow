@@ -1,0 +1,8 @@
+{
+  "version": "2026.11.05.1",
+  "notes": [
+    "Jarvis can now update itself: an Update tile appears when there's a new version.",
+    "The galaxy is grouped into labelled hubs: Projects, Agents, Notes, Actions, Meetings and more.",
+    "The welcome screen no longer fails after Jarvis reloads itself."
+  ]
+}

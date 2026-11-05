@@ -2,6 +2,7 @@
 
     launch.py          start if needed, then open the page
     launch.py --stop   stop the running server
+    launch.py --restart  wait for the old server to stop (after an update), then start it again
 """
 import os
 import subprocess
@@ -66,6 +67,13 @@ def stop():
 def main():
     if "--stop" in sys.argv:
         return stop()
+    if "--restart" in sys.argv:   # the page reloads itself, so no new browser tab
+        for _ in range(40):
+            if not running():
+                break
+            time.sleep(0.5)
+        start()
+        return
     if not running() and not start():
         msg = "Jarvis didn't start. Details are in " + os.path.join(HERE, "data", "server.log")
         print(msg)
