@@ -1,6 +1,7 @@
 {
-  "version": "2026.11.05.6",
+  "version": "2026.11.05.7",
   "notes": [
-    "Open folder now shows the files in the main window: folders open in place, and files open with a click."
+    "Office: equipment names are now plates on the machines themselves, and the to-file paper piles sit at the front.",
+    "Office: a putting green beside Team HQ. Idle agents take turns, up to three putts each, and the team cheers a hole in one."
   ]
 }

@@ -4291,12 +4291,35 @@ const tc = THEME.colour;
       g.add(at(ball(r, PASTEL.leaf, { roughness: 0.8 }), a, b, c)));
     g.position.set(x, 0, z); g.scale.setScalar(s); F.scene.add(g);
   }
-  function stationSign(g, text, y) { const s = labelSprite(text, '#9aa3c0', { size: 26, scale: 0.0085 }); s.position.set(0, y, 0); g.add(s); }
+  // A name plate fixed to a piece of equipment: a dark rounded plate w x h with the name in bold, shrunk to
+  // fit and wrapped onto two lines if it's long. Faces +x (the equipment's front) unless opts.face says
+  // otherwise. Unlit, so it reads the same in any light. plate.userData.draw(text) changes the wording.
+  function namePlate(text, w, h, opts = {}) {
+    const W = 512, H = Math.max(56, Math.round(W * h / w)), c = document.createElement('canvas'); c.width = W; c.height = H;
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+    m.rotation.y = opts.face ?? Math.PI / 2;
+    m.userData.draw = t => {
+      const g = c.getContext('2d'), pad = H * 0.3, font = s => `700 ${s}px system-ui, sans-serif`;
+      g.clearRect(0, 0, W, H);
+      g.fillStyle = 'rgba(13,16,40,0.94)'; g.strokeStyle = opts.edge || '#9aa3c0'; g.lineWidth = Math.max(3, H * 0.05);
+      g.beginPath(); g.roundRect ? g.roundRect(4, 4, W - 8, H - 8, Math.min(H * 0.3, 40)) : g.rect(4, 4, W - 8, H - 8); g.fill(); g.stroke();
+      const fit = (s, max) => { let size = max; g.font = font(size); while (g.measureText(s).width > W - pad * 2 && size > 10) g.font = font(size -= 2); return size; };
+      let lines = [t], size = fit(t, H * 0.58);
+      const gap = t.lastIndexOf(' ', Math.ceil(t.length / 2) + 2);
+      if (size < H * 0.36 && gap > 0) { lines = [t.slice(0, gap), t.slice(gap + 1)]; size = Math.min(fit(lines[0], H * 0.36), fit(lines[1], H * 0.36)); }
+      g.font = font(size); g.fillStyle = opts.ink || '#eef1f8'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      lines.forEach((l, i) => g.fillText(l, W / 2, H / 2 + (i - (lines.length - 1) / 2) * size * 1.08 + size * 0.04));
+      tex.needsUpdate = true;
+    };
+    m.userData.draw(text);
+    return m;
+  }
   const EQUIP = 1.5;   // equipment scale, so desks and machines read well next to the bots
   function addStation(kind, x, z, build, spots, sign) {
     const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = -Math.PI / 2; g.scale.setScalar(EQUIP); F.scene.add(g);
     const parts = build(g) || {};
-    if (sign) stationSign(g, sign.text, sign.y);
+    if (sign) g.add(at(namePlate(sign.text, sign.w, sign.h, sign), ...sign.at));   // sign.at: a spot on the equipment's front
     const st = { kind, group: g, parts, active: 0,
                  spots: spots.map(([sx, sz, face]) => ({ pos: new THREE.Vector3(x + sx * EQUIP, 0.02, z + sz * EQUIP), taken: null, face })) };
     F.stations.push(st);
@@ -4329,10 +4352,11 @@ const tc = THEME.colour;
   // Filing cabinet: a tall lilac cabinet whose drawers slide out while someone searches.
   function buildFiling(g) {
     g.add(at(rbox(1.1, 2.1, 1.3, 0.14, PASTEL.lilac), 0, 1.05, 0));
-    const drawers = [0.45, 1.05, 1.65].map(y => {
+    const drawers = [0.45, 1.05, 1.65].map((y, i) => {
       const d = new THREE.Group(); d.position.set(0.55, y, 0);
       d.add(at(rbox(0.12, 0.5, 1.08, 0.08, 0xe4d8ff), 0, 0, 0));
-      d.add(at(rbox(0.08, 0.08, 0.4, 0.04, PASTEL.ink), 0.08, 0.05, 0));
+      d.add(at(rbox(0.08, 0.08, 0.4, 0.04, PASTEL.ink), 0.08, i === 2 ? -0.16 : 0.05, 0));
+      if (i === 2) d.add(at(namePlate('Filing', 0.95, 0.26), 0.065, 0.08, 0));      // label card on the top drawer
       g.add(d); return d;
     });
     g.add(at(rbox(0.5, 0.12, 0.7, 0.05, 0xffffff), 0, 2.16, 0));
@@ -4414,11 +4438,13 @@ const tc = THEME.colour;
     g.add(at(cyl(0.08, 0.06, 0.16, 0xffffff, 12), 0, 1.15, 0.52));
     return { bubbles, water };
   }
-  // A paper pile: a low wooden tray whose stack of bundles is redrawn to match what's waiting to be filed.
+  // A paper pile: a low wooden crate whose stack of bundles is redrawn to match what's waiting to be filed,
+  // with the count on a plate across the crate's front.
   function buildPile(g) {
-    g.add(at(rbox(1.5, 0.08, 1.7, 0.04, PASTEL.wood), 0, 0.04, 0));
-    const bundles = new THREE.Group(); g.add(bundles);
-    return { bundles };
+    g.add(at(rbox(1.5, 0.36, 1.8, 0.06, PASTEL.wood), 0, 0.18, 0));
+    const bundles = new THREE.Group(); bundles.position.y = 0.3; g.add(bundles);
+    const plate = at(namePlate('', 1.7, 0.3), 0.755, 0.18, 0); g.add(plate);
+    return { bundles, plate };
   }
   // The CEO's desk: a wide executive desk with a lamp that glows while someone is waiting, an in-tray and a
   // rubber stamp that thumps down when you sign something off. The CEO bot sits behind it, facing the room.
@@ -4511,7 +4537,8 @@ const tc = THEME.colour;
 
     // Team HQ: a raised charging bay with a glowing pad per team member.
     scene.add(at(rbox(9, 0.3, 26, 0.3, 0x232857), HQ_X, 0.15, 0));
-    const hqSign = labelSprite('Team HQ · charging', '#bad367', { size: 34 }); hqSign.position.set(HQ_X, 3.4, -12); scene.add(hqSign);
+    const hqSign = namePlate('Team HQ · Charging', 7.4, 1.05, { edge: '#bad367', ink: '#bad367' });   // painted on the bay floor
+    hqSign.rotation.set(-Math.PI / 2, 0, 0); hqSign.position.set(HQ_X, 0.315, -11.6); scene.add(hqSign);
     for (let i = 0; i < 24; i++) {
       const x = HQ_X - 2.6 + (i % 3) * 2.6, z = -10 + Math.floor(i / 3) * 2.9;
       const p = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.85, 0.12, 28),
@@ -4537,7 +4564,7 @@ const tc = THEME.colour;
       g.add(at(rbox(1.9, 1.75, 0.08, 0.04, PASTEL.ink), 0, 1.25, 0.71));     // the charge gauge
       const bars = [0, 1, 2, 3, 4].map(i => { const m = rbox(1.6, 0.24, 0.06, 0.04, lime, { emissive: lime, emissiveIntensity: 0.1 });
         g.add(at(m, 0, 0.6 + i * 0.32, 0.76)); return m; });
-      const sign = labelSprite('⚡ Power', '#bad367', { size: 28, scale: 0.0085 }); sign.position.set(0, 3.3, 0); g.add(sign);
+      g.add(at(namePlate('⚡ Power', 2.8, 0.26, { face: 0, edge: '#bad367', ink: '#bad367' }), 0, 2.35, 0.77));   // on the top cap
       return { bars };
     });
     const pulseMat = new THREE.MeshBasicMaterial({ color: 0xeaffb8 });
@@ -4549,20 +4576,20 @@ const tc = THEME.colour;
 
     // The factory floor: six desks, Larry's control desk, and the machines.
     [[-0.5, -10], [-0.5, -5], [5, -10], [5, -5], [10.5, -10], [10.5, -5]].forEach(([x, z], i) =>
-      addStation('desk', x, z, buildDesk, [[0, -1.35]], i === 0 ? { text: 'Desks', y: 2.6 } : null));
-    addStation('control', 16, -7.5, buildControl, [[0, -1.45]], { text: "Larry's desk", y: 2.7 });
-    addStation('filing', -0.5, 1, buildFiling, [[-0.5, -1.4], [0.6, -1.4]], { text: 'Filing', y: 2.8 });
-    addStation('cruncher', 5, 1, buildCruncher, [[-0.6, -1.55], [0.6, -1.55]], { text: 'Data cruncher', y: 3.4 });
-    addStation('recorder', 10.5, 1, buildRecorder, [[-0.6, -1.35], [0.6, -1.35]], { text: 'Meeting recorder', y: 2.6 });
-    addStation('mail', -0.5, 7.5, buildMail, [[-0.4, -1.3], [0.7, -1.3]], { text: 'Mail room', y: 2.8 });
-    addStation('web', 5, 7.5, buildDish, [[-0.6, -1.3], [0.6, -1.3]], { text: 'Web dish', y: 3.5 });
+      addStation('desk', x, z, buildDesk, [[0, -1.35]], i === 0 ? { text: 'Desks', at: [0.665, 0.79, 0], w: 1.3, h: 0.26 } : null));
+    addStation('control', 16, -7.5, buildControl, [[0, -1.45]], { text: "Larry's desk", at: [0.615, 0.48, 0], w: 2.6, h: 0.42 });
+    addStation('filing', -0.5, 1, buildFiling, [[-0.5, -1.4], [0.6, -1.4]]);
+    addStation('cruncher', 5, 1, buildCruncher, [[-0.6, -1.55], [0.6, -1.55]], { text: 'Data cruncher', at: [0.865, 0.3, 0], w: 1.7, h: 0.36 });
+    addStation('recorder', 10.5, 1, buildRecorder, [[-0.6, -1.35], [0.6, -1.35]], { text: 'Meeting recorder', at: [0.665, 0.5, 0], w: 1.6, h: 0.42 });
+    addStation('mail', -0.5, 7.5, buildMail, [[-0.4, -1.3], [0.7, -1.3]], { text: 'Mail room', at: [0.265, 0.95, 0.75], w: 0.92, h: 0.34 });
+    addStation('web', 5, 7.5, buildDish, [[-0.6, -1.3], [0.6, -1.3]], { text: 'Web dish', at: [0.705, 0.16, 0], w: 1.1, h: 0.27 });
     addStation('press', 10.5, 7.5, g => {           // the print press: where finished files come out
       g.add(at(rbox(1.4, 1.2, 2.0, 0.2, PASTEL.mint), 0, 0.6, 0));
       g.add(at(rbox(0.5, 0.1, 1.2, 0.05, 0xffffff), 0.75, 0.75, 0));
       const roller = at(cyl(0.16, 0.16, 1.4, PASTEL.cream, 16), 0, 1.3, 0); roller.rotation.x = Math.PI / 2; g.add(roller);
       const sheet = at(rbox(0.6, 0.03, 0.9, 0.02, 0xffffff), 0.6, 0.85, 0); g.add(sheet);
       return { roller, sheet };
-    }, [[-0.6, -1.4], [0.6, -1.4]], { text: 'Print press', y: 2.4 });
+    }, [[-0.6, -1.4], [0.6, -1.4]], { text: 'Print press', at: [0.715, 0.33, 0], w: 1.8, h: 0.4 });
     plant(16, -2, 1.6); plant(16, 3, 1.3); plant(16, 8.5, 1.7); plant(-3.6, -12, 1.3); plant(-3.6, 11.5, 1.4);
 
     // The office shell: a back wall and a side wall, both with windows. Each hides itself when the
@@ -4575,15 +4602,39 @@ const tc = THEME.colour;
     // The water cooler, in the corner by the windows: bots on long tasks wander over for a drink.
     const toCooler = (sx, sz) => [sx, sz, Math.atan2(-sx, -sz)];
     addStation('water', -20.6, -12.6, buildCooler, [toCooler(-0.95, 0.55), toCooler(0.95, 0.55), toCooler(0, 1.3)],
-      { text: 'Water cooler', y: 2.6 }).calm = true;
+      { text: 'Water cooler', at: [0.415, 0.38, 0], w: 0.76, h: 0.42 }).calm = true;
     plant(-22.8, -14.6, 1.2);
+
+    // The putting green, between Team HQ and the side wall: a long strip running away from you, tee at the
+    // front, hole and flag near the back. Idle bots take turns putting; a hole in one sets the team off.
+    // The green stops well short of the water cooler (spots reach z -10.65), so the flag never hides it or
+    // the bots drinking there from the usual view.
+    const GX = -20.8, TEE_Z = 12.5, HOLE_Z = -5.2;
+    const fringe = rbox(4.4, 0.06, 21, 0.4, 0x3f8f4c, { roughness: 1 }); fringe.castShadow = false; scene.add(at(fringe, GX, 0.03, 3.6));
+    const green = rbox(3.8, 0.08, 20.4, 0.4, 0x5fbf6a, { roughness: 0.9 }); green.castShadow = false; scene.add(at(green, GX, 0.06, 3.6));
+    const flatUp = m => { m.rotation.x = -Math.PI / 2; return m; };
+    scene.add(at(flatUp(new THREE.Mesh(new THREE.CircleGeometry(0.24, 24), new THREE.MeshBasicMaterial({ color: 0x0b0d1c }))), GX, 0.105, HOLE_Z));
+    scene.add(at(flatUp(new THREE.Mesh(new THREE.RingGeometry(0.24, 0.29, 24), new THREE.MeshBasicMaterial({ color: 0xffffff }))), GX, 0.104, HOLE_Z));
+    scene.add(at(flatUp(new THREE.Mesh(new THREE.CircleGeometry(0.2, 16), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 }))), GX, 0.104, TEE_Z));
+    const pole = new THREE.Group(); pole.position.set(GX, 0.1, HOLE_Z); scene.add(pole);
+    pole.add(at(cyl(0.035, 0.035, 2.6, 0xffffff, 8), 0, 1.3, 0));
+    const flag = new THREE.Group(); flag.position.y = 2.45; pole.add(flag);
+    const cloth = new THREE.Mesh(new THREE.PlaneGeometry(0.75, 0.48, 6, 1), mat(0xff5a5a, { side: THREE.DoubleSide, roughness: 0.8, metalness: 0 }));
+    cloth.position.x = 0.38; cloth.castShadow = true; flag.add(cloth);
+    const greenSign = namePlate('Putting green', 3.2, 0.55, { edge: '#bad367', ink: '#bad367' });
+    greenSign.rotation.set(-Math.PI / 2, 0, 0); greenSign.position.set(GX, 0.105, 13.3); scene.add(greenSign);
+    const golfBall = ball(0.13, 0xffffff, { roughness: 0.35, metalness: 0 }); scene.add(golfBall);
+    F.golf = { GX, TEE_Z, HOLE_Z, ball: golfBall, flag, cloth, player: null, phase: '', at: 0, next: 0, cheerUntil: 0, plan: null };
+    F.stations.push({ kind: 'golf', group: null, parts: {}, active: 0, calm: true,
+                      spots: [{ pos: new THREE.Vector3(GX - 0.78, 0.02, TEE_Z), taken: null, face: Math.PI / 2 }] });
+    resetBall();
 
     // The CEO's desk: every approval goes through here. A bot that needs your OK walks over, waits beside
     // the desk while you decide, gets stamped off and walks back to finish the job.
     const CEO_X = 22, CEO_Z = -2.5, seatZ = CEO_Z - 0.95 * EQUIP, toCeo = (sx, sz) => [sx, sz, Math.atan2(-sx, -0.95 - sz)];
     const ceoRug = rbox(7.5, 0.04, 7, 0.5, 0x2e2a5c, { roughness: 1 }); ceoRug.castShadow = false; scene.add(at(ceoRug, CEO_X, 0.04, CEO_Z - 0.3));
     F.ceoDesk = addStation('ceo', CEO_X, CEO_Z, buildCeoDesk, [toCeo(-2, -0.3), toCeo(2, -0.3), toCeo(-2, 0.9), toCeo(2, 0.9)],
-      { text: 'CEO · approvals', y: 2.9 });
+      { text: 'CEO · Approvals', at: [0.735, 0.5, 0], w: 2.2, h: 0.42, edge: '#ffd166' });
     F.ceoDesk.calm = true;
     scene.add(at(rbox(1.1, 0.18, 1.0, 0.08, PASTEL.ink), CEO_X, 0.72, seatZ - 0.1));
     scene.add(at(cyl(0.08, 0.1, 0.65, PASTEL.cream, 10), CEO_X, 0.33, seatZ - 0.1));
@@ -4594,15 +4645,16 @@ const tc = THEME.colour;
     F.ceo.body.add(at(tie, 0, 0.82, 0.33));
     F.stampAt = -9;
 
-    // The to-file corner, against the back wall: one pile for files in Team Inbox and one for loose fleeting
+    // The to-file piles, at the front of the office: one for files in Team Inbox and one for loose fleeting
     // notes. Each pile grows with what's waiting; bots on a filing job carry bundles from here to the cabinet.
-    const pileSpots = [[-1.1, 0.2, Math.PI / 2], [1.1, 0.2, -Math.PI / 2], [0, 1.3, Math.PI]];
+    // They stand behind or beside a pile to work it, so they face you.
+    const pileSpots = [[0, -1.3, 0], [-1.15, -0.2, Math.PI / 2], [1.15, -0.2, -Math.PI / 2]];
     F.piles = [
-      { key: 'pile-inbox', x: 20.5, z: -14.3, name: 'Team Inbox', ink: '#7fc35a', tints: [0xf3d59a, 0xe9c47c, 0xffffff] },
-      { key: 'pile-notes', x: 24.2, z: -14.3, name: 'Notes to file', ink: '#ffc46b', tints: [0xfffaf0, 0xf6efe2, 0xfff3a0] },
+      { key: 'pile-inbox', x: 2.5, z: 13, name: 'Team Inbox', ink: '#7fc35a', tints: [0xf3d59a, 0xe9c47c, 0xffffff] },
+      { key: 'pile-notes', x: 7.5, z: 13, name: 'Notes to file', ink: '#ffc46b', tints: [0xfffaf0, 0xf6efe2, 0xfff3a0] },
     ].map(p => {
       const st = addStation(p.key, p.x, p.z, buildPile, pileSpots); st.calm = true;
-      return { ...p, st, mats: p.tints.map(c => mat(c, { roughness: 0.85, metalness: 0 })), shown: -1, label: null };
+      return { ...p, st, mats: p.tints.map(c => mat(c, { roughness: 0.85, metalness: 0 })), shown: -1 };
     });
     F.pileGeo = new THREE.BoxGeometry(0.55, 0.07, 0.7);
     setPiles();
@@ -4696,10 +4748,14 @@ const tc = THEME.colour;
     const cup = at(cyl(0.07, 0.055, 0.14, 0xffffff, 12), 0, -0.42, 0.04); cup.rotation.x = 2.0; cup.visible = false; arms[1].add(cup);
     const paper = at(rbox(0.3, 0.03, 0.38, 0.01, 0xfff3c4), 0, -0.42, 0.12); paper.rotation.x = 1.2; paper.visible = false; arms[0].add(paper);
     const carry = at(rbox(0.46, 0.16, 0.36, 0.03, 0xf3d59a), 0, 0.72, 0.52); carry.visible = false; body.add(carry);   // a bundle being filed
+    // A putter held in front, swinging side to side (about its z axis) from the hands.
+    const putter = new THREE.Group(); putter.position.set(0, 0.62, 0.36); putter.visible = false; body.add(putter);
+    const shaft = at(cyl(0.025, 0.025, 0.66, 0x9aa3c0, 8), 0, -0.3, 0.08); shaft.rotation.x = -0.25; putter.add(shaft);
+    putter.add(at(rbox(0.3, 0.07, 0.1, 0.02, 0x2d3570), 0, -0.6, 0.17));
     const tag = labelSprite(name, '#' + colour.getHexString(), { size: 30, scale: 0.0075 }); tag.position.set(0, -0.12, 0.5); g.add(tag);
     g.scale.setScalar(1.4); g.userData.botName = name;
     F.scene.add(g);
-    return { name, group: g, body, head, eyes, arms, feet, tip, tipMat, bellyMat, tag, cup, paper, carry, bubble: null, bubbleText: '',
+    return { name, group: g, body, head, eyes, arms, feet, tip, tipMat, bellyMat, tag, cup, paper, carry, putter, bubble: null, bubbleText: '',
              pos: g.position, target: new THREE.Vector3(), phase: Math.random() * 6, wait: 0, spot: -1, zone: null, work: null };
   }
 
@@ -4793,9 +4849,11 @@ const tc = THEME.colour;
       if (b.asking) b.thirsty = false;
       b.tidy = isTidying(w);
       if (!b.tidy && b.carrying) { b.carrying = null; setPiles(); }
+      if ((w && !w.done) || b.asking) b.golf = false;                    // work or a question ends a putt
       b.want = wantOf(b);
       const label = asking ? (asking.kind === 'question' ? '❓ has a question for you' : '⚠ waiting for your approval')
         : b.thirsty ? '💧 quick drink, then back to it'
+        : b.golf ? (b.golfMsg || '⛳ lining up a putt')
         : w ? (w.done ? '✓ done' : bubbleFor(w)) : '';
       const short = label.split('\n').map(l => l.length > 46 ? l.slice(0, 45) + '…' : l).join('\n');
       if (short !== b.bubbleText) {
@@ -4836,6 +4894,7 @@ const tc = THEME.colour;
   function wantOf(b) {
     if (b.asking) return 'ceo';
     if (b.thirsty) return 'water';
+    if (b.golf) return 'golf';
     if (b.tidy && b.carrying) return b.dropAt;
     const pile = b.tidy && pickPile(b);
     return pile || b.workWant;
@@ -4855,10 +4914,98 @@ const tc = THEME.colour;
         m.position.set(cx + j(12.9) * 0.05, 0.12 + lvl * 0.075, cz + j(78.2) * 0.05); m.rotation.y = j(37.7) * 0.25;
         m.castShadow = true; m.receiveShadow = true; g.add(m);
       }
-      if (p.label) { F.scene.remove(p.label); p.label.material.map.dispose(); p.label.material.dispose(); }
-      p.label = labelSprite(n ? `${p.name} · ${n} to file` : `${p.name} · all filed ✓`, p.ink, { size: 26, scale: 0.0085 });
-      p.label.position.set(p.x, 3, p.z); F.scene.add(p.label);
+      p.st.parts.plate.userData.draw(n ? `${p.name} · ${n} to file` : `${p.name} · all filed ✓`);
     }
+  }
+
+  // ---- putting green: idle bots take turns -------------------------------------------------
+  // Every so often, if at least two bots are resting at Team HQ, one walks to the tee. Each shot: a moment to
+  // line up (under a second, swing included), hit, and the ball rolls. In the hole ends the turn; a miss means
+  // walking to the ball and going again, up to three shots. A hole in one has everyone resting at HQ jumping
+  // with their hands up. Any work or question calls the putter away.
+  const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);                      // ground distance: bots walk at pad height
+  function resetBall() { const G = F.golf; G.ball.visible = true; G.ball.position.set(G.GX, 0.23, G.TEE_Z); }
+  // One putt from where the ball lies. The first from the tee drops about a third of the time; shorter putts
+  // more often. Misses stop short, run past or slide by, by an amount that scales with the distance.
+  function planPutt(shot) {
+    const G = F.golf, sx = G.ball.position.x, sz = G.ball.position.z;
+    const dx = G.GX - sx, dz = G.HOLE_Z - sz, dist = Math.hypot(dx, dz) || 0.01, ux = dx / dist, uz = dz / dist;
+    const sink = Math.random() < (shot === 1 ? 0.35 : dist < 2.5 ? 0.75 : 0.5);
+    let ex = G.GX, ez = G.HOLE_Z, short = false;
+    if (!sink) {
+      short = Math.random() < 0.6;
+      const along = short ? -(0.2 + dist * (0.12 + Math.random() * 0.25)) : 0.2 + dist * Math.random() * 0.15;
+      const side = (Math.random() < 0.5 ? -1 : 1) * (0.15 + dist * (0.03 + Math.random() * 0.06));
+      ex = Math.max(G.GX - 1.6, Math.min(G.GX + 1.6, G.GX + ux * along - uz * side));
+      ez = Math.max(G.HOLE_Z - 1.2, Math.min(G.TEE_Z, G.HOLE_Z + uz * along + ux * side));
+    }
+    return { sink, short, sx, sz, ex, ez, bend: (Math.random() - 0.5) * dist * (sink ? 0.05 : 0.1), T: 1 + dist / 18 * 2.4 };
+  }
+  // Stand side-on to the ball, square to the line to the hole, with the putter head just behind the ball.
+  function addressBall(p) {
+    const G = F.golf, b = G.ball.position;
+    const dx = G.GX - b.x, dz = G.HOLE_Z - b.z, d = Math.hypot(dx, dz) || 1;
+    p.face = Math.atan2(-dz / d, dx / d);                                     // the bot's right hand points at the hole
+    p.target.set(b.x - Math.sin(p.face) * 0.78, p.target.y, b.z - Math.cos(p.face) * 0.78);
+  }
+  function golfStep(t) {
+    const G = F.golf;
+    G.flag.rotation.y = Math.sin(t * 2.2) * 0.25 + (t < G.cheerUntil ? Math.sin(t * 14) * 0.4 : 0);
+    if (!G.player) {
+      if (t < G.next) return;
+      const idle = [...F.bots.values()].filter(b => b.kind === 'hq' && b.want === 'hq' && flat(b.pos, b.target) < 0.1
+        && !(b.work && !b.work.done) && !b.asking);
+      if (idle.length < 2) { G.next = t + 4; return; }
+      const p = idle[Math.floor(Math.random() * idle.length)];
+      G.player = p; G.phase = 'walk'; G.shot = 0; G.swing = 0; p.golf = true; p.golfMsg = ''; resetBall(); assignBots();
+      return;
+    }
+    const p = G.player, moving = flat(p.pos, p.target) > 0.06;
+    const say = m => { p.golfMsg = m; assignBots(); };
+    const finish = () => { p.golf = false; p.golfMsg = ''; G.player = null; G.swing = 0; G.next = t + 5 + Math.random() * 8; assignBots(); };
+    if (!p.golf) { G.player = null; G.swing = 0; G.next = t + 5; return; }       // called away to work
+    if (G.phase === 'walk') {                                                      // to the tee, or to where the ball stopped
+      if (p.kind === 'golf' && !moving) { G.phase = 'swing'; G.at = t; G.shot++; G.plan = null; addressBall(p); }
+      return;
+    }
+    if (G.phase === 'swing') {                                                     // 0.3 s to settle, back, through: 1 s in all
+      const u = (t - G.at - 0.3) / 0.7;
+      if (u < 0) return;
+      G.swing = u < 0.6 ? -0.55 * Math.sin(u / 0.6 * Math.PI / 2) : -0.55 + (u - 0.6) / 0.4 * 0.95;
+      if (u >= 0.85 && !G.plan?.live) { G.plan = { ...planPutt(G.shot), live: true }; G.rollAt = t; }   // contact
+      if (u >= 1) G.phase = 'roll';
+      if (!G.plan?.live) return;
+    }
+    if (G.phase === 'roll' || G.phase === 'swing') {                               // slows as it goes, with a little break
+      const P = G.plan, u = Math.min(1, (t - G.rollAt) / P.T), s = 1 - (1 - u) * (1 - u);
+      const px = -(P.ez - P.sz), pz = P.ex - P.sx, pl = Math.hypot(px, pz) || 1;
+      const x = P.sx + (P.ex - P.sx) * s + px / pl * Math.sin(Math.PI * s) * P.bend;
+      const z = P.sz + (P.ez - P.sz) * s + pz / pl * Math.sin(Math.PI * s) * P.bend;
+      G.ball.rotation.x -= Math.hypot(x - G.ball.position.x, z - G.ball.position.z) / 0.13;
+      G.ball.position.set(x, 0.23, z);
+      if (u >= 1 && G.phase === 'roll') {
+        P.live = false; G.at = t; G.swing = 0;
+        if (P.sink) G.phase = 'drop';
+        else if (G.shot < 3) { G.phase = 'missed'; say(P.short ? `😬 short. Shot ${G.shot + 1} of 3` : `😅 slid by. Shot ${G.shot + 1} of 3`); }
+        else { G.phase = 'after'; say('🙃 three putts, no luck'); }
+      }
+      return;
+    }
+    if (G.phase === 'missed') {                                                    // a beat, then walk up to the ball
+      if (t - G.at > 0.8) { G.phase = 'walk'; addressBall(p); }
+      return;
+    }
+    if (G.phase === 'drop') {                                                      // in the cup
+      const u = (t - G.at) / 0.3; G.ball.position.y = 0.23 - Math.min(1, u) * 0.3;
+      if (u >= 1) {
+        G.ball.visible = false; G.phase = 'after'; G.at = t;
+        for (let i = 0; i < 14; i++) spark(new THREE.Vector3(G.GX, 0.4, G.HOLE_Z));
+        if (G.shot === 1) { G.cheerUntil = t + 3.2; say('🎉 Hole in one!'); }
+        else { G.selfCheer = t + 1.6; say(`⛳ In, in ${G.shot}`); }
+      }
+      return;
+    }
+    if (G.phase === 'after' && t - G.at > (t < G.cheerUntil ? 3.4 : 2)) finish(); // walk back to charge
   }
 
   function release(b) { if (b.spot) { b.spot.taken = null; b.spot = null; } }
@@ -4948,13 +5095,19 @@ const tc = THEME.colour;
       b.carry.visible = holding;
       b.carry.material.color.set(b.carrying === 'pile-notes' ? 0xfffaf0 : 0xf3d59a);
       const k = t * 11 + b.phase;
-      b.body.position.y = moving ? Math.abs(Math.sin(k)) * 0.12 : atCeo ? Math.abs(Math.sin(t * 3 + b.phase)) * 0.05 : Math.sin(t * 2 + b.phase) * 0.03;
+      // Golf: the putter stands side-on at the tee; after a hole in one, everyone resting at HQ (and the
+      // putter) jumps with hands in the air.
+      const golfing = b.golf && b.kind === 'golf' && !moving;
+      const cheer = !moving && ((t < F.golf.cheerUntil && (b.kind === 'hq' || golfing)) || (golfing && t < (F.golf.selfCheer || 0)));
+      b.putter.visible = golfing; b.putter.rotation.z = golfing ? F.golf.swing || 0 : 0;
+      b.body.position.y = cheer ? Math.abs(Math.sin(t * 9 + b.phase)) * 0.55
+        : moving ? Math.abs(Math.sin(k)) * 0.12 : atCeo ? Math.abs(Math.sin(t * 3 + b.phase)) * 0.05 : Math.sin(t * 2 + b.phase) * 0.03;
       b.body.rotation.z = moving ? Math.sin(k) * 0.06 : 0;
       b.feet[0].position.z = moving ? Math.sin(k) * 0.16 : 0.03; b.feet[1].position.z = moving ? -Math.sin(k) * 0.16 : 0.03;
       const reach = -0.75 + Math.sin(t * 4 + b.phase) * 0.25;           // rummaging through a pile
-      b.arms[0].rotation.x = holding ? -1.15 : moving ? Math.sin(k) * 0.9 : atCeo ? -1.25 + Math.sin(t * 2 + b.phase) * 0.08
+      b.arms[0].rotation.x = cheer ? -2.9 + Math.sin(t * 12 + b.phase) * 0.2 : golfing ? -0.7 : holding ? -1.15 : moving ? Math.sin(k) * 0.9 : atCeo ? -1.25 + Math.sin(t * 2 + b.phase) * 0.08
         : atPile ? reach : working ? -1.1 + Math.sin(t * 16 + b.phase) * 0.35 : 0.1;
-      b.arms[1].rotation.x = holding ? -1.15 : moving ? -Math.sin(k) * 0.9 : atWater ? -2.3 + Math.sin(t * 1.4 + b.phase) * 0.2
+      b.arms[1].rotation.x = cheer ? -2.9 + Math.cos(t * 12 + b.phase) * 0.2 : golfing ? -0.7 : holding ? -1.15 : moving ? -Math.sin(k) * 0.9 : atWater ? -2.3 + Math.sin(t * 1.4 + b.phase) * 0.2
         : atPile ? reach : working ? -1.1 + Math.cos(t * 16 + b.phase) * 0.35 : 0.1;
       b.head.rotation.y = working && !moving ? Math.sin(t * 1.5 + b.phase) * 0.3 : 0;
       b.head.rotation.x = atWater ? -0.2 + Math.sin(t * 1.4 + b.phase) * 0.08 : 0;
@@ -4972,6 +5125,7 @@ const tc = THEME.colour;
       if (charging && pad.boost > 0.7 && Math.random() < 0.12) spark(b.group.localToWorld(tmp.set(0, 2.05, 0)));
       if (b.bubble) b.bubble.position.y = 2.6 + b.body.position.y;
     }
+    golfStep(t);
     // The CEO reads over whoever is waiting (lamp pulsing amber: it's on you), and when you decide,
     // brings the stamp down with a green flash and the bot heads back to work.
     const C = F.ceo, CP = F.ceoDesk.parts, visitors = F.ceoDesk.active, since = t - F.stampAt;
