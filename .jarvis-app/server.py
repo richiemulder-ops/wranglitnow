@@ -171,28 +171,28 @@ files you opened yourself go unlisted, which is fine."""
 
 ACTION_PROMPT = """
 
-You can also act on the page. When, and only when, the user asks you to do one of these things, \
-add one line before SOURCES (at most one ACTION per reply), and make your reply a brief, in-character \
-confirmation:
-- Take a note with its content ("take a note: ...", "note that ...", "jot down ..."): \
-ACTION: note | <a short title, at most 8 words> | <the note: their words, lightly tidied, nothing added>
-- Take a note with no content yet ("take a note", "I want to make a note"): ACTION: note | | \
-(the page opens the note editor and listens; keep your reply to a few words).
-- Show a project's deliverables or files ("open the deliverables for X", "what's in the X folder"): \
-ACTION: deliverables | <the project name, exactly as listed below>
-- Open a file on their computer ("open the latest deed", "open the Coopers report"): find it first with \
-Glob or Grep, then ACTION: open | <its path relative to the vault, exactly as found>. Only open a file \
-that exists. If more than one file fits, list them and ask which one, with no ACTION line. Prefer files \
-in the project's folder, copilot/projects/<name>/, and the newest version when they say "latest".
-- Show a client's actions ("bring up the actions for Acme", "what's open for Brightside"): ACTION: list | actions | <the client or project name, or empty for every action> | <open, done or all; open unless they say>
-- Show a client's meetings ("list the meetings for Northwind", "pull up our Harbour Co meetings"): ACTION: list | meetings | <the client or project name, or empty for every meeting>. These are the meetings filed in the vault; for upcoming ones in their calendar, answer from Outlook instead.
-- Pull up a project's notes ("pull up the notes on the website project", "show me my Rebrand notes"): ACTION: projectnotes | <the project name, exactly as listed below>
-For these three the page opens a window with the list, so keep your reply to one short line, not the list itself.
-- Draft an email ("draft an email to Ben about Friday", "reply to Anthony saying yes", "write to the client \
-that the report is late"): ACTION: draft | <everything the team needs in one line: who it is to, what it should say \
-in the user's words, the tone if they gave one, and the subject or sender of the email being replied to>. The team \
-writes it and puts it in their Outlook Drafts folder; nothing is ever sent. Say it is with the team and will be in Drafts.
-- Talk to a team member directly ("let me talk to Penn", "ask Pax what he found on X", "open a chat with Larry"): ACTION: chat | <their name> | <the message to pass on, in the user's words, or empty if they only want the chat opened>. You can do this: it opens a chat window with that person, and they reply there themselves. Use this rather than DELEGATE whenever the user wants to talk to or ask one person; DELEGATE is for work handed to Larry's team to run in the background.
+You can also drive the Jarvis screen and change things, not just talk about them. Whenever the user wants something shown, opened, closed, filtered, changed or made, in whatever words they use ("pull up", "chuck up", "get rid of that", "what's left for Acme", "get rid of that"), work out which of the capabilities below gets them there and do it with ACTION lines placed before SOURCES. Use up to four ACTION lines, in order, when one request needs several steps ("close that and bring up my week"). Never say you can't open, show or change something that one of these covers; never describe how they could do it themselves. Your reply is then a brief, in-character confirmation of what you did, one or two lines, not the content itself: the window shows that. If a request is ambiguous between two clients, projects or steps, ask which one with no ACTION line.
+
+Windows (each opens in the middle of the screen; <...> parts may be empty):
+- ACTION: show | actions | <client or project, or empty for all> | <open, done or all; open unless they say> | <overdue, today, this week, next week, or empty> | <a person who owns them, or words to filter by, or empty>
+- ACTION: show | meetings | <client or project, or empty for all> | <words to filter by, or empty>. Meetings filed in the vault; for upcoming ones use the calendar.
+- ACTION: show | calendar | <the span in their words: today, tomorrow, Friday, this week, next week, a date>. Their Outlook calendar.
+- ACTION: show | current work. Who on the team is working on what, as the bots in the office.
+- ACTION: show | vault activity. Recent meetings and changes in the vault.
+- ACTION: show | to file. Fleeting notes and Team Inbox items waiting to be filed.
+- ACTION: show | crm | <organisations or contacts> | <words to filter by, or empty>
+- ACTION: show | outlook. Today's meetings and latest email card.
+- ACTION: show | galaxy | <a project, a type of note (meetings, actions, people, projects...) or a note title to fly to, or empty to see the whole galaxy>
+- ACTION: show | deliverables | <the project name, exactly as listed below>. The project's files and folders.
+- ACTION: show | project notes | <the project name, exactly as listed below>
+- ACTION: close | <what to close: actions, meetings, calendar, clients, current work, notes, chat, workspace, panel, or all>
+Doing things:
+- Take a note with its content: ACTION: note | <a short title, at most 8 words> | <the note: their words, lightly tidied, nothing added>. With no content yet ("take a note"): ACTION: note | | (the page opens the editor and listens; reply in a few words).
+- Open a file on their computer: find it first with Glob or Grep, then ACTION: open | <its path relative to the vault, exactly as found>. Only a file that exists; if several fit, list them and ask which, with no ACTION line. Prefer the project's folder, copilot/projects/<name>/, and the newest version for "latest".
+- Write a document, report, summary, brief, letter or plan ("write me a one-pager on...", "draft a proposal for..."): ACTION: write | <the project it belongs to, exactly as listed below, or empty> | <everything the writer needs in one line: what it is, who it is for, what it should cover, in their words>. The team writes it and it opens on screen when finished; say it is being written.
+- Draft an email: ACTION: draft | <who it is to, what it should say in their words, the tone if given, and the subject or sender of any email being replied to>. The team puts it in their Outlook Drafts; nothing is sent.
+- Talk to one team member: ACTION: chat | <their name> | <the message to pass on, in their words, or empty just to open the chat>. Use this rather than DELEGATE whenever they want to talk to or ask one person.
+Anything else that is real work goes to the team with DELEGATE.
 Their projects: {projects}. The team: {team}."""
 
 M365_PROMPT = """
@@ -238,6 +238,7 @@ def load_team():
 
 load_team()
 MAX_SPOKEN_CHARS = 320
+MAX_ACTIONS = 4
 
 STOPWORDS = set("""
 a an and are as at be been but by can could did do does for from had has have how i if in
@@ -648,11 +649,12 @@ def answer(sid, question, project=None, history=None):
         raw, context = call_claude(model, prompt, system + M365_PROMPT, M365_TOOLS, vault=True, sid=sid)
     else:
         raw, context = call_claude(model, prompt, system, vault=True, sid=sid)
-    text, spoken, cited, task, action_line = parse_reply(raw)
-    action = run_action(action_line) if action_line else None
+    text, spoken, cited, task, action_lines = parse_reply(raw)
+    actions = [run_action(line) for line in action_lines]
+    action = actions[0] if actions else None
 
     job = None
-    if not task and not action_line and TEAM_ORDER and TEAM_ORDER.search(question):
+    if not task and not action_lines and TEAM_ORDER and TEAM_ORDER.search(question):
         task = question   # "have Silas ..." / "get the team to ...": they chose who does it
         text = spoken = "Very good. That's with the team now; I'll bring you their answer when it lands."
     if task and (team_asked or not project):   # in a project chat, only when the team is named
@@ -667,7 +669,8 @@ def answer(sid, question, project=None, history=None):
         nodes = list(dict.fromkeys(i for i in cited if i in allowed))
     if session_memory:
         save_turn(sid, {"q": question, "a": text, "nodes": nodes})
-    return {"answer": text, "speech": spoken, "nodes": nodes, "job": job, "context": context, "action": action}
+    return {"answer": text, "speech": spoken, "nodes": nodes, "job": job, "context": context, "action": action,
+            "actions": actions}
 
 
 MEETING_QUESTION = re.compile(r"\b(meetings?|fireflies|calls?|catch-?ups?|sessions?|workshops?|minutes|"
@@ -688,10 +691,14 @@ def parse_reply(raw):
     """Strip the trailing SPOKEN: / SOURCES: / DELEGATE: lines. Returns (answer, line to say
     aloud, [indexes] or None when SOURCES is absent, task for Larry or None)."""
     lines = raw.strip().splitlines()
-    tags = {}
+    tags, actions = {}, []
     while lines:
         m = TAG_LINE.match(lines[-1].strip())
-        if m:
+        if m and m.group(1).upper() == "ACTION":   # one request can take several steps, kept in order
+            value = m.group(2).strip()
+            if value and value.lower() not in ("none", "n/a", "-"):
+                actions.insert(0, value)
+        elif m:
             tags.setdefault(m.group(1).upper(), m.group(2).strip())
         elif lines[-1].strip():
             break
@@ -703,10 +710,7 @@ def parse_reply(raw):
     task = tags.get("DELEGATE", "").strip() or None
     if task and task.lower() in ("none", "n/a", "-"):
         task = None
-    action = tags.get("ACTION", "").strip() or None
-    if action and action.lower() in ("none", "n/a", "-"):
-        action = None
-    return answer_text, spoken[:MAX_SPOKEN_CHARS], cited, task, action
+    return answer_text, spoken[:MAX_SPOKEN_CHARS], cited, task, actions[:MAX_ACTIONS]
 
 
 def match_project(name):
@@ -756,14 +760,16 @@ def run_action(line):
             if not name:
                 return {"type": "error", "message": f"I couldn't find a project called {parts[0] if parts else 'that'}."}
             return {"type": "deliverables", "project": name}
-        if kind == "list":
-            what, who, status = (parts + ["", "", ""])[:3]
-            what = "meetings" if what.lower().startswith("meet") else "actions"
-            status = status.lower() if status.lower() in ("open", "done", "all") else "open"
-            org = match_org(who)
-            # No client by that name: the window still opens, searching for what they said.
-            return {"type": "list", "what": what, "org": org or "", "label": who if who else "", "search": "" if org else who,
-                    "status": status}
+        if kind in ("list", "show"):
+            return show_window(parts)
+        if kind == "close":
+            return {"type": "close", "what": window_key(parts[0] if parts else "") or "all"}
+        if kind == "write":
+            name = match_project(parts[0]) if parts and parts[0] else None
+            brief = " | ".join(parts[1:]).strip() or " | ".join(parts).strip()
+            if not brief:
+                return {"type": "error", "message": "Tell me what the document should be about."}
+            return {"type": "job", "job": start_document(brief, name)}
         if kind == "projectnotes":
             name = match_project(parts[0] if parts else "")
             if not name:
@@ -797,6 +803,54 @@ def run_action(line):
         return {"type": "error", "message": "I didn't recognise that request."}
     except ChatError as e:
         return {"type": "error", "message": str(e)}
+
+
+def window_key(name):
+    """A window named in the model's words, as the page's key: "Current work" -> "currentwork"."""
+    key = re.sub(r"[^a-z]", "", str(name).lower())
+    return {"action": "actions", "meeting": "meetings", "client": "clients", "calendars": "calendar",
+            "diary": "calendar", "schedule": "calendar", "tofile": "tofile", "inbox": "tofile", "project": "deliverables",
+            "files": "deliverables", "notes": "projectnotes", "team": "currentwork", "crew": "currentwork",
+            "activity": "vaultactivity", "email": "outlook", "map": "galaxy"}.get(key, key)
+
+
+def show_window(parts):
+    """An ACTION: show | <window> | ... line, resolved to what the page opens. Names the model gives
+    (clients, projects, orgs) are matched here so the page gets exact keys."""
+    what, rest = window_key(parts[0] if parts else ""), (parts[1:] + ["", "", "", ""])
+    subject = rest[0]
+    if what in ("actions", "meetings"):
+        status, due, find = (rest[1:] + ["", "", ""])[:3] if what == "actions" else ("", "", rest[1])
+        status = status.lower() if status.lower() in ("open", "done", "all") else "open"
+        org = match_org(subject) if subject else None
+        # No client by that name: the window still opens, searching for what they said.
+        return {"type": "list", "what": what, "org": org or "", "label": subject, "status": status,
+                "due": re.sub(r"[^a-z]", "", due.lower()), "search": " ".join(x for x in (find, "" if org else subject) if x)}
+    if what in ("deliverables", "projectnotes"):
+        name = match_project(subject)
+        if not name:
+            return {"type": "error", "message": f"I couldn't find a project called {subject or 'that'}."}
+        return {"type": what, "project": name}
+    if what == "calendar":
+        return {"type": "calendar", "span": subject or "today"}
+    if what == "crm":
+        return {"type": "crm", "kind": "people" if re.match(r"(?i)\s*(contact|people|person)", subject) else "organizations",
+                "search": rest[1]}
+    if what in ("currentwork", "vaultactivity", "tofile", "outlook", "galaxy"):
+        return {"type": what, "subject": subject}
+    return {"type": "error", "message": f"There's no {parts[0] if parts else 'such'} window to show."}
+
+
+# A document the team writes and the page opens when it lands.
+DOCUMENT_LINE = re.compile(r"^\W*DOCUMENT\W*:\s*`?([^`\n]+?\.(?:md|docx|pptx|xlsx|pdf|html))`?\s*$", re.I | re.M)
+
+
+def start_document(brief, project=None):
+    where = (f"copilot/projects/{project}/outputs/" if project else "PKM/Documents/")
+    task = (f"Write this document: {brief}\nUse the vault's notes for facts and check them. Save it as a "
+            f"markdown note in {where} with a clear file name, then end your report with one line of its own: "
+            "DOCUMENT: <its path relative to the vault>. Do not send or share it.")
+    return start_job(task, brief, project)
 
 
 # ---- Office 365: today's calendar and latest email ----------------------------------
@@ -834,6 +888,38 @@ def today(refresh=False):
         data = {"events": data.get("events") or [], "emails": remember_emails(data.get("emails") or []),
                 "fetched": time.strftime("%H:%M")}
         _today.update(t=time.time(), data=data)
+        return data
+
+
+_spans = {}   # span words -> (fetched at, data); a span is re-read from Outlook after ten minutes
+_span_lock = threading.Lock()
+
+
+def calendar_span(span):
+    """The calendar over a span in the user's words ("today", "Friday", "next week"), for the calendar window."""
+    span = re.sub(r"\s+", " ", str(span or "today")).strip()[:60] or "today"
+    key = span.lower()
+    with _span_lock:
+        hit = _spans.get(key)
+        if hit and time.time() - hit[0] < TODAY_TTL:
+            return hit[1]
+        prompt = (f"Now: {now_local()}.\n"
+                  f"List every calendar event in this span, in time order: {span}. Read the span from now: "
+                  "\"this week\" is Monday to Friday of the current week, \"Friday\" is the coming Friday.\n"
+                  'Reply exactly as JSON: {"label": "the span as dates, e.g. Mon 3 – Fri 7 November", "events": '
+                  '[{"day": "Thu 6 Nov", "start": "9:00 AM", "end": "9:30 AM", "title": "...", "location": "...", '
+                  '"organiser": "..."}]}')
+        raw, _ = call_claude(load_model(), prompt, TODAY_SYSTEM, M365_TOOLS[:1])
+        m = re.search(r"\{.*\}", raw, re.S)
+        try:
+            data = json.loads(m.group(0)) if m else None
+        except ValueError:
+            data = None
+        if not isinstance(data, dict):
+            raise ChatError(502, "The calendar came back in an unexpected shape. Try again.")
+        data = {"span": span, "label": str(data.get("label") or span), "events": data.get("events") or [],
+                "fetched": time.strftime("%H:%M")}
+        _spans[key] = (time.time(), data)
         return data
 
 
@@ -1820,22 +1906,24 @@ PROJECT_PATH = re.compile(r"copilot[\\/]+projects[\\/]+([^\\/\"'\n]+)", re.I)
 GENERIC_WORDS = {"carbonhalo", "scope", "emissions", "website", "sports", "jarvis", "founder"}
 
 
-def guess_project(text):
+def guess_project(text, paths_only=False):
     """The project a path or a piece of text is about: a copilot/projects/<name> path first, then
-    the project's name (or its distinctive first word, e.g. "Allied") in the text. None if unclear."""
+    the project's name (or its distinctive first word, e.g. "Acme") in the text. None if unclear,
+    including when the text names more than one project (a brief that mentions other projects as
+    examples must not label the work as theirs). paths_only skips the name match, for tool
+    arguments that hold arbitrary words."""
     text = str(text or "")
     if not text or not PROJECTS:
         return None
-    m = PROJECT_PATH.search(text)
-    if m and m.group(1).strip() in PROJECTS:
-        return m.group(1).strip()
-    best = None
+    found = {m.strip() for m in PROJECT_PATH.findall(text) if m.strip() in PROJECTS}
+    if found or paths_only:
+        return found.pop() if len(found) == 1 else None
     for name in PROJECTS:
         first = name.split()[0]
         for alias in {name, name.split(" - ")[0]} | ({first} if len(first) >= 5 and first.lower() not in GENERIC_WORDS else set()):
-            if re.search(r"\b" + re.escape(alias) + r"\b", text, re.I) and (not best or len(alias) > best[1]):
-                best = (name, len(alias))
-    return best[0] if best else None
+            if re.search(r"\b" + re.escape(alias) + r"\b", text, re.I):
+                found.add(name)
+    return found.pop() if len(found) == 1 else None
 
 
 def track_event(job, event):
@@ -1867,7 +1955,8 @@ def track_event(job, event):
             agents[block.get("id")] = {"name": who[:1].upper() + who[1:], "used": 0, "peak": 0,
                                        "window": CONTEXT_WINDOW, "calls": 0, "done": False,
                                        "task": str(args.get("description") or "")[:120],
-                                       "project": guess_project(args.get("prompt")) or agent.get("project"),
+                                       "project": guess_project(args.get("description")) or guess_project(args.get("prompt"))
+                                                  or agent.get("project") or job.get("project"),
                                        "activity": "reading the brief"}
             job["activity"] = f"{agent['name']} handed work to {who[:1].upper() + who[1:]}"
             agent["activity"] = f"briefing {who[:1].upper() + who[1:]}"
@@ -1879,8 +1968,8 @@ def track_event(job, event):
             job["activity"] = f"{agent['name']} is {verb}" + (f" {os.path.basename(str(target))}" if target else "")
             shown = os.path.basename(str(target).rstrip("/\\*")) if target else ""
             agent["activity"] = verb + (f" {shown}" if shown else "")
-            agent["project"] = guess_project(" ".join(str(args.get(k) or "") for k in
-                                                      ("file_path", "path", "pattern", "command"))) or agent.get("project")
+            agent["project"] = guess_project(" ".join(str(args.get(k) or "") for k in ("file_path", "path", "command")),
+                                             paths_only=True) or agent.get("project")
 
 
 def public_job(job):
@@ -1888,6 +1977,9 @@ def public_job(job):
                                    "compactions", "activity", "model")}
     out["agents"] = [dict(a) for a in job["agents"].values() if a["calls"] or a is job["agents"]["main"]]
     out["chat"] = job.get("chat")
+    m = DOCUMENT_LINE.search(job.get("report") or "")
+    if m and os.path.isfile(os.path.join(VAULT, m.group(1).strip().replace("\\", "/"))):
+        out["document"] = m.group(1).strip().replace("\\", "/")
     return out
 
 
@@ -2677,6 +2769,8 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
                 self._json(200, {"pending": pending_approvals()})
             elif url.path == "/api/email":
                 self._json(200, read_email(q.get("key", "")))
+            elif url.path == "/api/calendar":
+                self._json(200, calendar_span(q.get("span", "today")))
             elif url.path == "/api/current-work":
                 self._json(200, current_work())
             elif url.path == "/api/agent-chats":

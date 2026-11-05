@@ -124,6 +124,8 @@
     display: flex; flex-direction: column; border-radius: 14px; background: rgba(14, 17, 44, 0.96); backdrop-filter: blur(16px);
     border: 1px solid var(--edge); border-top: 2px solid var(--accent); box-shadow: 0 18px 50px rgba(0,0,0,0.55);
     animation: rise 0.25s ease-out; --accent: #cfe49a; }
+  .popwin.big { width: min(680px, calc(100vw - 24px)); height: min(640px, calc(100vh - 140px)); }
+  .popwin .cal-day { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); padding: 12px 4px 4px; }
   .popwin header { display: flex; align-items: center; gap: 8px; padding: 12px 12px 10px 16px; border-bottom: 1px solid var(--edge);
     cursor: grab; user-select: none; }
   .popwin header .titles { flex: 1; min-width: 0; }
@@ -871,7 +873,7 @@ const tc = THEME.colour;
     hubLinks.push({ source: n.id, target: hub.id, kind: 'spoke' });
   });
   // Type hubs sit evenly on a sphere around the core, so each kind of note gets its own region.
-  const typeHubs = Object.values(typeHub), HUB_RADIUS = 850;
+  const typeHubs = Object.values(typeHub), HUB_RADIUS = 500;
   typeHubs.forEach((h, i) => {
     const y = 1 - (2 * (i + 0.5)) / typeHubs.length, r = Math.sqrt(1 - y * y), a = i * Math.PI * (3 - Math.sqrt(5));
     Object.assign(h, { fx: Math.cos(a) * r * HUB_RADIUS, fy: y * HUB_RADIUS, fz: Math.sin(a) * r * HUB_RADIUS });
@@ -935,7 +937,7 @@ const tc = THEME.colour;
     const z = e.target.closest('button') && e.target.closest('button').dataset.z;
     if (z === 'in') zoomBy(0.75);
     else if (z === 'out') zoomBy(1.33);
-    else if (z === 'fit') { pauseDrift(6000); Graph.cameraPosition({ x: 0, y: 300, z: 1700 }, { x: 0, y: 0, z: 0 }, 900); }
+    else if (z === 'fit') { pauseDrift(6000); Graph.cameraPosition({ x: 0, y: 200, z: 1150 }, { x: 0, y: 0, z: 0 }, 900); }
   };
 
   // ---- node dot texture: a hard-edged disc with a thin, faint halo ------------------------
@@ -1669,17 +1671,17 @@ const tc = THEME.colour;
   // Pop-ups: a small window of its own for a list you asked Jarvis for (a client's actions or
   // meetings, a project's files). Several can be open; drag one by its title bar, ✕ or Esc closes it.
   const popups = [];
-  function popup({ kicker, title, accent, render }) {
+  function popup({ kicker, title, accent, render, kind = '', big = false }) {
     const el = document.createElement('div');
-    el.className = 'popwin'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', `${kicker}: ${title}`);
+    el.className = 'popwin' + (big ? ' big' : ''); el.dataset.kind = kind; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', `${kicker}: ${title}`);
     el.style.setProperty('--accent', accent || tc('#cfe49a'));
     el.innerHTML = `<header><div class="titles"><div class="kicker">${escapeHtml(kicker)}</div><h3>${escapeHtml(title)}</h3></div>` +
       `<span class="hdr-tools"></span><button class="x" type="button" title="Close">✕</button></header>` +
       `<div class="bar"></div><div class="content"></div>`;
-    // Each new one opens a little down and to the right of the last, so none hides another.
-    const step = popups.length % 6, w = Math.min(440, innerWidth - 24);
-    el.style.left = Math.max(12, Math.min(innerWidth - w - 12, innerWidth / 2 - w / 2 + 40 + step * 28)) + 'px';
-    el.style.top = (96 + step * 28) + 'px';
+    // Each opens in the middle of the screen, the next a little down and to the right so none hides another.
+    const step = popups.length % 6, w = Math.min(big ? 680 : 440, innerWidth - 24), h = Math.min(big ? 640 : 520, innerHeight - 140);
+    el.style.left = Math.max(12, Math.min(innerWidth - w - 12, innerWidth / 2 - w / 2 + step * 28)) + 'px';
+    el.style.top = Math.max(72, Math.min(innerHeight - h - 12, (innerHeight - h) / 2 + step * 28)) + 'px';
     document.body.appendChild(el); popups.push(el);
     const close = () => { el.remove(); popups.splice(popups.indexOf(el), 1); };
     el.querySelector('.x').onclick = close;
@@ -1702,17 +1704,18 @@ const tc = THEME.colour;
   const orgName = slug => slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
   // "Bring up the actions for Acme": that client's actions (or meetings) in a pop-up.
-  function popClientList({ what, org, label, search, status }) {
+  function popClientList({ what, org, label, search, status, due }) {
     const meetings = what === 'meetings';
     const who = org ? orgName(org) : label;
+    const dueOk = DUE_TESTS[due] || (() => true);
     popup({
-      kicker: meetings ? 'Meetings' : 'Actions', accent: meetings ? tc('#ff9f43') : tc('#a3e37a'),
-      title: who || (meetings ? 'All meetings' : 'All actions'),
+      kicker: meetings ? 'Meetings' : 'Actions', accent: meetings ? tc('#ff9f43') : tc('#a3e37a'), kind: what, big: true,
+      title: (who || (meetings ? 'All meetings' : 'All actions')) + (DUE_TESTS[due] ? ` · due ${DUE_SAY[due]}` : ''),
       render: (bar, content, tools) => {
         const opts = meetings
           ? { load: async () => (await api('/api/meetings')).meetings.filter(m => !org || m.org === org),
               match: meetingMatch, row: meetingRow, empty: `No meetings filed${who ? ' for ' + who : ''}.` }
-          : { load: async () => (await api('/api/actions')).actions.filter(a => !org || a.org === org),
+          : { load: async () => (await api('/api/actions')).actions.filter(a => (!org || a.org === org) && dueOk(a.due)),
               filters: ACTION_FILTERS, match: actionMatch, row: actionRow, empty: `Nothing here${who ? ' for ' + who : ''}.` };
         listInto(bar, content, opts, { q: search || '', filter: meetings ? null : status || 'open' });
         linkButton(tools, '⤢', () => (meetings ? showMeetings : showActions)({ q: org || search || '', filter: status }),
@@ -1721,7 +1724,40 @@ const tc = THEME.colour;
     });
   }
 
-  function showCrm(kind = 'organizations') {
+  // Due-date filters Jarvis can put on an action list ("what's overdue", "due this week").
+  const isoDay = d => new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+  const weekOf = (k = 0) => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7) + 7 * k); const e = new Date(d); e.setDate(d.getDate() + 6); return [isoDay(d), isoDay(e)]; };
+  const DUE_TESTS = {
+    overdue: due => !!due && due.slice(0, 10) < isoDay(new Date()),
+    today: due => !!due && due.slice(0, 10) === isoDay(new Date()),
+    thisweek: due => { const [a, b] = weekOf(0); return !!due && due.slice(0, 10) >= a && due.slice(0, 10) <= b; },
+    nextweek: due => { const [a, b] = weekOf(1); return !!due && due.slice(0, 10) >= a && due.slice(0, 10) <= b; }
+  };
+  const DUE_SAY = { overdue: 'overdue', today: 'today', thisweek: 'this week', nextweek: 'next week' };
+  // The calendar over any span Jarvis was asked for: today, Friday, next week.
+  function popCalendar(span = 'today') {
+    popup({
+      kicker: 'Calendar', title: span.replace(/^\w/, c => c.toUpperCase()), accent: tc('#f7853b'), kind: 'calendar', big: true,
+      render: async (bar, content, tools) => {
+        const paint = async () => {
+          loadingInto(content, 'Checking Outlook…');
+          let c;
+          try { c = await api(`/api/calendar?span=${encodeURIComponent(span)}`); } catch (err) { failInto(content, err); return; }
+          bar.innerHTML = `<span class="count">${escapeHtml(c.label)} · ${c.events.length} ${c.events.length === 1 ? 'event' : 'events'} · checked ${escapeHtml(c.fetched)}</span>`;
+          content.innerHTML = c.events.length ? '' : '<div class="empty">Nothing in the diary. Savour it.</div>';
+          let day = null;
+          c.events.forEach(e => {
+            if (e.day && e.day !== day) { day = e.day; const h = document.createElement('div'); h.className = 'cal-day'; h.textContent = day; content.appendChild(h); }
+            content.appendChild(rowEl('', `<div class="when">${escapeHtml(e.start || '')}${e.end ? '<br><small>' + escapeHtml(e.end) + '</small>' : ''}</div>` +
+              `<div class="main"><div class="t">${escapeHtml(e.title || '(no title)')}</div><div class="m">${escapeHtml([e.location, e.organiser].filter(Boolean).join(' · '))}</div></div>`, () => {}));
+          });
+        };
+        paint();
+      }
+    });
+  }
+
+  function showCrm(kind = 'organizations', q = '') {
     listView({
       kicker: 'CRM', title: kind === 'people' ? 'Contacts' : 'Organisations', accent: tc('#ffc46b'),
       empty: 'Nobody by that name. Yet.',
@@ -1729,7 +1765,7 @@ const tc = THEME.colour;
       match: r => `${r.name} ${r.sub}`,
       row: r => rowEl('', `<div class="main"><div class="t">${escapeHtml(r.name)}</div>` +
         `<div class="m">${escapeHtml(r.sub || '')}</div></div>`, () => openDoc(r.path, true))
-    });
+    }, { q });
     // Organisations ⇄ Contacts switch in the header.
     const tools = workEl.querySelector('.hdr-tools');
     linkButton(tools, 'Organisations', () => showCrm('organizations')).classList.toggle('on', kind !== 'people');
@@ -1984,7 +2020,7 @@ const tc = THEME.colour;
             if (data.job) trackJob(data.job);
             setStatus('');
             speak(data.speech || data.answer);
-            if (data.action) handleAction(data.action);
+            actionsOf(data).forEach(handleAction);
             loadList();   // new chat appears, question counts update
           } catch (err) {
             wait.remove(); addMsg('jarvis', err.message, { cls: 'error' }); setStatus('');
@@ -2708,7 +2744,7 @@ const tc = THEME.colour;
   }
   function popProjectFiles(p) {
     popup({
-      kicker: 'Project files', title: p.name, accent: p.color,
+      kicker: 'Project files', title: p.name, accent: p.color, kind: 'deliverables',
       render: async (bar, content) => {
         const key = 'project:' + p.name;
         const paint = async () => {
@@ -2779,7 +2815,38 @@ const tc = THEME.colour;
     else if (a.type === 'chat') showTeamChat(a.agent, a.chat || null);
     else if (a.type === 'list') popClientList(a);
     else if (a.type === 'projectnotes') showNotes(null, false, a.project);
+    else if (a.type === 'calendar') popCalendar(a.span);
+    else if (a.type === 'crm') showCrm(a.kind, a.search);
+    else if (a.type === 'currentwork') openCrew();
+    else if (a.type === 'vaultactivity') showMeetings();
+    else if (a.type === 'tofile') showNotes();
+    else if (a.type === 'outlook') tMeeting.el.click();
+    else if (a.type === 'galaxy') flyToSubject(a.subject);
+    else if (a.type === 'close') closeWindows(a.what);
+    else if (a.type === 'job') { trackJob(a.job); setStatus('thinking', 'the team is writing it; it opens here when done', 6000); }
     else if (a.type === 'error') setStatus('error', a.message, 6000);
+  }
+  const actionsOf = data => data.actions || (data.action ? [data.action] : []);
+
+  // "Close that", "close everything": the windows Jarvis can open, by the key the server sends.
+  function closeWindows(what = 'all') {
+    const all = what === 'all';
+    popups.slice().forEach(p => { if (all || p.dataset.kind === what || (what === 'projectnotes' && p.dataset.kind === 'deliverables')) p.close(); });
+    if ((all || what === 'currentwork') && !crewEl.hidden) closeCrew();
+    if ((all || ['workspace', 'actions', 'meetings', 'projectnotes', 'tofile', 'vaultactivity', 'crm', 'chat', 'deliverables'].includes(what))
+        && workEl.classList.contains('open')) closeWork();
+    if (all || what === 'panel' || what === 'deliverables') clearSelection();
+  }
+
+  // "Show me the galaxy", "take me to the meetings", "fly to Acme": a project, a type hub or a note.
+  function flyToSubject(subject) {
+    const want = String(subject || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!want) { clearSelection(); legendEl.querySelector('.zoom .fit').click(); return; }
+    const p = projects.find(x => x.name.toLowerCase().replace(/[^a-z0-9]/g, '').includes(want));
+    if (p) { if (workEl.classList.contains('open')) closeWork(); showProject(p); return; }
+    const hub = Object.values(typeHub).find(h => { const k = h.label.toLowerCase().replace(/[^a-z0-9]/g, ''); return k.includes(want) || want.includes(k); });
+    const node = hub || nodes.find(n => n.label && n.label.toLowerCase().replace(/[^a-z0-9]/g, '').includes(want));
+    if (node) select(node); else setStatus('error', `I couldn't find ${subject} in the galaxy`, 5000);
   }
 
   async function ask(question) {
@@ -2787,7 +2854,7 @@ const tc = THEME.colour;
     askEl.classList.add('busy'); sendEl.disabled = true; refreshStop();
     stopSpeaking();
     setStatus('thinking', 'thinking…');
-    showAnswer(question, 'Searching your notes…', []);
+    showAnswer(question, 'Processing your request…', []);
     try {
       const res = await fetch('/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -2800,10 +2867,10 @@ const tc = THEME.colour;
       proveAnswer(used);
       qEl.value = '';
       setStatus('');
-      if (!(data.action && data.action.listen)) speak(data.speech || data.answer);   // only the spoken line: the answer and notes are on screen
+      if (!actionsOf(data).some(a => a.listen)) speak(data.speech || data.answer);   // only the spoken line: the answer and notes are on screen
       if (data.context) { jarvisContext = data.context; renderContext(); }
       if (data.job) trackJob(data.job);
-      if (data.action) handleAction(data.action);
+      actionsOf(data).forEach(handleAction);
     } catch (err) {
       showAnswer(question, err.message || 'Something went wrong.', [], true);
       setStatus('');
@@ -3337,6 +3404,7 @@ const tc = THEME.colour;
           .join(' ').replace(/[#*`_>\[\]]/g, '').split(/(?<=[.!?])\s/).map(s => s.trim()).find(Boolean) || '';
         const has = who.includes(' and ') ? 'have' : 'has';
         if (j.status === 'done' && j.report) showAnswer(`${who} ${has} completed · ${j.task}`, j.report, []);
+        if (j.status === 'done' && j.document) openDoc(j.document, false);   // a document they asked for: up on screen
         speak(j.status === 'done'
           ? `${who} ${has} completed: ${what}.` + (gist && gist.length <= 200 ? ' ' + gist : '')
           : `${who} couldn't finish: ${what}. ` + pick(FAIL_LINES));
@@ -3615,7 +3683,7 @@ const tc = THEME.colour;
   ['pointerdown', 'wheel', 'touchstart'].forEach(ev =>
     el.addEventListener(ev, () => { if (selected === null) pauseDrift(6000); }, { passive: true }));
 
-  Graph.cameraPosition({ x: 0, y: 300, z: 1700 });
+  Graph.cameraPosition({ x: 0, y: 200, z: 1150 });
   (function drift() {
     animateJarvis(performance.now());
     if (performance.now() > driftResumeAt) {
@@ -4100,16 +4168,21 @@ const tc = THEME.colour;
   let F = null;
   const HQ_X = -13;
   function labelSprite(text, colour, opts = {}) {
+    // A "\n" in the text starts a second line, drawn smaller and dimmer (a bot's task, then its step).
     const size = opts.size || 30, pad = 14, c = document.createElement('canvas'), g = c.getContext('2d');
+    const [main, sub] = String(text).split('\n'), subSize = Math.round(size * 0.8), gap = sub ? subSize + 6 : 0;
+    g.font = `500 ${subSize}px system-ui, sans-serif`;
+    const subW = sub ? g.measureText(sub).width : 0;
     g.font = `600 ${size}px system-ui, sans-serif`;
-    const w = Math.ceil(g.measureText(text).width) + pad * 2, h = size + pad * 1.4 + (opts.tail ? 12 : 0);
+    const w = Math.ceil(Math.max(g.measureText(main).width, subW)) + pad * 2, h = size + gap + pad * 1.4 + (opts.tail ? 12 : 0);
     c.width = w; c.height = h;
     g.font = `600 ${size}px system-ui, sans-serif`;
     const bh = h - (opts.tail ? 12 : 0);
     g.fillStyle = opts.bg || 'rgba(13,16,40,0.9)'; g.strokeStyle = colour; g.lineWidth = 3;
     g.beginPath(); g.roundRect ? g.roundRect(2, 2, w - 4, bh - 4, bh / 2.4) : g.rect(2, 2, w - 4, bh - 4); g.fill(); g.stroke();
     if (opts.tail) { g.beginPath(); g.moveTo(w / 2 - 10, bh - 3); g.lineTo(w / 2, h - 1); g.lineTo(w / 2 + 10, bh - 3); g.fill(); }
-    g.fillStyle = opts.ink || colour; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, w / 2, bh / 2 + 1);
+    g.fillStyle = opts.ink || colour; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(main, w / 2, bh / 2 + 1 - gap / 2);
+    if (sub) { g.font = `500 ${subSize}px system-ui, sans-serif`; g.globalAlpha = 0.72; g.fillText(sub, w / 2, bh / 2 + 4 + size / 2); g.globalAlpha = 1; }
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
     const k = (opts.scale || 0.011);
@@ -4668,8 +4741,8 @@ const tc = THEME.colour;
       b.want = wantOf(b);
       const label = asking ? (asking.kind === 'question' ? '❓ has a question for you' : '⚠ waiting for your approval')
         : b.thirsty ? '💧 quick drink, then back to it'
-        : w ? (w.done ? '✓ done' : `${w.project && w.project !== 'General' ? w.project + ' · ' : ''}${w.activity || w.task || 'working'}`) : '';
-      const short = label.length > 46 ? label.slice(0, 45) + '…' : label;
+        : w ? (w.done ? '✓ done' : bubbleFor(w)) : '';
+      const short = label.split('\n').map(l => l.length > 46 ? l.slice(0, 45) + '…' : l).join('\n');
       if (short !== b.bubbleText) {
         if (b.bubble) { b.group.remove(b.bubble); b.bubble.material.map.dispose(); b.bubble.material.dispose(); b.bubble = null; }
         if (short) {
@@ -4681,6 +4754,14 @@ const tc = THEME.colour;
         b.bubbleText = short;
       }
     });
+  }
+
+  // A working bot's bubble: first what it was asked to do, then the project (when known) and its current
+  // step, so you can see at a glance whether the step still fits the task.
+  function bubbleFor(w) {
+    const task = (w.task || '').replace(/\s+/g, ' ').trim();
+    const second = [w.project && w.project !== 'General' ? w.project : '', w.activity || ''].filter(Boolean).join(' · ');
+    return task ? task + (second ? '\n' + second : '') : (second || 'working');
   }
 
   // A filing job: the task or step says to file, tidy, clean up, sweep or sort out the inbox, notes or folders.
