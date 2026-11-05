@@ -1,7 +1,9 @@
 {
-  "version": "2026.11.05.9",
+  "version": "2026.11.05.10",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes.",
   "notes": [
+    "Office: the CEO reads a book while nobody needs them, and now and then gets up for a workout in the new gym in front of the desk (treadmill, dumbbells, squat rack).",
+    "Office: when you deny a request, the CEO walks the paper to the Rejected bin at the front of the office and drops it in.",
     "Updating once now brings in everything since your last update, and lists every change in one go.",
     "Notes and deliverables now use the full width of the reader, and wide tables no longer get cut off.",
     "Office: equipment names are now plates on the machines themselves, and the to-file paper piles sit at the front.",
@@ -25,6 +27,13 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.05.10",
+      "notes": [
+        "Office: the CEO reads a book while nobody needs them, and now and then gets up for a workout in the new gym in front of the desk (treadmill, dumbbells, squat rack).",
+        "Office: when you deny a request, the CEO walks the paper to the Rejected bin at the front of the office and drops it in."
+      ]
+    },
     {
       "version": "2026.11.05.9",
       "notes": [

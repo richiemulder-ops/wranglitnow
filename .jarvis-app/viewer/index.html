@@ -2074,6 +2074,8 @@ const tc = THEME.colour;
   let lastTeamAgent = 'Larry';
   let viewingChat = null;   // the team chat on screen, if any
 
+  // Requests you turned down, so the office CEO bins the paper instead of stamping it.
+  const deniedTickets = new Set();
   // One approval request: the exact command, the agent's reason, and your answer.
   function approvalCard(req, onDone) {
     const el = document.createElement('div'); el.className = 'approval';
@@ -2097,7 +2099,11 @@ const tc = THEME.colour;
     if (req.why) el.querySelector('.ap-why span').textContent = req.why;
     const answer = async decision => {
       el.querySelectorAll('button').forEach(b => { b.disabled = true; });
-      try { onDone(await api('/api/approval/decide', { ticket: req.ticket, decision })); }
+      try {
+        const chat = await api('/api/approval/decide', { ticket: req.ticket, decision });
+        if (decision === 'deny') deniedTickets.add(req.ticket);
+        onDone(chat);
+      }
       catch (err) { setStatus('error', err.message, 4000); el.querySelectorAll('button').forEach(b => { b.disabled = false; }); }
     };
     el.querySelector('.ap-yes').onclick = () => answer('approve');
@@ -4467,6 +4473,71 @@ const tc = THEME.colour;
     g.add(at(rbox(0.08, 0.14, 0.6, 0.03, PASTEL.ink), 0.6, 1.1, 0));             // nameplate
     return { screens: [scr], lamp, stamp, stampY: 1.12 };
   }
+  // A dumbbell lying along x: a grey handle with a weight at each end.
+  function dumbbell(len, r, color) {
+    const d = new THREE.Group(), h = cyl(0.03, 0.03, len, 0x9aa3c0, 8); h.rotation.z = Math.PI / 2; d.add(h);
+    [-1, 1].forEach(s => { const p = cyl(r, r, r * 0.9, color, 14); p.rotation.z = Math.PI / 2; p.position.x = s * len / 2; d.add(p); });
+    return d;
+  }
+  // A barbell lying along x, with a big and a small plate near each end.
+  function barbell(len, r) {
+    const d = new THREE.Group(), h = cyl(0.03, 0.03, len, 0x9aa3c0, 8); h.rotation.z = Math.PI / 2; d.add(h);
+    [-1, 1].forEach(s => [[r, PASTEL.ink, 0.12], [r * 0.72, 0xff6b6b, 0.2]].forEach(([pr, c, o]) => {
+      const p = cyl(pr, pr, 0.07, c, 18); p.rotation.z = Math.PI / 2; p.position.x = s * (len / 2 - o); d.add(p); }));
+    return d;
+  }
+  // The gym in front of the CEO's desk, on a rubber mat: a treadmill (you run facing its console at the -x end),
+  // a dumbbell rack with kettlebells underneath, and a squat rack with a loaded bar on its hooks. Built straight
+  // into the scene rather than as a station: only the CEO uses it.
+  function buildGym(scene) {
+    const pad = rbox(7.8, 0.04, 5, 0.4, 0x15182f, { roughness: 1 }); pad.castShadow = false; scene.add(at(pad, 22, 0.05, 3.5));
+    const tm = new THREE.Group(); tm.position.set(19.2, 0, 3.4); scene.add(tm);
+    tm.add(at(rbox(2.6, 0.2, 1.1, 0.08, PASTEL.ink), 0, 0.12, 0));
+    tm.add(at(rbox(2.3, 0.03, 0.84, 0.01, 0x101226), 0, 0.235, 0));
+    const slats = [...Array(8)].map(() => { const s = at(rbox(0.07, 0.01, 0.8, 0.004, 0x4a5290), 0, 0.255, 0); tm.add(s); return s; });
+    [-0.5, 0.5].forEach(z => {
+      tm.add(at(rbox(2.5, 0.07, 0.1, 0.03, PASTEL.cream), 0.05, 0.26, z));
+      tm.add(at(cyl(0.045, 0.045, 1.25, PASTEL.cream, 10), -1.15, 0.85, z));
+      const grip = at(cyl(0.04, 0.04, 0.55, PASTEL.cream, 8), -0.9, 1.3, z); grip.rotation.z = Math.PI / 2; tm.add(grip);
+    });
+    const handle = at(cyl(0.04, 0.04, 1.0, PASTEL.cream, 8), -1.15, 1.45, 0); handle.rotation.x = Math.PI / 2; tm.add(handle);
+    tm.add(at(rbox(0.3, 0.34, 0.95, 0.06, PASTEL.mint), -1.22, 1.62, 0));
+    const tread = at(screen(0.62, 0.24, '#bad367'), -1.06, 1.64, 0); tm.add(tread);
+    const rack = new THREE.Group(); rack.position.set(22.6, 0, 4.6); scene.add(rack);
+    [0.55, 0.18].forEach(y => rack.add(at(rbox(2.1, 0.1, 0.6, 0.04, PASTEL.ink), 0, y, 0)));
+    [-0.95, 0.95].forEach(x => rack.add(at(rbox(0.1, 0.6, 0.55, 0.03, PASTEL.cream), x, 0.32, 0)));
+    const bells = [PASTEL.sky, PASTEL.mint, 0xff6b6b, 0xff6b6b, PASTEL.peach, PASTEL.lilac].map((c, i) => {
+      const d = dumbbell(0.34, 0.09, c); d.rotation.y = Math.PI / 2; d.position.set(-0.8 + i * 0.32, 0.69, 0); rack.add(d); return d; });
+    [-0.55, 0, 0.55].forEach((x, i) => {
+      rack.add(at(ball(0.13, [PASTEL.coral, PASTEL.ink, PASTEL.mint][i]), x, 0.36, 0));
+      const loop = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.025, 6, 14), mat(PASTEL.ink)); loop.position.set(x, 0.5, 0); rack.add(loop);
+    });
+    const sq = new THREE.Group(); sq.position.set(24.9, 0, 2.75); scene.add(sq);
+    [-0.95, 0.95].forEach(x => {
+      sq.add(at(rbox(0.14, 2.3, 0.14, 0.04, PASTEL.ink), x, 1.15, 0));
+      sq.add(at(rbox(0.3, 0.08, 1.0, 0.03, PASTEL.ink), x, 0.04, 0));
+      sq.add(at(rbox(0.16, 0.08, 0.2, 0.03, 0xffd166), x, 1.36, 0.12));          // the hooks the bar rests on
+    });
+    sq.add(at(rbox(2.04, 0.12, 0.14, 0.04, PASTEL.ink), 0, 2.3, 0));
+    const rackBar = at(barbell(2.6, 0.3), 0, 1.45, 0.12); sq.add(rackBar);
+    return { slats, tread, bells, rackBar, belt: 0 };
+  }
+  // The bin at the front of the office, for requests you turn down: the screwed-up sheets pile up inside.
+  function buildBin(scene, x, z) {
+    const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
+    const can = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.38, 1.0, 24, 1, true),
+      mat(0x9aa3c0, { side: THREE.DoubleSide, metalness: 0.5, roughness: 0.4 }));
+    can.position.y = 0.5; can.castShadow = true; g.add(can);
+    g.add(at(cyl(0.38, 0.38, 0.04, 0x5a6390, 24), 0, 0.03, 0));
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.035, 8, 28), mat(PASTEL.cream)); rim.rotation.x = Math.PI / 2; rim.position.y = 1.0; g.add(rim);
+    const scrunch = mat(0xfff3c4, { roughness: 0.9, metalness: 0, flatShading: true }), geo = new THREE.IcosahedronGeometry(0.15, 0);
+    const balls = [...Array(9)].map((_, i) => { const m = new THREE.Mesh(geo, scrunch), a = i * 2.4, r = i % 3 ? 0.18 : 0;
+      m.position.set(Math.cos(a) * r, 0.18 + Math.floor(i / 3) * 0.2, Math.sin(a) * r); m.rotation.set(i, i * 2, i * 3); m.visible = false; g.add(m); return m; });
+    const sign = namePlate('Rejected', 1.6, 0.42, { edge: '#ff8a9e', ink: '#ff8a9e' });   // painted on the floor in front
+    sign.rotation.set(-Math.PI / 2, 0, 0); sign.position.set(0, 0.07, 0.95); g.add(sign);
+    const fly = new THREE.Mesh(geo, scrunch); fly.visible = false; scene.add(fly);
+    return { group: g, balls, fly, from: new THREE.Vector3(), flyAt: 0, hitAt: -9, count: 0 };
+  }
   // Sky for the windows: a soft gradient, a few clouds and a city skyline with lit windows.
   function skyTexture() {
     const c = document.createElement('canvas'); c.width = 512; c.height = 160; const g = c.getContext('2d');
@@ -4644,6 +4715,33 @@ const tc = THEME.colour;
     const tie = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.3, 4), mat(0xff6b6b)); tie.rotation.x = Math.PI;
     F.ceo.body.add(at(tie, 0, 0.82, 0.33));
     F.stampAt = -9;
+    // What the CEO holds: an open book (one page turns now and then), a dumbbell per hand, a barbell on the shoulders.
+    const book = new THREE.Group(); book.position.set(0, 0.85, 0.5); book.rotation.x = -0.95; book.visible = false; F.ceo.body.add(book);
+    [-1, 1].forEach(s => {
+      const half = new THREE.Group(); half.rotation.z = s * 0.22; book.add(half);
+      half.add(at(rbox(0.26, 0.02, 0.34, 0.01, 0x4a6fd6), s * 0.13, 0, 0));
+      half.add(at(rbox(0.24, 0.02, 0.32, 0.01, 0xfffaf0), s * 0.125, 0.015, 0));
+    });
+    const flip = new THREE.Group(); flip.visible = false; book.add(flip);
+    flip.add(at(rbox(0.24, 0.01, 0.32, 0.004, 0xfffaf0), 0.125, 0.03, 0));
+    F.ceo.book = book; F.ceo.flip = flip;
+    F.ceo.bells = F.ceo.arms.map(a => { const d = dumbbell(0.26, 0.075, 0xff6b6b); d.position.y = -0.44; d.visible = false; a.add(d); return d; });
+    F.ceo.bar = at(barbell(1.85, 0.21), 0, 0.98, -0.42); F.ceo.bar.visible = false; F.ceo.body.add(F.ceo.bar);
+    F.ceo.bubbleText = '';
+
+    // The gym in front of the desk and the bin at the front of the office. The CEO walks out round the
+    // right-hand end of the desk and along a lane in front of it; every route starts from the chair.
+    F.gym = buildGym(scene);
+    F.bin = buildBin(scene, 21, 10.6);
+    const aisle = [{ x: 24.6, z: seatZ }, { x: 24.6, z: 1 }];
+    F.boss = { mode: 'seat', path: [], then: '', at: 0, next: performance.now() / 1000 + 15, until: 0, tosses: 0, tossReady: 0,
+      carry: false, face: 0, gym: null, seat: { x: CEO_X, z: seatZ, y: 0.4 },
+      gyms: [
+        { kind: 'tread', face: -Math.PI / 2, say: '🏃 Quick run', route: [...aisle, { x: 21, z: 1 }, { x: 21, z: 3.4 }, { x: 19.4, z: 3.4, y: 0.27 }] },
+        { kind: 'bells', face: 0, say: '💪 Shoulder day', route: [...aisle, { x: 22.6, z: 1 }, { x: 22.6, z: 3.5 }] },
+        { kind: 'squat', face: 0, say: '🏋️ Leg day', route: [...aisle, { x: 24.9, z: 2 }, { x: 24.9, z: 3.35 }] },
+      ],
+      binRoute: [...aisle, { x: 21, z: 1 }, { x: 21, z: 9.75 }] };
 
     // The to-file piles, at the front of the office: one for files in Team Inbox and one for loose fleeting
     // notes. Each pile grows with what's waiting; bots on a filing job carry bundles from here to the cabinet.
@@ -4844,7 +4942,11 @@ const tc = THEME.colour;
       // on a long task detours to the water cooler. A bot on a filing job ferries bundles from the to-file
       // piles. Otherwise it goes where its current step happens.
       const asking = [...pendingByChat.values()].find(r => r.asker === name || (!w && r.agent === name));
-      if (b.asking && !asking) { F.stampAt = performance.now() / 1000; F.stampSparked = false; }
+      if (b.asking && !asking) {                                         // decided: stamped, or binned if you said no
+        if (deniedTickets.delete(b.askTicket)) { F.boss.tosses++; F.boss.tossReady = performance.now() / 1000 + 0.8; }
+        else { F.stampAt = performance.now() / 1000; F.stampSparked = false; }
+      }
+      if (asking) b.askTicket = asking.ticket;
       b.asking = !!asking;
       if (b.asking) b.thirsty = false;
       b.tidy = isTidying(w);
@@ -5008,6 +5110,114 @@ const tc = THEME.colour;
     if (G.phase === 'after' && t - G.at > (t < G.cheerUntil ? 3.4 : 2)) finish(); // walk back to charge
   }
 
+  // ---- the CEO: reads at the desk, works out in the gym, bins what you turn down ---------------------
+  // Seated, the CEO reads over whoever is waiting (lamp pulsing amber: it's on you) and stamps what you
+  // approve, with a green flash. With nobody waiting they read a book, and every so often get up for a
+  // workout on the treadmill, the dumbbells or the squat rack; anyone heading for the desk calls them back.
+  // A request you deny goes in the bin: the CEO takes the paper, walks it over and drops it in.
+  function ceoSay(text) {
+    const C = F.ceo;
+    if (text === C.bubbleText) return;
+    if (C.bubble) { C.group.remove(C.bubble); C.bubble.material.map.dispose(); C.bubble.material.dispose(); C.bubble = null; }
+    if (text) {
+      C.bubble = labelSprite(text, '#ffd166', { size: 26, tail: true, bg: 'rgba(29,33,70,0.95)', ink: '#e8ecf5', scale: 0.0085 });
+      C.bubble.position.y = 2.6; C.group.add(C.bubble);
+    }
+    C.bubbleText = text;
+  }
+  const ceoBack = route => [...route].reverse().slice(1).concat([F.boss.seat]);   // the same way back, to the chair
+  function ceoStep(t, dt) {
+    const C = F.ceo, B = F.boss, CP = F.ceoDesk.parts, G = F.gym, BIN = F.bin, P = C.group.position;
+    const visitors = F.ceoDesk.active, since = t - F.stampAt;
+    const coming = visitors > 0 || [...F.bots.values()].some(b => b.want === 'ceo');
+    const go = (path, then) => { B.path = [...path]; B.then = then; B.mode = 'walk'; };
+    if (B.mode === 'seat') {
+      if (B.tosses && t > B.tossReady) { B.tosses--; B.carry = true; B.face = 0; ceoSay('🗑️ Not this one'); go(B.binRoute, 'toss'); }
+      else if (!coming && t > B.next && since > 2) {
+        B.gym = B.gyms[Math.floor(Math.random() * B.gyms.length)]; B.face = B.gym.face; ceoSay(B.gym.say); go(B.gym.route, 'gym');
+      }
+    } else if (B.mode === 'gym' && (coming || B.tosses || t > B.until)) { ceoSay(''); B.face = 0; go(ceoBack(B.gym.route), 'seat'); }
+    else if (B.mode === 'toss' && t - B.at > 2.2) { ceoSay(''); B.face = 0; go(ceoBack(B.binRoute), 'seat'); }
+
+    let moving = false, wantY;
+    if (B.mode === 'walk') {
+      const w = B.path[0], dx = w.x - P.x, dz = w.z - P.z, d = Math.hypot(dx, dz);
+      wantY = w.y ?? 0.02;
+      if (d > 0.05) {
+        const step = Math.min(d, 3.4 * dt); P.x += dx / d * step; P.z += dz / d * step; moving = true;
+        let turn = Math.atan2(dx, dz) - C.group.rotation.y; turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+        C.group.rotation.y += turn * Math.min(1, dt * 10);
+      } else {
+        B.path.shift();
+        if (!B.path.length) {
+          B.mode = B.then; B.at = t;
+          if (B.mode === 'gym') B.until = t + 8 + Math.random() * 8;
+          if (B.mode === 'seat') B.next = t + 25 + Math.random() * 35;
+        }
+      }
+    } else wantY = B.mode === 'seat' ? 0.4 : B.mode === 'gym' && B.gym.kind === 'tread' ? 0.27 : 0.02;
+    P.y += (wantY - P.y) * Math.min(1, dt * 8);
+    if (!moving) { let turn = B.face - C.group.rotation.y; turn = Math.atan2(Math.sin(turn), Math.cos(turn)); C.group.rotation.y += turn * Math.min(1, dt * 5); }
+
+    // The denied sheet: screwed up and lobbed in an arc into the bin, which wobbles as it lands.
+    if (B.mode === 'toss' && B.carry && t - B.at > 0.55) {
+      B.carry = false; C.paper.getWorldPosition(BIN.from); BIN.fly.position.copy(BIN.from); BIN.fly.visible = true; BIN.flyAt = t;
+    }
+    if (BIN.fly.visible) {
+      const v = Math.min(1, (t - BIN.flyAt) / 0.5), to = BIN.group.position, f = BIN.from;
+      BIN.fly.position.set(f.x + (to.x - f.x) * v, f.y + (0.85 - f.y) * v + Math.sin(v * Math.PI) * 0.5, f.z + (to.z - f.z) * v);
+      BIN.fly.rotation.x += dt * 9;
+      if (v >= 1) { BIN.fly.visible = false; BIN.count++; BIN.hitAt = t; BIN.balls.forEach((m, i) => { m.visible = i < BIN.count; }); }
+    }
+    const wob = t - BIN.hitAt; BIN.group.rotation.z = wob < 1 ? Math.sin(wob * 25) * 0.08 * (1 - wob) : 0;
+
+    // Pose: seated (reading, or looking over a visitor), walking, one of the three workouts, or binning.
+    const seated = B.mode === 'seat', reading = seated && !visitors && since > 1.6 && !B.tosses;
+    const atGym = B.mode === 'gym' && !moving ? B.gym.kind : '', k = t * 11;
+    const thud = since < 0.9 ? Math.sin(since / 0.9 * Math.PI) : 0;
+    let a0 = -0.95, a1 = -0.95 - thud * 0.9, bodyY = Math.sin(t * 1.6) * 0.02, lean = 0, f0 = 0.03, f1 = 0.03, fx = 0.17, headX = 0, headY = 0;
+    if (moving) { f0 = Math.sin(k) * 0.16; f1 = -f0; bodyY = Math.abs(Math.sin(k)) * 0.12; a0 = B.carry ? -1.25 : Math.sin(k) * 0.9; a1 = -Math.sin(k) * 0.9; }
+    else if (seated) {
+      headY = visitors ? Math.sin(t * 0.9) * 0.45 : Math.sin(t * 0.35) * 0.15;
+      headX = visitors ? 0.15 + Math.sin(t * 2.2) * 0.05 : 0;
+      if (reading) { a0 = a1 = -1.4; headX = 0.38; headY = Math.sin(t * 0.6) * 0.12; }        // eyes running along the lines
+    } else if (atGym === 'tread') { const r = t * 13; f0 = Math.sin(r) * 0.2; f1 = -f0; bodyY = Math.abs(Math.sin(r)) * 0.1; a0 = -0.4 + Math.sin(r) * 0.9; a1 = -0.4 - Math.sin(r) * 0.9; }
+    else if (atGym === 'bells') { const s = Math.sin(t * 2.8); a0 = -2.4 - 0.6 * s; a1 = -2.4 + 0.6 * s; }                      // alternating presses
+    else if (atGym === 'squat') { const s = 0.5 - 0.5 * Math.cos(t * 2.4); bodyY = -0.2 * s; lean = 0.3 * s; a0 = a1 = 2.0; fx = 0.27; }
+    else if (B.mode === 'toss') {
+      const u = t - B.at; headX = 0.3;
+      a0 = u < 0.45 ? -1.25 - u / 0.45 * 0.8 : u < 0.75 ? -2.05 + (u - 0.45) / 0.3 * 0.9 : u < 1.6 ? -0.9 + Math.sin(t * 18) * 0.25 : 0.1;
+      a1 = u > 0.75 && u < 1.6 ? -0.9 - Math.sin(t * 18) * 0.25 : 0.1;                                                  // dusting off the hands
+    }
+    C.arms[0].rotation.x = a0; C.arms[1].rotation.x = a1;
+    C.body.position.y = bodyY; C.body.rotation.x = lean;
+    C.head.rotation.x = headX; C.head.rotation.y = headY;
+    C.feet.forEach((f, i) => { f.visible = !seated; f.position.x = (i ? 1 : -1) * fx; f.position.z = i ? f1 : f0; });
+    C.paper.visible = B.carry;
+    C.book.visible = reading;
+    const fu = (t % 6) / 0.8; C.flip.visible = reading && fu < 1; C.flip.rotation.z = 0.22 + Math.min(1, fu) * (Math.PI - 0.44);
+    C.bells.forEach(d => { d.visible = atGym === 'bells'; }); G.bells[2].visible = G.bells[3].visible = atGym !== 'bells';
+    const spot = B.gym && B.gym.route[B.gym.route.length - 1];
+    const barOn = B.gym?.kind === 'squat' && (B.mode === 'gym' || B.mode === 'walk') && Math.hypot(P.x - spot.x, P.z - spot.z) < 1.4;
+    C.bar.visible = barOn; G.rackBar.visible = !barOn;
+    if (atGym === 'tread') G.belt = (G.belt + dt * 1.1) % 1;
+    G.slats.forEach((s, i) => { s.position.x = ((G.belt + i / G.slats.length) % 1) * 2.2 - 1.1; });
+    G.tread.userData.tex.offset.y += atGym === 'tread' ? dt * 0.35 : 0; G.tread.material.color.setScalar(atGym === 'tread' ? 1 : 0.45);
+    if (C.bubble) C.bubble.position.y = 2.6 + bodyY;
+    C.eyes.forEach(e => { e.scale.y = Math.sin(t * 0.9 + 2) > 0.985 ? 0.15 : 1.3; });
+    C.tipMat.emissiveIntensity = atGym ? 0.9 + Math.sin(t * 9) * 0.5 : 0.5 + Math.sin(t * 2) * 0.2;
+    C.bellyMat.emissiveIntensity = since < 1.6 ? 1.8 : 0.6 + Math.sin(t * 1.5) * 0.15;
+    // The desk: the stamp comes down when you approve, and the lamp glows amber while it's on you.
+    CP.stamp.position.y = CP.stampY + thud * 0.3;
+    const signed = since < 1.6;
+    CP.lamp.material.emissive.set(signed || !visitors ? tc('#bad367') : tc('#ffb347'));
+    CP.lamp.material.emissiveIntensity = signed ? 1.3 : visitors ? 0.5 + Math.max(0, Math.sin(t * 5)) * 0.7 : 0.25;
+    if (since > 0.45 && !F.stampSparked) {
+      F.stampSparked = true; const hit = CP.stamp.getWorldPosition(new THREE.Vector3());
+      for (let i = 0; i < 10; i++) spark(hit);
+    }
+  }
+
   function release(b) { if (b.spot) { b.spot.taken = null; b.spot = null; } }
   function claim(b, kind) {
     if (kind === 'hq') { release(b); if (b.desk) { b.desk.taken = null; b.desk = null; } return { pos: F.pads[b.home].pos, face: F.yaw }; }
@@ -5126,25 +5336,7 @@ const tc = THEME.colour;
       if (b.bubble) b.bubble.position.y = 2.6 + b.body.position.y;
     }
     golfStep(t);
-    // The CEO reads over whoever is waiting (lamp pulsing amber: it's on you), and when you decide,
-    // brings the stamp down with a green flash and the bot heads back to work.
-    const C = F.ceo, CP = F.ceoDesk.parts, visitors = F.ceoDesk.active, since = t - F.stampAt;
-    const thud = since < 0.9 ? Math.sin(since / 0.9 * Math.PI) : 0;
-    C.head.rotation.y = visitors ? Math.sin(t * 0.9) * 0.45 : Math.sin(t * 0.35) * 0.15;
-    C.head.rotation.x = visitors ? 0.15 + Math.sin(t * 2.2) * 0.05 : 0;
-    C.arms[0].rotation.x = -0.95; C.arms[1].rotation.x = -0.95 - thud * 0.9;
-    C.body.position.y = Math.sin(t * 1.6) * 0.02;
-    C.eyes.forEach(e => { e.scale.y = Math.sin(t * 0.9 + 2) > 0.985 ? 0.15 : 1.3; });
-    C.tipMat.emissiveIntensity = 0.5 + Math.sin(t * 2) * 0.2;
-    C.bellyMat.emissiveIntensity = since < 1.6 ? 1.8 :0.6 + Math.sin(t * 1.5) * 0.15;
-    CP.stamp.position.y = CP.stampY + thud * 0.3;
-    const signed = since < 1.6;
-    CP.lamp.material.emissive.set(signed || !visitors ? tc('#bad367') : tc('#ffb347'));
-    CP.lamp.material.emissiveIntensity = signed ? 1.3 : visitors ? 0.5 + Math.max(0, Math.sin(t * 5)) * 0.7 : 0.25;
-    if (since > 0.45 && !F.stampSparked) {
-      F.stampSparked = true; const hit = CP.stamp.getWorldPosition(new THREE.Vector3());
-      for (let i = 0; i < 10; i++) spark(hit);
-    }
+    ceoStep(t, dt);
     for (const s of F.stations) {
       const on = s.active > 0, P = s.parts;
       (P.screens || []).forEach(sc => { sc.userData.tex.offset.y += on ? dt * 0.35 : 0; sc.material.color.setScalar(on ? 1 : 0.45); });
