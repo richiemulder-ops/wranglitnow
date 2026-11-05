@@ -2510,7 +2510,7 @@ const tc = THEME.colour;
         x.textContent = label; x.onclick = fn; if (tip) x.title = tip; tools.appendChild(x);
       };
       if (data.path) btn('← Back', () => load(b, data.path.split('/').slice(0, -1).join('/')));
-      btn('Open folder ↗', () => openInOs(data.path), `Open ${root}${data.path ? '/' + data.path : ''} in File Explorer`);
+      btn('📂 Open folder', () => showFolder(key, title, data.path, color), 'Show these files in the main window');
       if (!data.path && inFolder.length) btn(`✦ Show ${inFolder.length} in galaxy`, () => focusNodes(inFolder));
       if (key === 'inbox') {
         btn('+ Add files', () => picker.click(), 'Or drag files from your desktop onto this card');
@@ -2737,7 +2737,7 @@ const tc = THEME.colour;
     head.textContent = `Files · ${data.entries.length}`;
     box.innerHTML = '';
     const tools = document.createElement('div'); tools.className = 'tools';
-    linkButton(tools, 'Open folder ↗', () => openInDesktop('project:' + p.name, ''), `Open ${data.folder} in File Explorer`);
+    linkButton(tools, '📂 Open folder', () => showFolder('project:' + p.name, p.name, '', p.color), "Show the project's files in the main window");
     linkButton(tools, '⤢ Pop out', () => popProjectFiles(p), 'Show the folder tree in its own window');
     box.appendChild(tools);
     const where = document.createElement('div'); where.className = 'tree-root'; where.textContent = data.folder + '/';
@@ -2765,11 +2765,37 @@ const tc = THEME.colour;
               { className: 'empty', textContent: "Nothing filed in this project's folder yet." }));
           } catch (err) { failInto(content, err); }
         };
-        linkButton(bar, 'Open folder ↗', () => openInDesktop(key, ''));
+        linkButton(bar, '📂 Open folder', () => showFolder(key, p.name, '', p.color), 'Show the files in the main window');
         linkButton(bar, '↻ Refresh', paint);
         paint();
       }
     });
+  }
+
+  // A folder's files in the main window, centre screen, as a tree: click a folder to open it in
+  // place, a note to read it here (Back returns to the files), any other file to open it in its app.
+  // File Explorer stays one click away for moving or renaming things.
+  function showFolder(key, title, path = '', color = tc('#ffc46b')) {
+    openView({
+      kicker: path ? `Files · ${title}` : 'Files', title: path ? path.split('/').pop() : title, accent: color,
+      render: (bar, content) => {
+        const paint = async () => {
+          loadingInto(content, 'Loading…');
+          const tree = document.createElement('div'); tree.className = 'tree';
+          try {
+            const data = await folderTree(tree, { key, color, refresh: paint }, path);
+            content.innerHTML = `<div class="tree-root" style="margin-top:12px">${escapeHtml(data.folder + (path ? '/' + path : ''))}/</div>`;
+            content.appendChild(data.entries.length ? tree : Object.assign(document.createElement('div'),
+              { className: 'empty', textContent: 'Nothing in this folder yet.' }));
+          } catch (err) { failInto(content, err); }
+        };
+        linkButton(bar, '↻ Refresh', paint);
+        linkButton(bar, 'Show in File Explorer ↗', () => api('/api/reveal', { name: key, path })
+          .then(() => setStatus('thinking', 'opened in File Explorer (it may be behind this window)', 4000))
+          .catch(err => setStatus('error', err.message, 4000)), 'For moving or renaming files');
+        paint();
+      }
+    }, false);
   }
 
   document.getElementById('close').onclick = clearSelection;

@@ -1,7 +1,6 @@
 {
-  "version": "2026.11.05.5",
+  "version": "2026.11.05.6",
   "notes": [
-    "Creating a project now shows its progress, then opens the new project without the start screen.",
-    "Reloading the galaxy after the team rebuilds it no longer replays the start screen and greeting."
+    "Open folder now shows the files in the main window: folders open in place, and files open with a click."
   ]
 }
