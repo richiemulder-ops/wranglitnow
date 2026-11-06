@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Jarvis</title>
+<link rel="icon" href="jarvis.ico">
+<script src="user-theme.js"></script>
 <style>
   :root {
     --ink: #e8ecf5;
@@ -208,23 +210,51 @@
   #jarvis { transition: right 0.9s cubic-bezier(.2,.8,.2,1), top 0.9s cubic-bezier(.2,.8,.2,1), transform 0.9s cubic-bezier(.2,.8,.2,1); }
   body.waking #rail, body.waking #ask, body.waking #jobs, body.waking #legend, body.waking #context, body.waking #metrics { opacity: 0; }
   #rail, #ask, #jobs, #legend { transition: opacity 0.8s 0.3s; }
-  /* Colour panel, bottom left: the two base colours every green and orange is built from. */
-  #theme { position: fixed; left: 18px; bottom: 18px; width: calc(var(--left-rail) - 40px); z-index: 6;
-    display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 12px; font-size: 11px;
-    color: var(--dim); background: rgba(13, 16, 40, 0.62); border: 1px solid var(--edge); backdrop-filter: blur(8px);
-    transition: opacity 0.8s 0.3s; }
-  #theme label { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; }
-  #theme input[type=color] { width: 22px; height: 22px; padding: 0; border: 1px solid var(--edge); border-radius: 6px;
-    background: none; cursor: pointer; flex: none; }
-  #theme input[type=color]::-webkit-color-swatch-wrapper { padding: 2px; }
-  #theme input[type=color]::-webkit-color-swatch { border: 0; border-radius: 4px; }
-  #theme input[type=text] { width: 100%; min-width: 0; font: 12px ui-monospace, Consolas, monospace; color: var(--ink);
-    background: rgba(255,255,255,0.04); border: 1px solid var(--edge); border-radius: 6px; padding: 4px 6px; }
-  #theme input[type=text].bad { border-color: #ff5c7a; }
-  #theme button { font: inherit; color: var(--dim); background: none; border: 0; cursor: pointer; padding: 2px; }
-  #theme button:hover { color: var(--ink); }
-  body.waking #theme { opacity: 0; pointer-events: none; }
-  @media (max-width: 1000px) { #theme { display: none; } }
+  /* Settings, bottom left: a gear button and the small window it opens. */
+  #settings-btn { position: fixed; left: 18px; bottom: 18px; z-index: 6; display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: 999px; font: inherit; font-size: 12px; color: var(--ink); cursor: pointer;
+    background: rgba(13, 16, 40, 0.62); border: 1px solid var(--edge); backdrop-filter: blur(8px); transition: opacity 0.8s 0.3s; }
+  #settings-btn:hover, #settings-btn[aria-expanded=true] { border-color: #bad367; color: #bad367; }
+  #settings { position: fixed; left: 18px; bottom: 62px; z-index: 30; width: min(360px, calc(100vw - 32px));
+    max-height: calc(100vh - 100px); overflow: auto; border-radius: 14px; padding: 14px 16px 16px; color: var(--ink);
+    font-size: 13px; background: rgba(13, 16, 40, 0.96); border: 1px solid var(--edge); box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
+  #settings .st-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  #settings .st-close { font: 20px/1 inherit; color: var(--dim); background: none; border: 0; cursor: pointer; padding: 0 4px; }
+  #settings .st-tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid var(--edge); }
+  #settings .st-tabs button { font: inherit; font-size: 12px; color: var(--dim); background: none; border: 0;
+    border-bottom: 2px solid transparent; padding: 6px 8px; cursor: pointer; }
+  #settings .st-tabs button.on { color: #bad367; border-bottom-color: #bad367; }
+  #settings .st-label { display: block; margin: 10px 0 6px; color: var(--dim); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+  #settings .st-label small { text-transform: none; letter-spacing: 0; }
+  #settings select, #settings textarea, #settings input[type=password], #settings input[type=text] { width: 100%; box-sizing: border-box;
+    font: inherit; color: var(--ink); background: rgba(255,255,255,0.04); border: 1px solid var(--edge); border-radius: 8px; padding: 7px 9px; }
+  #settings select option, #settings select optgroup { background: #12163a; color: var(--ink); }
+  #settings input[type=range] { width: 100%; accent-color: #bad367; }
+  #settings .st-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  #settings .st-btn { font: inherit; font-weight: 600; color: #10170a; background: #bad367; border: 0; border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+  #settings .st-link { font: inherit; color: var(--dim); background: none; border: 0; cursor: pointer; text-decoration: underline; padding: 0; }
+  #settings .st-msg { color: #bad367; font-size: 12px; }
+  #settings .st-err, #settings .st-msg.st-err { color: #ff8a9e; }
+  #settings .st-note { color: var(--dim); font-size: 12px; line-height: 1.45; margin: 10px 0 0; }
+  #settings .st-choices { display: grid; gap: 6px; }
+  #settings .st-choice { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: center; cursor: pointer;
+    padding: 8px 10px; border: 1px solid var(--edge); border-radius: 10px; }
+  #settings .st-choice input { grid-row: span 2; accent-color: #bad367; }
+  #settings .st-choice small { color: var(--dim); }
+  #settings .st-choice.on { border-color: #bad367; background: rgba(186,211,103,0.08); }
+  #settings .st-themes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  #settings .st-theme { display: flex; align-items: center; gap: 4px; font: inherit; font-size: 12px; color: var(--ink); cursor: pointer;
+    padding: 6px 8px; border: 1px solid var(--edge); border-radius: 10px; background: rgba(255,255,255,0.03); }
+  #settings .st-theme i { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+  #settings .st-theme span { margin-left: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #settings .st-theme.on { border-color: #bad367; }
+  #settings .st-pickers { display: flex; gap: 10px; }
+  #settings .st-pickers label { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+  #settings input[type=color] { width: 28px; height: 28px; padding: 0; border: 1px solid var(--edge); border-radius: 6px; background: none; cursor: pointer; flex: none; }
+  #settings input[type=color]::-webkit-color-swatch-wrapper { padding: 2px; }
+  #settings input[type=color]::-webkit-color-swatch { border: 0; border-radius: 4px; }
+  #settings input[type=text].bad { border-color: #ff5c7a; }
+  body.waking #settings-btn { opacity: 0; pointer-events: none; }
   #metrics { transition: opacity 0.8s 0.3s, right 0.6s cubic-bezier(.2,.8,.2,1); }
   #jarvis svg { display: block; width: 100%; height: 100%; overflow: visible; }
   #jarvis:focus-visible { outline: 1px solid rgba(186, 211, 103, 0.6); outline-offset: 6px; }
@@ -678,6 +708,7 @@ window.THEME = (() => {
   const isHex = v => /^#[0-9a-f]{6}$/i.test(v || '');
   let saved = {};
   try { saved = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (_) {}
+  if (window.JARVIS_THEME) saved = window.JARVIS_THEME;   // saved on the server: wins over this browser's copy
   const base = { green: isHex(saved.green) ? saved.green.toLowerCase() : ORIGIN.green,
                  orange: isHex(saved.orange) ? saved.orange.toLowerCase() : ORIGIN.orange };
 
@@ -750,10 +781,14 @@ const tc = THEME.colour;
 <div id="legend"></div>
 <div id="metrics" aria-label="Key metrics"></div>
 <nav id="rail" aria-label="Projects, agents and folders"></nav>
-<div id="theme" role="group" aria-label="Page colours">
-  <label title="Primary colour: every green on the page"><input type="color" data-k="green" aria-label="Pick the primary colour"><input type="text" data-k="green" maxlength="7" spellcheck="false" aria-label="Primary colour, as a hex value"></label>
-  <label title="Accent colour: every orange on the page"><input type="color" data-k="orange" aria-label="Pick the accent colour"><input type="text" data-k="orange" maxlength="7" spellcheck="false" aria-label="Accent colour, as a hex value"></label>
-  <button type="button" id="theme-reset" title="Back to the default colours">Reset</button>
+<button type="button" id="settings-btn" aria-haspopup="dialog" aria-expanded="false" title="Settings: voice, personality, colours, model">
+  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+  <span>Settings</span>
+</button>
+<div id="settings" role="dialog" aria-label="Settings" hidden>
+  <div class="st-head"><b>Settings</b><button type="button" class="st-close" aria-label="Close settings">&times;</button></div>
+  <nav class="st-tabs"><button type="button" data-tab="voice">Voice</button><button type="button" data-tab="personality">Personality</button><button type="button" data-tab="colours">Colours</button><button type="button" data-tab="model">Model</button></nav>
+  <div class="st-body"></div>
 </div>
 
 <button id="jarvis" type="button" title="J.A.R.V.I.S. (click to talk)" aria-label="Talk to Jarvis">
@@ -3186,34 +3221,173 @@ const tc = THEME.colour;
   window.addEventListener('keydown', e => { if (waking) { e.preventDefault(); wakeUp(); } });
   if (skipWake) wakeUp();
 
-  // ---- colour panel: two hex values recolour the page ------------------------------------
-  // Everything is coloured once, as the page builds, so a change saves and reloads (straight
-  // back in, no wake screen). The navy family never changes.
-  (function themePanel() {
-    const box = document.getElementById('theme');
-    const field = (k, type) => box.querySelector(`input[type=${type}][data-k=${k}]`);
-    const current = { ...THEME.base };
-    const apply = next => {
-      if (next.green === THEME.base.green && next.orange === THEME.base.orange) return;
-      THEME.save(next.green, next.orange);
-      try { sessionStorage.setItem('jarvis-skip-wake', '1'); } catch (_) {}
-      location.reload();
+  // ---- settings (the gear, bottom left) ---------------------------------------------------
+  // Voice, personality, colours and the default model, in one small window. Everything saves on
+  // the server (config.json), so it survives a cleared browser or a different one. Colours are
+  // drawn once as the page builds, so a colour change saves and reloads straight back in.
+  (function settingsPanel() {
+    const btn = document.getElementById('settings-btn'), box = document.getElementById('settings');
+    const body = box.querySelector('.st-body');
+    const THEMES = [
+      ['Carbonhalo', '#bad367', '#ff9f43'], ['Ocean', '#4fd1c5', '#f6c453'], ['Sunset', '#ff7b6b', '#ffc15e'],
+      ['Violet', '#b39dff', '#ff8fc7'], ['Ice', '#8fd3ff', '#c9f27a'], ['Gold', '#f2c94c', '#ff8a4c']];
+    let S = null, tab = 'voice';
+    const esc = escapeHtml;
+    const saveSettings = async patch => {
+      S = await api('/api/settings', patch);
+      return S;
     };
-    ['green', 'orange'].forEach(k => {
-      const text = field(k, 'text'), pick = field(k, 'color');
-      text.value = pick.value = current[k];
-      text.addEventListener('input', () => {
-        let v = text.value.trim();
-        if (v && v[0] !== '#') v = '#' + v;
-        const ok = THEME.isHex(v);
-        text.classList.toggle('bad', !!text.value && !ok);
-        if (ok) { pick.value = v.toLowerCase(); current[k] = v.toLowerCase(); }
+    // A colour change made before settings lived on the server is in this browser only: keep it.
+    if (!window.JARVIS_THEME && (THEME.base.green !== THEME.ORIGIN.green || THEME.base.orange !== THEME.ORIGIN.orange))
+      api('/api/settings', { theme: { ...THEME.base } }).catch(() => {});
+
+    function open() {
+      box.hidden = false; btn.setAttribute('aria-expanded', 'true');
+      api('/api/settings').then(d => { S = d; render(); }).catch(err => { body.innerHTML = `<p class="st-err">${esc(err.message)}</p>`; });
+      if (!S) body.innerHTML = '<p class="st-note">Loading…</p>'; else render();
+    }
+    function close() { box.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
+    btn.onclick = () => (box.hidden ? open() : close());
+    box.querySelector('.st-close').onclick = close;
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !box.hidden) close(); });
+    document.addEventListener('pointerdown', e => { if (!box.hidden && !box.contains(e.target) && !btn.contains(e.target)) close(); });
+    box.querySelectorAll('.st-tabs button').forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
+
+    function flash(msg, bad) {
+      const el = body.querySelector('.st-msg');
+      if (el) { el.textContent = msg; el.classList.toggle('st-err', !!bad); }
+    }
+    function render() {
+      box.querySelectorAll('.st-tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+      ({ voice: renderVoice, personality: renderPersonality, colours: renderColours, model: renderModel })[tab]();
+    }
+
+    function renderVoice() {
+      const all = synth ? synth.getVoices() : [];
+      if (!synth) { body.innerHTML = '<p class="st-note">This browser can\'t speak, so there are no voices to choose from.</p>'; return; }
+      const english = all.filter(v => /^en([-_]|$)/i.test(v.lang)), other = all.filter(v => !/^en([-_]|$)/i.test(v.lang));
+      const opt = v => `<option value="${esc(v.name)}"${v.name === (S.voice || '') ? ' selected' : ''}>${esc(v.name)} (${esc(v.lang)})</option>`;
+      const rate = Number(S.rate) || 1.2;
+      body.innerHTML = `
+        <label class="st-label" for="st-voice">Voice Jarvis speaks in</label>
+        <select id="st-voice"><option value=""${S.voice ? '' : ' selected'}>Automatic (a British male voice if there is one)</option>
+          ${english.length ? `<optgroup label="English">${english.map(opt).join('')}</optgroup>` : ''}
+          ${other.length ? `<optgroup label="Other languages">${other.map(opt).join('')}</optgroup>` : ''}</select>
+        <label class="st-label" for="st-rate">Speed <span id="st-rate-v">${rate.toFixed(1)}</span></label>
+        <input type="range" id="st-rate" min="0.8" max="1.6" step="0.1" value="${rate}">
+        <div class="st-row"><button type="button" class="st-btn" id="st-test">Test the voice</button><span class="st-msg"></span></div>
+        <p class="st-note">Voices come from Windows and your browser. Edge has the most natural ones.</p>`;
+      const sel = body.querySelector('#st-voice'), r = body.querySelector('#st-rate');
+      const apply = async () => {
+        SETUP.voice = sel.value; SETUP.rate = Number(r.value); SPEECH_RATE = SETUP.rate;
+        try { localStorage.setItem('jarvis-setup', JSON.stringify(SETUP)); } catch (_) {}
+        pickVoice();
+        try { await saveSettings({ voice: sel.value, rate: Number(r.value) }); flash('Saved'); } catch (err) { flash(err.message, true); }
+      };
+      sel.onchange = apply;
+      r.oninput = () => { body.querySelector('#st-rate-v').textContent = Number(r.value).toFixed(1); };
+      r.onchange = apply;
+      body.querySelector('#st-test').onclick = () => {
+        unlockSpeech();
+        const was = voiceOn; voiceOn = true;
+        speak('Good day. This is how I will sound from now on.', 2);
+        voiceOn = was;
+      };
+    }
+
+    function renderPersonality() {
+      body.innerHTML = `
+        <div class="st-label">How Jarvis talks to you</div>
+        <div class="st-choices">${S.personalities.map(p => `
+          <label class="st-choice${p.id === S.personality ? ' on' : ''}"><input type="radio" name="st-pers" value="${p.id}"${p.id === S.personality ? ' checked' : ''}>
+            <b>${esc(p.name)}</b><small>${esc(p.note)}</small></label>`).join('')}</div>
+        <label class="st-label" for="st-note">Anything else? <small>(optional)</small></label>
+        <textarea id="st-note" maxlength="300" rows="2" placeholder="e.g. Use Australian spelling. Call me Richie.">${esc(S.personalityNote || '')}</textarea>
+        <div class="st-row"><button type="button" class="st-btn" id="st-note-save">Save</button><span class="st-msg"></span></div>
+        <p class="st-note">Applies from your next question.</p>`;
+      body.querySelectorAll('input[name=st-pers]').forEach(i => i.onchange = async () => {
+        try { await saveSettings({ personality: i.value }); render(); flash('Saved'); } catch (err) { flash(err.message, true); }
       });
-      text.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); if (!text.classList.contains('bad')) apply(current); } });
-      text.addEventListener('blur', () => { if (!text.classList.contains('bad')) apply(current); });
-      pick.addEventListener('change', () => { current[k] = text.value = pick.value.toLowerCase(); apply(current); });
-    });
-    document.getElementById('theme-reset').onclick = () => apply({ ...THEME.ORIGIN });
+      body.querySelector('#st-note-save').onclick = async () => {
+        try { await saveSettings({ personalityNote: body.querySelector('#st-note').value }); flash('Saved'); } catch (err) { flash(err.message, true); }
+      };
+    }
+
+    function renderColours() {
+      const cur = { ...THEME.base };
+      body.innerHTML = `
+        <div class="st-label">Themes</div>
+        <div class="st-themes">${THEMES.map(([n, g, o]) => `
+          <button type="button" class="st-theme${g === cur.green && o === cur.orange ? ' on' : ''}" data-g="${g}" data-o="${o}" title="${n}">
+            <i style="background:${g}"></i><i style="background:${o}"></i><span>${n}</span></button>`).join('')}</div>
+        <div class="st-label">Your own colours</div>
+        <div class="st-pickers">
+          <label title="Primary colour: every green on the page"><input type="color" data-k="green" value="${cur.green}"><input type="text" data-k="green" maxlength="7" spellcheck="false" value="${cur.green}" aria-label="Primary colour, as a hex value"></label>
+          <label title="Accent colour: every orange on the page"><input type="color" data-k="orange" value="${cur.orange}"><input type="text" data-k="orange" maxlength="7" spellcheck="false" value="${cur.orange}" aria-label="Accent colour, as a hex value"></label>
+        </div>
+        <div class="st-row"><button type="button" class="st-btn" id="st-col-save">Save colours</button><button type="button" class="st-link" id="st-col-reset">Reset to default</button><span class="st-msg"></span></div>
+        <p class="st-note">Jarvis reloads to apply new colours. They're saved on this computer for every browser.</p>`;
+      const apply = async next => {
+        flash('Saving…');
+        try { await saveSettings({ theme: next }); }
+        catch (err) { flash(err.message, true); return; }
+        THEME.save(next.green, next.orange);
+        try { sessionStorage.setItem('jarvis-skip-wake', '1'); } catch (_) {}
+        location.reload();
+      };
+      body.querySelectorAll('.st-theme').forEach(b => b.onclick = () => apply({ green: b.dataset.g, orange: b.dataset.o }));
+      ['green', 'orange'].forEach(k => {
+        const text = body.querySelector(`input[type=text][data-k=${k}]`), pick = body.querySelector(`input[type=color][data-k=${k}]`);
+        text.oninput = () => {
+          let v = text.value.trim(); if (v && v[0] !== '#') v = '#' + v;
+          const ok = THEME.isHex(v);
+          text.classList.toggle('bad', !!text.value && !ok);
+          if (ok) { pick.value = v.toLowerCase(); cur[k] = v.toLowerCase(); }
+        };
+        pick.oninput = () => { cur[k] = text.value = pick.value.toLowerCase(); text.classList.remove('bad'); };
+      });
+      body.querySelector('#st-col-save').onclick = () => {
+        if (body.querySelector('.st-pickers .bad')) { flash('Use a colour like #bad367.', true); return; }
+        apply(cur);
+      };
+      body.querySelector('#st-col-reset').onclick = () => apply({ ...THEME.ORIGIN });
+    }
+
+    function renderModel() {
+      const opt = m => `<option value="${esc(m.id)}"${m.id === S.chat ? ' selected' : ''}>${esc(m.name)}${m.note && m.note !== 'ChatGPT' ? ' · ' + esc(m.note) : ''}</option>`;
+      body.innerHTML = `
+        <label class="st-label" for="st-model">Jarvis's default model</label>
+        <select id="st-model">
+          <optgroup label="Claude">${S.models.map(opt).join('')}</optgroup>
+          ${S.openai.length ? `<optgroup label="ChatGPT">${S.openai.map(opt).join('')}</optgroup>`
+            : '<optgroup label="ChatGPT"><option disabled>Add an OpenAI API key below to choose ChatGPT</option></optgroup>'}
+        </select>
+        <div class="st-row"><span class="st-msg"></span></div>
+        <div class="st-label">ChatGPT</div>
+        ${S.openaiKey
+          ? `<p class="st-note">OpenAI API key saved${S.openaiProblem ? `, but: <span class="st-err">${esc(S.openaiProblem)}</span>` : '.'}</p>
+             <div class="st-row"><button type="button" class="st-link" id="st-key-remove">Remove the key</button></div>`
+          : `<input type="password" id="st-key" placeholder="OpenAI API key (sk-…)" autocomplete="off" spellcheck="false">
+             <div class="st-row"><button type="button" class="st-btn" id="st-key-save">Save key</button><span class="st-msg st-keymsg"></span></div>
+             <p class="st-note">ChatGPT needs your own key from platform.openai.com, billed by OpenAI. Your ChatGPT Plus subscription doesn't include one.</p>`}
+        <p class="st-note">With ChatGPT, Jarvis answers from your notes but can't open files or Outlook, so calendar and email questions still go to Claude. The team and agents always run on Claude.</p>`;
+      body.querySelector('#st-model').onchange = async e => {
+        try { await saveSettings({ chat: e.target.value }); flash('Saved: Jarvis now answers with ' + e.target.selectedOptions[0].textContent); loadModels(); }
+        catch (err) { flash(err.message, true); }
+      };
+      const save = body.querySelector('#st-key-save');
+      if (save) save.onclick = async () => {
+        const k = body.querySelector('#st-key').value.trim();
+        if (!k) return;
+        body.querySelector('.st-keymsg').textContent = 'Checking the key with OpenAI…';
+        try { await saveSettings({ openaiKey: k }); render(); flash('Key saved. Pick a ChatGPT model above.'); loadModels(); }
+        catch (err) { const m = body.querySelector('.st-keymsg'); m.textContent = err.message; m.classList.add('st-err'); }
+      };
+      const remove = body.querySelector('#st-key-remove');
+      if (remove) remove.onclick = async () => {
+        try { await saveSettings({ openaiKey: '' }); render(); loadModels(); } catch (err) { flash(err.message, true); }
+      };
+    }
   })();
 
   function renderVoiceToggle() {
@@ -3237,7 +3411,7 @@ const tc = THEME.colour;
     if (statusEl.classList.contains('speaking')) setStatus('');
   }
 
-  let SPEECH_RATE = Number(SETUP.rate) || 1.2;   // 1 is the voice's natural pace, which sounds ponderous for a butler
+  var SPEECH_RATE = Number(SETUP.rate) || 1.2;   // 1 is the voice's natural pace, which sounds ponderous for a butler
   // One voice at a time: with Jarvis open in several tabs or windows, only the one you last
   // clicked or typed in speaks; the others stay quiet (they still show everything).
   const TAB_ID = Math.random().toString(36).slice(2);
@@ -3609,17 +3783,23 @@ const tc = THEME.colour;
      ['jobs', 'Team', 'Model for the team on background jobs']].forEach(([role, label, tip]) => {
       const b = document.createElement('b'); b.textContent = label; b.title = tip;
       const sel = document.createElement('select'); sel.title = tip; sel.setAttribute('aria-label', tip);
-      m.models.forEach(x => {
-        const o = document.createElement('option');
-        o.value = x.id; o.textContent = x.name + (x.note ? ` · ${x.note}` : '');
-        sel.appendChild(o);
-      });
+      const group = (label, list) => {
+        const g = document.createElement('optgroup'); g.label = label;
+        list.forEach(x => {
+          const o = document.createElement('option');
+          o.value = x.id; o.textContent = x.name + (x.note && x.note !== 'ChatGPT' ? ` · ${x.note}` : '');
+          g.appendChild(o);
+        });
+        sel.appendChild(g);
+      };
+      group('Claude', m.models);
+      if (role === 'chat' && (m.openai || []).length) group('ChatGPT', m.openai);
       sel.value = m[role];
       sel.onchange = async () => {
         const before = m[role];
         try {
           m = await api('/api/models', { [role]: sel.value });
-          const name = m.models.find(x => x.id === m[role]).name;
+          const name = [...m.models, ...(m.openai || [])].find(x => x.id === m[role]).name;
           setStatus('thinking', `${label} now on ${name}`, 3000);
         } catch (err) { sel.value = before; setStatus('error', err.message, 4000); }
       };

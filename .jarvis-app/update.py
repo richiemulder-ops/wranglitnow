@@ -21,7 +21,8 @@ BRANCH = "main"
 RAW_VERSION = f"https://raw.githubusercontent.com/{REPO}/{BRANCH}/.jarvis-app/VERSION.json"
 ZIP_URL = f"https://github.com/{REPO}/archive/refs/heads/{BRANCH}.zip"
 APP_FILES = ["server.py", "build.py", "approval_mcp.py", "launch.py", "setup.py", "update.py",
-             "VERSION.json", os.path.join("viewer", "index.html")]
+             "VERSION.json", os.path.join("viewer", "index.html"),
+             os.path.join("viewer", "jarvis.ico")]
 CHECK_EVERY = 6 * 3600
 _cache = {"at": 0, "remote": None, "problem": None}
 

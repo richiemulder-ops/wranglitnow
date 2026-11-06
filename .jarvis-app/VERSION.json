@@ -1,7 +1,9 @@
 {
-  "version": "2026.11.06.2",
+  "version": "2026.11.06.3",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes.",
   "notes": [
+    "New Settings button (bottom left): choose Jarvis's voice and speed, his personality, colour themes (now saved for every browser), and the default model, including ChatGPT with your own OpenAI key.",
+    "The Jarvis shortcut now has its own icon instead of Python's.",
     "If Claude Code isn't signed in on your computer, Jarvis now shows a Sign in card. Click Sign in, then Authorize in your browser, and you're done. Being signed in to the Claude desktop app doesn't sign in Claude Code, which Jarvis runs on.",
     "Jarvis now always uses your own Claude sign-in, so it keeps working after a restart. If Claude Code isn't signed in, Jarvis tells you how to fix it instead of showing \"Not logged in\".",
     "Setup can now keep Jarvis in its own folder and link it to a knowledge folder anywhere, OneDrive included.",
@@ -30,6 +32,13 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.06.3",
+      "notes": [
+        "New Settings button (bottom left): choose Jarvis's voice and speed, his personality, colour themes (now saved for every browser), and the default model, including ChatGPT with your own OpenAI key.",
+        "The Jarvis shortcut now has its own icon instead of Python's."
+      ]
+    },
     {
       "version": "2026.11.06.2",
       "notes": [

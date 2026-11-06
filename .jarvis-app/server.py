@@ -27,7 +27,9 @@ import datetime
 import glob
 import time
 import uuid
+import urllib.error
 import urllib.parse
+import urllib.request
 from collections import Counter, OrderedDict
 
 import update
@@ -439,19 +441,56 @@ DEFAULT_MODEL = "claude-opus-5-5"
 _config_lock = threading.Lock()
 
 
-def persona():
-    """Jarvis's system prompt, with the name and form of address chosen at onboarding."""
+# How Jarvis talks, chosen in Settings. "butler" is the system prompt as written; the others add
+# a line that takes precedence over its tone (never over its format rules).
+PERSONALITIES = {
+    "butler": {"name": "Classic butler", "note": "British, polite, bone-dry wit", "prompt": ""},
+    "friendly": {"name": "Warm and friendly", "note": "upbeat and conversational",
+                 "prompt": "Personality: warm, upbeat and conversational, like a friendly colleague. Drop the butler act "
+                           "and the \"sir\"; use the user's first name now and then. Keep every format rule above."},
+    "direct": {"name": "Straight to the point", "note": "the answer first, nothing extra",
+               "prompt": "Personality: brief and direct. Lead with the answer, skip pleasantries, wit and flourishes, "
+                         "and keep replies as short as the question allows. Keep every format rule above."},
+    "witty": {"name": "Playful wit", "note": "more humour, still useful",
+              "prompt": "Personality: playful and quick-witted. Add a light joke or wry aside in most replies, never at "
+                        "the expense of the answer. Keep every format rule above."},
+    "coach": {"name": "Coach", "note": "encouraging, keeps you moving",
+              "prompt": "Personality: an encouraging coach. Be positive, notice progress, and end with the clearest next "
+                        "step to keep momentum. Keep every format rule above."},
+}
+
+
+def persona(style=True):
+    """Jarvis's system prompt, with the name and form of address chosen at onboarding and the
+    personality chosen in Settings."""
     try:
         cfg = read_config()
     except ChatError:
         cfg = {}
     name, address = str(cfg.get("user_name") or "").strip(), str(cfg.get("address") or "").strip()
-    if not name:
-        return SYSTEM_PROMPT
-    extra = f"\nThe user's name is {name}."
-    if address:
-        extra += f' Address them as "{address}" (in place of "sir").'
-    return SYSTEM_PROMPT + extra + "\n"
+    extra = ""
+    if name:
+        extra += f"\nThe user's name is {name}."
+        if address:
+            extra += f' Address them as "{address}" (in place of "sir").'
+    return SYSTEM_PROMPT + (extra + "\n" if extra else "") + (personality_prompt() if style else "")
+
+
+def personality_prompt():
+    """The personality chosen in Settings, said last so it wins over the butler voice above."""
+    try:
+        cfg = read_config()
+    except ChatError:
+        return ""
+    style = PERSONALITIES.get(str(cfg.get("personality") or "butler"), PERSONALITIES["butler"])["prompt"]
+    note = str(cfg.get("personality_note") or "").strip()
+    out = ""
+    if style:
+        out += ("\n\nPERSONALITY (the user chose this in Settings; it replaces the butler voice, tone and wit "
+                "described earlier, for every reply including the SPOKEN line): " + style)
+    if note:
+        out += f"\n\nThe user's own wishes for how you talk (follow them): {note}"
+    return out + "\n" if out else ""
 
 
 SETUP_KEYS = {"user_name": 60, "address": 40, "voice": 120}
@@ -536,10 +575,92 @@ def read_config():
         raise ChatError(500, "config.json is missing or not valid JSON.")
 
 
+def chat_choice():
+    """The model chosen for Jarvis's answers: a Claude id, or "openai:<id>" for ChatGPT."""
+    return str(read_config().get("model") or DEFAULT_MODEL).strip()
+
+
 def load_model(role="chat"):
+    """The Claude model for a role. Work that needs Claude Code's tools (Outlook, transcripts, the
+    team) always runs on Claude, so with ChatGPT chosen for answers it uses the last Claude pick."""
     cfg = read_config()
-    chat = str(cfg.get("model") or DEFAULT_MODEL).strip()
+    chat = chat_choice()
+    if chat.startswith("openai:"):
+        chat = str(cfg.get("claude_model") or "claude-sonnet-5-5")
     return str(cfg.get("job_model") or chat).strip() if role == "jobs" else chat
+
+
+# ChatGPT, for Jarvis's answers only, through your own OpenAI API key (billed by OpenAI).
+OPENAI_API = "https://api.openai.com/v1"
+_openai_models = {"at": 0.0, "key": "", "list": [], "problem": ""}
+
+
+def openai_key():
+    return str(read_config().get("openai_api_key") or "").strip()
+
+
+def _openai_request(path, body=None, key=None, timeout=60):
+    req = urllib.request.Request(OPENAI_API + path, data=json.dumps(body).encode() if body is not None else None,
+                                 headers={"Authorization": "Bearer " + (key or openai_key()),
+                                          "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        try:
+            msg = json.loads(e.read().decode("utf-8")).get("error", {}).get("message") or ""
+        except ValueError:
+            msg = ""
+        if e.code == 401:
+            raise ChatError(502, "OpenAI didn't accept the API key. Check it in Settings, Model.")
+        if e.code == 429:
+            raise ChatError(502, "OpenAI says the key is over its limit or out of credit.")
+        raise ChatError(502, f"OpenAI error {e.code}: {msg[:200]}")
+    except (OSError, ValueError) as e:
+        raise ChatError(502, f"Couldn't reach OpenAI ({e}).")
+
+
+CHAT_MODEL_ID = re.compile(r"^(gpt-|chatgpt-|o\d)")
+NOT_CHAT = re.compile(r"(audio|realtime|transcribe|tts|image|embedding|search|instruct|moderation|codex|computer)", re.I)
+
+
+def openai_models(refresh=False):
+    """The ChatGPT models this key can use, newest first (asked of OpenAI, cached for an hour)."""
+    key = openai_key()
+    if not key:
+        return []
+    c = _openai_models
+    if not refresh and c["key"] == key and time.time() - c["at"] < 3600:
+        return c["list"]
+    try:
+        data = _openai_request("/models", key=key, timeout=20)
+        items = [m for m in data.get("data") or []
+                 if CHAT_MODEL_ID.match(m.get("id", "")) and not NOT_CHAT.search(m["id"])]
+        items.sort(key=lambda m: m.get("created") or 0, reverse=True)
+        c.update(list=[{"id": "openai:" + m["id"], "name": m["id"], "note": "ChatGPT"} for m in items], problem="")
+    except ChatError as e:
+        c.update(list=[], problem=str(e))
+    c.update(at=time.time(), key=key)
+    return c["list"]
+
+
+def call_openai(model, prompt, system):
+    """One answer from ChatGPT. No tools: it answers from the notes sent with the question."""
+    data = _openai_request("/chat/completions", {
+        "model": model.split(":", 1)[1],
+        "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}]})
+    try:
+        text = data["choices"][0]["message"]["content"] or ""
+    except (KeyError, IndexError, TypeError):
+        raise ChatError(502, "ChatGPT's answer came back in an unexpected shape.")
+    u = data.get("usage") or {}
+    log_usage("jarvis", {"usage": {"input_tokens": u.get("prompt_tokens") or 0,
+                                   "output_tokens": u.get("completion_tokens") or 0}})
+    return text.strip() or "No answer came back.", {"used": u.get("total_tokens") or 0, "window": 128_000}
+
+
+OPENAI_NOTE = ("\nIn this conversation you have no tools: you cannot open files or the vault. Answer only from the "
+               "notes and context supplied with the question, and say plainly when they don't cover it.\n")
 
 
 # How much agents may do without asking. "auto" runs them in Claude Code's auto mode (a safety
@@ -555,32 +676,141 @@ def agent_permissions():
 
 def get_models():
     """The switchable models, which one each role uses, and the agents' permission setting.
-    Never includes anything else from config."""
-    return {"models": MODELS, "chat": load_model("chat"), "jobs": load_model("jobs"),
-            "permissions": agent_permissions()}
+    Never includes anything else from config (the OpenAI key itself never leaves the server)."""
+    has_key = bool(openai_key())
+    return {"models": MODELS, "openai": openai_models(), "openaiKey": has_key,
+            "openaiProblem": _openai_models["problem"] if has_key else "",
+            "chat": chat_choice(), "jobs": load_model("jobs"), "permissions": agent_permissions()}
 
 
 def set_models(chat=None, jobs=None, permissions=None):
-    for m in (chat, jobs):
-        if m is not None and m not in MODEL_IDS:
-            raise ChatError(400, "Unknown model.")
+    if chat is not None and chat not in MODEL_IDS and not (
+            chat.startswith("openai:") and any(m["id"] == chat for m in openai_models())):
+        raise ChatError(400, "Unknown model.")
+    if jobs is not None and jobs not in MODEL_IDS:
+        raise ChatError(400, "Unknown model.")
     if permissions is not None and permissions not in PERMISSION_MODES:
         raise ChatError(400, "Unknown permission setting.")
     with _config_lock:
-        cfg = read_config()   # keep every other key (api_key included) exactly as it is
+        cfg = read_config()   # keep every other key (api keys included) exactly as it is
         # Pin both roles, so switching Jarvis never drags Larry's model along with it.
-        cfg.setdefault("job_model", str(cfg.get("model") or DEFAULT_MODEL))
+        cfg.setdefault("job_model", load_model("jobs"))
         if chat:
             cfg["model"] = chat
+            if chat in MODEL_IDS:
+                cfg["claude_model"] = chat   # what Outlook and transcripts use while ChatGPT answers
         if jobs:
             cfg["job_model"] = jobs
         if permissions:
             cfg["agent_permissions"] = permissions
-        tmp = CONFIG_FILE + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(cfg, f)
-        os.replace(tmp, CONFIG_FILE)
+        write_config(cfg)
     return get_models()
+
+
+def write_config(cfg):
+    tmp = CONFIG_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, indent=2)
+    os.replace(tmp, CONFIG_FILE)
+
+
+# ---- Settings (the gear, bottom left) ----------------------------------------------------------
+# Voice and speed, personality, colours and the default model. The theme is also written to
+# viewer/user-theme.js, which the page loads before it draws, so colours survive a cleared
+# browser, another browser, or 127.0.0.1 in place of localhost.
+THEME_FILE = os.path.join(HERE, "viewer", "user-theme.js")
+HEX = re.compile(r"^#[0-9a-f]{6}$")
+
+
+def get_settings():
+    cfg = read_config()
+    return {"voice": cfg.get("voice", ""), "rate": cfg.get("rate", 1.2),
+            "personality": cfg.get("personality") or "butler", "personalityNote": cfg.get("personality_note", ""),
+            "personalities": [{"id": k, "name": v["name"], "note": v["note"]} for k, v in PERSONALITIES.items()],
+            "theme": cfg.get("theme") or None, **get_models()}
+
+
+def save_settings(body):
+    with _config_lock:
+        cfg = read_config()
+        if "personality" in body:
+            if body["personality"] not in PERSONALITIES:
+                raise ChatError(400, "Unknown personality.")
+            cfg["personality"] = body["personality"]
+        if "personalityNote" in body:
+            cfg["personality_note"] = re.sub(r"[\x00-\x1f]", " ", str(body["personalityNote"] or ""))[:300].strip()
+        if "theme" in body:
+            t = body["theme"]
+            if t is None:
+                cfg.pop("theme", None)
+            else:
+                if not (isinstance(t, dict) and HEX.match(str(t.get("green", "")).lower())
+                        and HEX.match(str(t.get("orange", "")).lower())):
+                    raise ChatError(400, "Colours must be #rrggbb.")
+                cfg["theme"] = {"green": t["green"].lower(), "orange": t["orange"].lower()}
+            write_theme_file(cfg.get("theme"))
+        if "openaiKey" in body:
+            key = str(body["openaiKey"] or "").strip()
+            if key:
+                if not re.fullmatch(r"sk-[A-Za-z0-9_\-]{20,300}", key):
+                    raise ChatError(400, "That doesn't look like an OpenAI API key (they start with sk-).")
+                _openai_request("/models", key=key, timeout=20)   # check it works before saving
+                cfg["openai_api_key"] = key
+            else:
+                cfg.pop("openai_api_key", None)
+                if str(cfg.get("model") or "").startswith("openai:"):
+                    cfg["model"] = cfg.get("claude_model") or DEFAULT_MODEL
+            _openai_models["at"] = 0
+        write_config(cfg)
+    voice = {k: body[k] for k in ("voice", "rate") if k in body}
+    if voice:
+        save_setup(voice)
+    if "chat" in body:
+        set_models(chat=body["chat"])
+    return get_settings()
+
+
+def write_theme_file(theme):
+    js = "window.JARVIS_THEME = %s;\n" % json.dumps(theme or None)
+    tmp = THEME_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(js)
+    os.replace(tmp, THEME_FILE)
+
+
+# ---- The Jarvis icon --------------------------------------------------------------------------
+# The desktop and Start menu shortcuts start pythonw, so without this they'd show Python's icon.
+ICON_FILE = os.path.join(HERE, "viewer", "jarvis.ico")
+SHORTCUT_ICON_PS = r"""
+$s = New-Object -ComObject WScript.Shell
+$dirs = @([Environment]::GetFolderPath('Desktop'), (Join-Path ([Environment]::GetFolderPath('StartMenu')) 'Programs'))
+foreach ($d in $dirs) {
+  $p = Join-Path $d 'Jarvis.lnk'
+  if (-not (Test-Path $p)) { continue }
+  $l = $s.CreateShortcut($p)
+  if ($l.Arguments -notlike ('*' + $env:J_LAUNCH + '*')) { continue }
+  if ($l.IconLocation -like ($env:J_ICON + '*')) { continue }
+  $l.IconLocation = $env:J_ICON + ',0'
+  $l.Save()
+}"""
+
+
+def ensure_icon():
+    """Put the Jarvis icon on this install's shortcuts. Updates bring the icon into the knowledge
+    folder's .jarvis-app copy, so take it from there if the app folder lacks it."""
+    if os.name != "nt":
+        return
+    if not os.path.isfile(ICON_FILE):
+        src = os.path.join(VAULT, ".jarvis-app", "viewer", "jarvis.ico")
+        if not os.path.isfile(src):
+            return
+        shutil.copy2(src, ICON_FILE)
+    env = dict(os.environ, J_LAUNCH=os.path.join(HERE, "launch.py"), J_ICON=ICON_FILE)
+    try:
+        subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", SHORTCUT_ICON_PS],
+                       env=env, capture_output=True, timeout=60, creationflags=0x08000000)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
 
 
 CONTEXT_WINDOW = 1_000_000   # updated from what the CLI reports for the configured model
@@ -741,12 +971,17 @@ def answer(sid, question, project=None, history=None):
         prompt = project_brief(project) + "\n\n" + prompt
     prompt = f"Now: {now_local()}.\n\n" + prompt
     team_asked = bool(TEAM_MENTION and TEAM_MENTION.search(question))
-    system = (persona() + VAULT_PROMPT.replace("{vault}", VAULT) +
+    system = (persona(style=False) + VAULT_PROMPT.replace("{vault}", VAULT) +
               ACTION_PROMPT.replace("{projects}", ", ".join(sorted(PROJECTS)) or "none yet")
                            .replace("{team}", ", ".join(TEAM) or "none") +
-              DELEGATE_PROMPT)   # Jarvis is the orchestrator's front door: work needn't name the team
-    if M365_QUESTION.search(question) and not team_asked:
+              DELEGATE_PROMPT +   # Jarvis is the orchestrator's front door: work needn't name the team
+              personality_prompt())   # last, so the chosen personality wins
+    choice = chat_choice()
+    if M365_QUESTION.search(question) and not team_asked:   # Outlook needs Claude's connector
         raw, context = call_claude(model, prompt, system + M365_PROMPT, M365_TOOLS, vault=True, sid=sid)
+    elif choice.startswith("openai:") and openai_key():
+        raw, context = call_openai(choice, prompt,
+                                   system.replace(VAULT_PROMPT.replace("{vault}", VAULT), "") + OPENAI_NOTE)
     else:
         raw, context = call_claude(model, prompt, system, vault=True, sid=sid)
     text, spoken, cited, task, action_lines = parse_reply(raw)
@@ -2883,6 +3118,8 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
                 self._json(200, transcript(q.get("path", "")))
             elif url.path == "/api/update":
                 self._json(200, update_status(q.get("force") == "1"))
+            elif url.path == "/api/settings":
+                self._json(200, get_settings())
             elif url.path == "/api/claude-auth":
                 self._json(200, claude_auth(q.get("refresh") == "1"))
             else:
@@ -2922,7 +3159,7 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
             return
         if path in ("/api/open", "/api/reveal", "/api/trash", "/api/action", "/api/fleeting", "/api/models", "/api/projects", "/api/agent-chat",
                     "/api/agent-chat/stop", "/api/jobs/stop", "/api/stop-answer", "/api/approval", "/api/approval/decide", "/api/hires/approve", "/api/hires/decline", "/api/setup", "/api/logo",
-                    "/api/update", "/api/claude-auth/login", "/api/claude-auth/code"):
+                    "/api/update", "/api/claude-auth/login", "/api/claude-auth/code", "/api/settings"):
             if not self._trusted():
                 self._json(403, {"error": "Forbidden."})
                 return
@@ -2962,6 +3199,8 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
                     self._json(200, set_models(body.get("chat"), body.get("jobs"), body.get("permissions")))
                 elif path == "/api/update":
                     self._json(200, update_now())
+                elif path == "/api/settings":
+                    self._json(200, save_settings(body))
                 elif path == "/api/claude-auth/login":
                     self._json(200, claude_login())
                 elif path == "/api/claude-auth/code":
@@ -3046,6 +3285,12 @@ def _restart():
 if __name__ == "__main__":
     handler = functools.partial(GalaxyHandler, directory=ROOT)
     threading.Thread(target=watch_vault, daemon=True).start()
+    threading.Thread(target=ensure_icon, daemon=True).start()
+    try:
+        if not os.path.isfile(THEME_FILE):
+            write_theme_file(read_config().get("theme"))
+    except (ChatError, OSError):
+        pass
     with http.server.ThreadingHTTPServer(("127.0.0.1", PORT), handler) as httpd:
         print(f"Knowledge Galaxy: http://localhost:{PORT}/  (serving {ROOT}, {len(INDEX.notes)} notes indexed)")
         httpd.serve_forever()

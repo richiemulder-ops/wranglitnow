@@ -33,7 +33,8 @@ INSTALL = os.path.dirname(VAULT)
 APP = os.path.join(INSTALL, "app")
 WHERE = "install.json"   # in <vault>/.jarvis-app: the Jarvis folder this vault was set up with
 APP_FILES = ["server.py", "build.py", "approval_mcp.py", "launch.py", "setup.py", "update.py", "VERSION.json",
-             os.path.join("viewer", "index.html")]
+             os.path.join("viewer", "index.html"),
+             os.path.join("viewer", "jarvis.ico")]
 DEFAULT_CONFIG = {"model": "claude-sonnet-5-5", "job_model": "claude-opus-5-5", "agent_permissions": "auto"}
 
 
@@ -149,10 +150,11 @@ foreach ($dir in @([Environment]::GetFolderPath('Desktop'), (Join-Path $env:APPD
   $l.Arguments = '"' + $env:J_LAUNCH + '"'
   $l.WorkingDirectory = $env:J_APP
   $l.Description = 'Start Jarvis'
+  $l.IconLocation = $env:J_ICON + ',0'
   $l.Save()
 }
 """
-    env = dict(os.environ, J_PY=pythonw(), J_LAUNCH=os.path.join(APP, "launch.py"), J_APP=APP)
+    env = dict(os.environ, J_PY=pythonw(), J_LAUNCH=os.path.join(APP, "launch.py"), J_APP=APP, J_ICON=os.path.join(APP, "viewer", "jarvis.ico"))
     subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps], env=env, check=True)
     say("Shortcut 'Jarvis' added to the desktop and the Start menu.")
 
