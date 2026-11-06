@@ -2533,7 +2533,14 @@ const tc = THEME.colour;
     const root = { inbox: 'Team Inbox', deliverables: 'Deliverables' }[key];
     const inFolder = nodes.filter(n => n.folder === root || n.folder.startsWith(root + '/')).map(n => n.id);
     let loaded = false;
-    const body = addSection({ icon, title, sub: `RTM_PKM / ${root}`, color, onOpen: b => { if (!loaded) load(b, ''); } });
+    const body = addSection({ icon, title, sub: root, color, onOpen: b => { if (!loaded) load(b, ''); } });
+    // Name the user's own knowledge folder, and show its full path on hover.
+    const subEl = body.parentElement.querySelector('.label > span');
+    api('/api/setup').then(d => {
+      if (!d.vault_name) return;
+      subEl.textContent = `${d.vault_name} / ${root}`;
+      subEl.parentElement.parentElement.title = d.vault + '\\' + root;
+    }).catch(() => {});
     let current = '', justAdded = [];
 
     async function load(b, path) {
@@ -3950,7 +3957,7 @@ const tc = THEME.colour;
             <input id="np-name" maxlength="60" placeholder="e.g. Brisbane Isuzu FY27" required>
             <label for="np-desc">What it covers</label>
             <textarea id="np-desc" maxlength="300" placeholder="One line for the Projects index, e.g. AASB S2 climate reporting for Brisbane Isuzu."></textarea>
-            <div class="what">Creates <code>copilot/projects/&lt;name&gt;/</code> in RTM_PKM with its <code>project.md</code>
+            <div class="what">Creates <code>copilot/projects/&lt;name&gt;/</code> in your knowledge folder with its <code>project.md</code>
               (so Obsidian Copilot sees it), adds a row to <code>Projects.md</code>, and refreshes the galaxy.</div>
             <div class="tools"></div><div class="progress"><i></i></div><div class="msg-line"></div></form>`;
         const form = content.querySelector('form'), msg = content.querySelector('.msg-line');
