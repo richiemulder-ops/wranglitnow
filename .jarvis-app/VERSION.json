@@ -1,7 +1,12 @@
 {
-  "version": "2026.11.06.4",
+  "version": "2026.11.06.5",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes.",
   "notes": [
+    "Spoken replies can now run to about 110 words, so Jarvis explains the answer and his reasoning, not just a verdict.",
+    "Microphone: tap it once to talk, tap again to pause. Your words stay in the box and nothing is sent until you press the arrow (or Enter). Tap the mic again to carry on.",
+    "Microphone: Jarvis no longer hears himself. While he speaks, the mic holds and picks up again when he finishes.",
+    "The team tray under the Jarvis emblem no longer flashes and is bigger. New 'See what the team is doing' window shows who is working on what, anything waiting for you, and what finished recently.",
+    "Galaxy labels are now white.",
     "Team Inbox and Deliverables now show your own knowledge folder's name (hover for the full path), not RTM_PKM.",
     "New Settings button (bottom left): choose Jarvis's voice and speed, his personality, colour themes (now saved for every browser), and the default model, including ChatGPT with your own OpenAI key.",
     "The Jarvis shortcut now has its own icon instead of Python's.",
@@ -33,6 +38,16 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.06.5",
+      "notes": [
+        "Spoken replies can now run to about 110 words, so Jarvis explains the answer and his reasoning, not just a verdict.",
+        "Microphone: tap it once to talk, tap again to pause. Your words stay in the box and nothing is sent until you press the arrow (or Enter). Tap the mic again to carry on.",
+        "Microphone: Jarvis no longer hears himself. While he speaks, the mic holds and picks up again when he finishes.",
+        "The team tray under the Jarvis emblem no longer flashes and is bigger. New 'See what the team is doing' window shows who is working on what, anything waiting for you, and what finished recently.",
+        "Galaxy labels are now white."
+      ]
+    },
     {
       "version": "2026.11.06.4",
       "notes": [

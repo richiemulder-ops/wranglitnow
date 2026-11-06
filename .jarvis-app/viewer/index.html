@@ -89,7 +89,7 @@
     text-transform: uppercase; color: var(--dim); }
   #legend div, #legend button { display: flex; align-items: center; gap: 9px; }
   #legend button { font: inherit; color: inherit; background: none; border: 0; padding: 1px 0; cursor: pointer; text-align: left; }
-  #legend button span { color: var(--dim); } #legend button:hover span { color: var(--ink); }
+  #legend button span { color: #fff; } #legend button:hover span { color: #fff; text-decoration: underline; }
   #legend .zoom { gap: 6px; margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--edge); }
   #legend .zoom button { width: 28px; height: 26px; justify-content: center; padding: 0; border-radius: 8px;
     border: 1px solid var(--edge); background: rgba(255,255,255,0.04); color: var(--ink); font-size: 15px; line-height: 1; }
@@ -535,13 +535,14 @@
   @media (max-width: 800px) { #crew .crew-main { flex-direction: column; } #crew aside { width: auto; max-height: 34vh; } }
   /* Jobs handed to Larry: a small tray under the emblem. */
   #jobs { position: fixed; right: calc(var(--right-rail) + 22px); top: calc(var(--jarvis-top) + var(--jarvis-size) + 16px);
-    width: max(var(--jarvis-size), 240px); display: flex; flex-direction: column; gap: 8px;
+    width: max(var(--jarvis-size), 330px); display: flex; flex-direction: column; gap: 8px;
     /* Stops above the context card, whatever its height (--ctx-h is kept in step by script). */
     max-height: calc(100vh - var(--jarvis-top) - var(--jarvis-size) - 16px - 26px - var(--ctx-h, 249px) - 12px); overflow-y: auto;
     scrollbar-width: thin; scrollbar-color: rgba(186,211,103,0.25) transparent;
     transition: right 0.6s cubic-bezier(.2,.8,.2,1); }
   .job { padding: 10px 12px; border-radius: 12px; background: var(--glass); backdrop-filter: blur(14px);
-    border: 1px solid var(--edge); font-size: 12px; line-height: 1.45; animation: rise 0.35s ease-out; }
+    border: 1px solid var(--edge); font-size: 13px; line-height: 1.5; }
+  .job.fresh { animation: rise 0.35s ease-out; }   /* only a card that's new rises in: redraws don't flash */
   .job.done { border-color: rgba(163,227,122,0.45); }
   .job.failed { border-color: rgba(255,179,71,0.55); }
   .job .top { display: flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: 0.08em;
@@ -549,7 +550,7 @@
   .job .top b { color: var(--ink); font-weight: 600; }
   .job .top .x { margin-left: auto; background: none; border: 0; color: var(--dim); cursor: pointer; font-size: 12px; padding: 0 2px; }
   .job .top .x:hover { color: var(--ink); }
-  .job .spin { width: 8px; height: 8px; border-radius: 50%; background: #bad367; animation: blink 1.1s ease-in-out infinite; }
+  .job .spin { width: 8px; height: 8px; border-radius: 50%; background: #bad367; animation: blink 2.4s ease-in-out infinite; }
   .job.done .spin { background: #a3e37a; animation: none; }
   .job.failed .spin { background: #ffb347; animation: none; }
   .job.idle .spin { background: #8a93a8; animation: none; }
@@ -561,10 +562,30 @@
   .job.hire .tools-list { margin-top: 5px; font-size: 11px; color: var(--dim); }
   .job.hire .problem { margin-top: 5px; font-size: 11.5px; color: #ffcf8a; }
   .job .tools .link-btn.approve { color: #10170a; background: var(--brand); border-color: var(--brand); }
-  .job .what { margin-top: 5px; color: #cfd6e6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .job .what { margin-top: 5px; color: #cfd6e6; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
   .job .tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 
-  .job .doing { margin-top: 4px; font-size: 11px; color: #d6e89a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .job .doing { margin-top: 4px; font-size: 12px; color: #d6e89a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .job.team-open { display: flex; align-items: center; gap: 8px; width: 100%; font: inherit; font-size: 12.5px; color: var(--ink);
+    text-align: left; cursor: pointer; }
+  .job.team-open:hover { border-color: var(--brand); }
+  .job.team-open .n { margin-left: auto; color: var(--dim); font-size: 11.5px; }
+  /* Team activity window (CR-003): who is working on what, in plain words. */
+  .team-act { font-size: 13px; line-height: 1.5; }
+  .team-act .ta-sum { margin: 10px 0 2px; font-size: 14px; color: var(--ink); }
+  .team-act h4 { margin: 16px 0 6px; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); font-weight: 600; }
+  .team-act .ta-row { padding: 10px 12px; margin-bottom: 8px; border-radius: 10px; background: rgba(255,255,255,0.04);
+    border-left: 3px solid var(--accent, #bad367); }
+  .team-act .ta-row.done { border-left-color: #a3e37a; }
+  .team-act .ta-row.failed { border-left-color: #ffb347; }
+  .team-act .ta-head { display: flex; align-items: center; gap: 8px; }
+  .team-act .ta-head i { width: 9px; height: 9px; border-radius: 50%; background: var(--accent, #bad367); flex: none; }
+  .team-act .ta-head .ta-src { margin-left: auto; font-size: 11px; color: var(--dim); }
+  .team-act .ta-line { margin-top: 3px; color: #cfd6e6; }
+  .team-act .ta-line span { display: inline-block; min-width: 78px; color: var(--dim); font-size: 11.5px; }
+  .team-act .ta-line.now { color: #d6e89a; }
+  .team-act .ta-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .team-act .ta-free { color: var(--dim); }
 
   /* Context gauge: how full each agent's context window is (bottom right, like Claude Code's). */
   #context { position: fixed; bottom: 26px; right: calc(var(--right-rail) + 22px); width: max(var(--jarvis-size), 240px);
@@ -660,6 +681,8 @@
   #status.speaking .dot { color: #ff9f43; }
   #status.error { color: #ffcf8a; }
   #status.error .dot { color: #ffb347; animation: none; }
+  #status.paused .dot { color: #8a93a8; animation: none; }
+  #mic.held, .icon-btn.mic.held { animation: none; opacity: 0.55; }   /* held while Jarvis speaks */
   @keyframes blink { 50% { opacity: 0.25; } }
   @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   @keyframes pulse { 50% { box-shadow: 0 0 0 8px rgba(186,211,103,0.15); } }
@@ -1027,7 +1050,7 @@ const tc = THEME.colour;
     ctx.font = `600 ${px}px system-ui, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.shadowColor = 'rgba(0,0,0,0.85)'; ctx.shadowBlur = 8;
-    ctx.fillStyle = colour; ctx.fillText(text, c.width / 2, c.height / 2);
+    ctx.fillStyle = '#ffffff'; ctx.fillText(text, c.width / 2, c.height / 2);   // labels in white (CR-004)
     const tex = new THREE.CanvasTexture(c);
     tex.anisotropy = 4;
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false }));
@@ -2076,30 +2099,54 @@ const tc = THEME.colour;
             sendBtn.innerHTML = ICON.send; sendBtn.title = 'Send (Enter)'; sendBtn.classList.remove('stopper');
           }
         }
-        sendBtn.onclick = () => busy ? api('/api/stop-answer', {}).catch(() => {}) : send();
-        input.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
+        let micOff = () => {};
+        sendBtn.onclick = () => busy ? api('/api/stop-answer', {}).catch(() => {}) : (micOff(), send());
+        input.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); micOff(); send(); } };
         input.oninput = () => { input.style.height = 'auto'; input.style.height = Math.min(160, input.scrollHeight) + 'px'; };
 
-        // Talk: keeps listening through pauses; click again to send.
+        // Talk: tap the mic to talk, tap again to pause (the words stay in the box); only the arrow
+        // or Enter sends (CR-005). Held while Jarvis speaks, so it never types his words (CR-002).
+        let base = '', held = false;
+        const micHold = {
+          hold() { if (!listening) return; held = true; micBtn.classList.add('held'); try { rec.abort(); } catch (_) {} },
+          resume() {
+            if (!held) return;
+            held = false; micBtn.classList.remove('held');
+            if (listening) { base = input.value.trim(); try { rec.start(); } catch (_) {} }
+          },
+        };
+        micOff = () => {
+          if (!listening && !held) return;
+          listening = false; held = false; micHolds.delete(micHold);
+          micBtn.classList.remove('on', 'held');
+          try { rec.abort(); } catch (_) {}
+        };
         micBtn.onclick = () => {
           if (!Recognition) { setStatus('error', 'voice input needs Chrome or Edge', 4000); return; }
-          if (listening) { listening = false; try { rec.stop(); } catch (_) {} return; }
+          if (listening) {                       // second tap: pause, keep the words, send nothing
+            listening = false; micHolds.delete(micHold);
+            if (held) { held = false; micBtn.classList.remove('on', 'held'); setStatus(input.value.trim() ? 'paused' : '', PAUSED_TEXT); }
+            else try { rec.stop(); } catch (_) {}
+            return;
+          }
           if (wantOn) micEl.onclick();
           stopSpeaking();
           rec = rec || new Recognition();
           Object.assign(rec, { lang: navigator.language || 'en-GB', interimResults: true, continuous: true });
-          let base = input.value;
-          rec.onresult = e => { let t = ''; for (const r of e.results) t += r[0].transcript; input.value = (base ? base + ' ' : '') + t.trim(); };
-          rec.onerror = e => { if (FATAL_REC_ERRORS.has(e.error)) { listening = false; setStatus('error', REC_ERRORS[e.error] || e.error, 4000); } };
+          base = input.value.trim();
+          rec.onresult = e => { if (!listening || held) return; let t = ''; for (const r of e.results) t += r[0].transcript; input.value = (base ? base + ' ' : '') + t.trim(); };
+          rec.onerror = e => { if (FATAL_REC_ERRORS.has(e.error)) { listening = false; micHolds.delete(micHold); setStatus('error', REC_ERRORS[e.error] || e.error, 4000); } };
           rec.onend = () => {
-            if (listening) { base = input.value; setTimeout(() => { if (listening) try { rec.start(); } catch (_) {} }, 150); return; }
-            micBtn.classList.remove('on'); setStatus('');
-            if (input.value.trim()) send();
+            if (listening && held) { base = input.value.trim(); return; }   // Jarvis is talking: resume() restarts it
+            if (listening) { base = input.value.trim(); setTimeout(() => { if (listening && !held) try { rec.start(); } catch (_) {} }, 150); return; }
+            micBtn.classList.remove('on', 'held');
+            if (statusEl.classList.contains('listening')) setStatus(input.value.trim() ? 'paused' : '', PAUSED_TEXT);
           };
-          listening = true; micBtn.classList.add('on'); setStatus('listening', 'listening… click the mic to send');
+          listening = true; held = false; micHolds.add(micHold);
+          micBtn.classList.add('on'); setStatus('listening', 'listening… tap the mic to pause, the arrow to send');
           try { rec.start(); } catch (_) {}
         };
-        workEl.current.stop = () => { if (listening) { listening = false; input.value = ''; try { rec.stop(); } catch (_) {} } };
+        workEl.current.stop = () => { if (listening) { micOff(); input.value = ''; } };
 
         loadList(); loadChat();
         setTimeout(() => input.focus(), 50);
@@ -2371,32 +2418,56 @@ const tc = THEME.colour;
             setStatus('error', err.message, 5000);
           }
         }
-        sendBtn.onclick = () => busy ? stopAgent() : send();
-        input.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
+        let micOff = () => {};
+        sendBtn.onclick = () => busy ? stopAgent() : (micOff(), send());
+        input.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); micOff(); send(); } };
         input.oninput = () => { input.style.height = 'auto'; input.style.height = Math.min(160, input.scrollHeight) + 'px'; };
 
-        // Talk: keeps listening through pauses; click again to send.
+        // Talk: tap the mic to talk, tap again to pause (the words stay in the box); only the arrow
+        // or Enter sends (CR-005). Held while Jarvis speaks, so it never types his words (CR-002).
+        let base = '', held = false;
+        const micHold = {
+          hold() { if (!listening) return; held = true; micBtn.classList.add('held'); try { rec.abort(); } catch (_) {} },
+          resume() {
+            if (!held) return;
+            held = false; micBtn.classList.remove('held');
+            if (listening) { base = input.value.trim(); try { rec.start(); } catch (_) {} }
+          },
+        };
+        micOff = () => {
+          if (!listening && !held) return;
+          listening = false; held = false; micHolds.delete(micHold);
+          micBtn.classList.remove('on', 'held');
+          try { rec.abort(); } catch (_) {}
+        };
         micBtn.onclick = () => {
           if (!Recognition) { setStatus('error', 'voice input needs Chrome or Edge', 4000); return; }
-          if (listening) { listening = false; try { rec.stop(); } catch (_) {} return; }
+          if (listening) {                       // second tap: pause, keep the words, send nothing
+            listening = false; micHolds.delete(micHold);
+            if (held) { held = false; micBtn.classList.remove('on', 'held'); setStatus(input.value.trim() ? 'paused' : '', PAUSED_TEXT); }
+            else try { rec.stop(); } catch (_) {}
+            return;
+          }
           if (wantOn) micEl.onclick();
           stopSpeaking();
           rec = rec || new Recognition();
           Object.assign(rec, { lang: navigator.language || 'en-GB', interimResults: true, continuous: true });
-          let base = input.value;
-          rec.onresult = e => { if (!listening) return; let t = ''; for (const r of e.results) t += r[0].transcript; input.value = (base ? base + ' ' : '') + t.trim(); };
-          rec.onerror = e => { if (FATAL_REC_ERRORS.has(e.error)) { listening = false; setStatus('error', REC_ERRORS[e.error] || e.error, 4000); } };
+          base = input.value.trim();
+          rec.onresult = e => { if (!listening || held) return; let t = ''; for (const r of e.results) t += r[0].transcript; input.value = (base ? base + ' ' : '') + t.trim(); };
+          rec.onerror = e => { if (FATAL_REC_ERRORS.has(e.error)) { listening = false; micHolds.delete(micHold); setStatus('error', REC_ERRORS[e.error] || e.error, 4000); } };
           rec.onend = () => {
-            if (listening) { base = input.value; setTimeout(() => { if (listening) try { rec.start(); } catch (_) {} }, 150); return; }
-            micBtn.classList.remove('on'); setStatus('');
-            if (input.value.trim()) send();
+            if (listening && held) { base = input.value.trim(); return; }   // Jarvis is talking: resume() restarts it
+            if (listening) { base = input.value.trim(); setTimeout(() => { if (listening && !held) try { rec.start(); } catch (_) {} }, 150); return; }
+            micBtn.classList.remove('on', 'held');
+            if (statusEl.classList.contains('listening')) setStatus(input.value.trim() ? 'paused' : '', PAUSED_TEXT);
           };
-          listening = true; micBtn.classList.add('on'); setStatus('listening', 'listening… click the mic to send');
+          listening = true; held = false; micHolds.add(micHold);
+          micBtn.classList.add('on'); setStatus('listening', 'listening… tap the mic to pause, the arrow to send');
           try { rec.start(); } catch (_) {}
         };
         workEl.current.stop = () => {
           clearTimeout(poll); viewingChat = null;
-          if (listening) { listening = false; input.value = ''; try { rec.stop(); } catch (_) {} }
+          if (listening) { micOff(); input.value = ''; }
         };
 
         loadList();
@@ -2884,6 +2955,7 @@ const tc = THEME.colour;
 
   document.getElementById('ask-form').addEventListener('submit', e => {
     e.preventDefault();
+    micOffForSend();                             // only the arrow (or Enter) sends what the mic heard
     ask(qEl.value.trim());
   });
 
@@ -2989,7 +3061,7 @@ const tc = THEME.colour;
   // ---- voice out: speechSynthesis ---------------------------------------------------
   const synth = window.speechSynthesis || null;
   const voiceToggle = document.getElementById('voice-toggle');
-  const MAX_SPOKEN_SENTENCES = 2;
+  const MAX_SPOKEN_SENTENCES = 6;   // room for the answer and its reasoning (CR-001)
   let voice = null, voiceIsMale = false, speechUnlocked = false, speakToken = 0, voiceKick = 0;
   // What onboarding saved; cached here so the boot greeting can use it before the server answers.
   let SETUP = {};
@@ -3412,10 +3484,31 @@ const tc = THEME.colour;
     renderVoiceToggle();
   };
 
+  // Jarvis mustn't hear himself (CR-002): while he speaks, any mic that's on is held (stopped, the
+  // words so far kept in the box) and picks up again a moment after he finishes. Each mic adds a
+  // { hold, resume } pair to micHolds while it's on. (var, not const: safe if called early.)
+  var micHolds = new Set(), micsHeld = false, releaseTimer = null;
+  function holdMics() {
+    clearTimeout(releaseTimer);
+    if (micsHeld) return;
+    micsHeld = true;
+    micHolds.forEach(h => { try { h.hold(); } catch (_) {} });
+  }
+  function releaseMics() {
+    clearTimeout(releaseTimer);
+    if (!micsHeld) return;
+    releaseTimer = setTimeout(() => {                // let the room's echo die away first
+      if (synth && synth.speaking) { releaseMics(); return; }
+      micsHeld = false;
+      micHolds.forEach(h => { try { h.resume(); } catch (_) {} });
+    }, 700);
+  }
+
   function stopSpeaking() {
     speakToken++;
     if (synth) synth.cancel();
     if (statusEl.classList.contains('speaking')) setStatus('');
+    releaseMics();
   }
 
   var SPEECH_RATE = Number(SETUP.rate) || 1.2;   // 1 is the voice's natural pace, which sounds ponderous for a butler
@@ -3446,6 +3539,7 @@ const tc = THEME.colour;
     const chunks = (clean.match(/[^.!?]+[.!?]*\s*/g) || [clean]).slice(0, maxSentences);
     setTimeout(() => {               // let cancel() settle before queueing (Chrome quirk)
       if (token !== speakToken) return;
+      holdMics();                    // no mic hears what he says
       synth.resume();
       chunks.forEach((chunk, i) => {
         const u = new SpeechSynthesisUtterance(chunk.trim());
@@ -3456,6 +3550,7 @@ const tc = THEME.colour;
         if (i === 0) u.onstart = () => { if (token === speakToken) setStatus('speaking', 'speaking…'); };
         if (i === chunks.length - 1) u.onend = u.onerror = () => {
           if (token === speakToken && statusEl.classList.contains('speaking')) setStatus('');
+          if (token === speakToken) releaseMics();
         };
         synth.speak(u);
       });
@@ -3465,14 +3560,14 @@ const tc = THEME.colour;
   // ---- voice in: webkitSpeechRecognition ---------------------------------------------
   const micEl = document.getElementById('mic');
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  // The mic stays on through pauses, commas and full stops until you click it off; only then is
-  // the question sent. Chrome still ends a session now and then (long silence, network blips),
-  // so while you haven't clicked off it quietly starts a new one and keeps adding to the text.
-  let rec = null, listening = false, wantOn = false, kept = '', session = '', recError = null;
-  // Each click-on is one turn, sent exactly once. Clicking off can land while Chrome is between
-  // sessions (a restart already queued): without this, that late session switched the mic back on
-  // and re-heard the question just sent.
-  let turn = 0, sentTurn = 0, finishTurn = () => {};
+  // Tap the mic to talk; tap it again to pause: what you said stays in the box and nothing is sent.
+  // Tap again to carry on adding to it. Only the arrow (or Enter) sends (CR-005). While it's on, the
+  // mic keeps listening through pauses: Chrome still ends a session now and then, so it quietly starts
+  // a new one. While Jarvis speaks it is held, so it never types his own words (CR-002).
+  let rec = null, listening = false, wantOn = false, kept = '', session = '', recError = null, heldForSpeech = false;
+  // Each tap-on is one listening stretch. A tap-off can land while Chrome is between sessions (a
+  // restart already queued): the turn counter stops that late session switching the mic back on.
+  let turn = 0, sentTurn = 0, finishTurn = () => {}, micOffForSend = () => {};
   const FATAL_REC_ERRORS = new Set(['not-allowed', 'service-not-allowed', 'audio-capture']);
 
   const REC_ERRORS = {
@@ -3482,6 +3577,7 @@ const tc = THEME.colour;
     'audio-capture': 'no microphone found',
     'network': 'speech recognition needs an internet connection',
   };
+  const PAUSED_TEXT = 'paused · tap the mic to carry on, or the arrow to send';
 
   if (!Recognition) {
     micEl.hidden = true;
@@ -3493,14 +3589,30 @@ const tc = THEME.colour;
     rec.maxAlternatives = 1;
 
     const joinText = (a, b) => [a, b].map(s => s.trim()).filter(Boolean).join(' ');
+    const micLook = on => {
+      micEl.classList.toggle('on', on); micEl.classList.remove('held');
+      micEl.setAttribute('aria-pressed', on ? 'true' : 'false');
+      micEl.title = on ? 'Pause (the arrow sends)' : 'Ask by voice';
+    };
+    // Held while Jarvis speaks: stop listening, keep the words; resume picks up from the box.
+    const mainHold = {
+      hold() { if (!wantOn) return; heldForSpeech = true; micEl.classList.add('held'); try { rec.abort(); } catch (_) {} },
+      resume() {
+        if (!heldForSpeech) return;
+        heldForSpeech = false; micEl.classList.remove('held');
+        if (!wantOn) return;
+        kept = qEl.value.trim(); session = ''; recError = null;
+        try { rec.start(); } catch (_) { /* already starting */ }
+      },
+    };
     rec.onstart = () => {
-      if (!wantOn) { try { rec.abort(); } catch (_) {} return; }   // a restart that arrived after click-off
+      if (!wantOn || heldForSpeech) { try { rec.abort(); } catch (_) {} return; }   // a restart that arrived late
       listening = true;
-      micEl.classList.add('on'); micEl.setAttribute('aria-pressed', 'true');
-      setStatus('listening', 'listening… click the mic when you’re done');
+      micLook(true);
+      setStatus('listening', 'listening… tap the mic to pause, the arrow to send');
     };
     rec.onresult = e => {
-      if (sentTurn === turn) return;             // this turn has been sent: ignore stragglers
+      if (sentTurn === turn || heldForSpeech) return;   // sent or paused, or Jarvis is talking: ignore stragglers
       let text = '';
       for (const r of e.results) text += r[0].transcript;
       session = text;
@@ -3509,44 +3621,55 @@ const tc = THEME.colour;
     rec.onerror = e => { recError = e.error; };
     rec.onend = () => {
       listening = false;
+      if (wantOn && heldForSpeech) { kept = joinText(kept, session); session = ''; return; }   // resume() restarts it
       if (wantOn && !FATAL_REC_ERRORS.has(recError)) {   // ended by itself: carry on listening
         kept = joinText(kept, session); session = '';
         recError = null;
-        setTimeout(() => { if (wantOn) try { rec.start(); } catch (_) { /* already starting */ } }, 150);
+        setTimeout(() => { if (wantOn && !heldForSpeech) try { rec.start(); } catch (_) { /* already starting */ } }, 150);
         return;
       }
       finishTurn();
     };
+    // The mic goes off (a second tap, or a fatal error): the words stay in the box, nothing is sent.
     finishTurn = () => {
-      if (sentTurn === turn) return;             // already sent (a late onend after click-off)
+      if (sentTurn === turn) return;             // already finished (a late onend after tap-off)
       sentTurn = turn;
-      kept = joinText(kept, session); session = '';
-      wantOn = false;
-      micEl.classList.remove('on'); micEl.setAttribute('aria-pressed', 'false');
-      const question = kept.trim();
-      kept = '';
-      if (question && !FATAL_REC_ERRORS.has(recError)) { ask(question); return; }
-      if (recError && recError !== 'aborted' && recError !== 'no-speech')
+      wantOn = false; heldForSpeech = false; micHolds.delete(mainHold);
+      kept = ''; session = '';
+      micLook(false);
+      if (recError && FATAL_REC_ERRORS.has(recError))
         setStatus('error', REC_ERRORS[recError] || `voice error: ${recError}`, 5000);
+      else if (qEl.value.trim()) setStatus('paused', PAUSED_TEXT);
+      else if (recError === 'network') setStatus('error', REC_ERRORS.network, 5000);
       else setStatus('');
     };
+    // The arrow or Enter while the mic is on: switch it off now and send what's in the box.
+    micOffForSend = () => {
+      if (!wantOn && !heldForSpeech) return;
+      sentTurn = turn;
+      wantOn = false; heldForSpeech = false; micHolds.delete(mainHold);
+      kept = ''; session = '';
+      try { rec.abort(); } catch (_) {}
+      micLook(false);
+    };
+    micEl.onclick = () => {
+      unlockSpeech();
+      if (wantOn) {                              // second tap: pause, keep the words, send nothing
+        wantOn = false;
+        if (listening) rec.stop();               // its onend finishes the turn once the last words land
+        else { try { rec.abort(); } catch (_) {} finishTurn(); }   // between sessions or held: finish now
+        return;
+      }
+      if (askEl.classList.contains('busy')) return;
+      stopSpeaking();                            // don't let it hear itself
+      turn++;
+      wantOn = true; heldForSpeech = false; session = ''; recError = null;
+      kept = qEl.value.trim();                   // carry on from whatever is in the box
+      micHolds.add(mainHold);
+      try { rec.start(); } catch (_) { /* already starting */ }
+    };
   }
-
-  micEl.onclick = () => {
-    unlockSpeech();
-    if (!rec) return;
-    if (wantOn) {                                // click off: stop and send what was heard
-      wantOn = false;
-      if (listening) rec.stop();                 // its onend sends the turn
-      else { try { rec.abort(); } catch (_) {} finishTurn(); }   // between sessions: cancel the restart, send now
-      return;
-    }
-    if (askEl.classList.contains('busy')) return;
-    stopSpeaking();                              // don't let it hear itself
-    turn++;
-    wantOn = true; kept = ''; session = ''; recError = null; qEl.value = '';
-    try { rec.start(); } catch (_) { /* already starting */ }
-  };
+  if (!rec) micEl.onclick = () => unlockSpeech();
 
   function showAnswer(question, text, ids, isError) {
     answerEl.innerHTML = '';
@@ -3675,22 +3798,33 @@ const tc = THEME.colour;
     return el;
   }
 
+  // The tray is redrawn only when what it shows has changed, and only a card that's new rises in, so
+  // the polling every few seconds no longer makes it flash (CR-003).
+  let jobsHtml = '', jobsSeen = new Set();
   function renderJobs(now = Date.now() / 1000) {
-    jobsEl.innerHTML = '';
-    hires.forEach(h => jobsEl.appendChild(hireCard(h)));
+    const box = document.createElement('div');
+    const open = document.createElement('button');
+    open.type = 'button'; open.className = 'job team-open'; open.dataset.key = 'open';
+    open.title = 'Open a window showing who is working on what';
+    const busyNow = [...jobs.values()].filter(j => j.status === 'running').length;
+    open.innerHTML = '<span>👥</span><b>See what the team is doing</b>' +
+      `<span class="n">${busyNow ? busyNow + (busyNow === 1 ? ' job' : ' jobs') + ' · ' : ''}⤢</span>`;
+    open.onclick = () => showTeamActivity();
+    box.appendChild(open);
+    hires.forEach(h => { const c = hireCard(h); c.dataset.key = 'hire:' + h.folder; box.appendChild(c); });
     const shown = [...jobs.values()].filter(j => !dismissed.has(j.id)).slice(0, 3);
     if (!shown.some(j => j.status === 'running')) {
       // Nothing under way: Larry is on standby, with a hint of what he takes.
       const idle = document.createElement('div');
-      idle.className = 'job idle';
+      idle.className = 'job idle'; idle.dataset.key = 'idle';
       idle.innerHTML = '<div class="top"><span class="spin"></span><b>Jarvis</b><span>standing by</span></div>' +
         '<div class="what">Ask me for any work and the team takes it, e.g. "File today\'s Fireflies ' +
         'notes" or "Draft replies to anything urgent".</div>';
-      jobsEl.appendChild(idle);
+      box.appendChild(idle);
     }
     shown.forEach(j => {
       const el = document.createElement('div');
-      el.className = `job ${j.status}`;
+      el.className = `job ${j.status}`; el.dataset.key = 'job:' + j.id;
       const mins = Math.max(0, Math.round(((j.finished || now) - j.started) / 60));
       const state = j.status === 'running' ? `working · ${mins} min` : j.status === 'done' ? `done · ${mins} min` : 'stopped';
       el.innerHTML = `<div class="top"><span class="spin"></span><b>Team</b><span>${state}</span>` +
@@ -3726,10 +3860,108 @@ const tc = THEME.colour;
         });
       }
       el.appendChild(tools);
-      jobsEl.appendChild(el);
+      box.appendChild(el);
     });
+    const html = box.innerHTML;
+    if (html !== jobsHtml) {
+      jobsHtml = html;
+      const keys = new Set();
+      [...box.children].forEach(c => { keys.add(c.dataset.key); if (!jobsSeen.has(c.dataset.key)) c.classList.add('fresh'); });
+      jobsSeen = keys;
+      jobsEl.replaceChildren(...box.children);
+    }
+    if (teamWinPaint) teamWinPaint();
     refreshStop();
     renderContext();
+  }
+
+  // ---- team activity window (CR-003) ------------------------------------------------------
+  // One readable window for "what is the team doing?": anything waiting on you (approve or answer
+  // right there), who is working on what (project, task, the step they're on now), and what finished
+  // recently. It refreshes every 3 seconds and redraws only what changed, so nothing flickers.
+  var teamWin = null, teamWinPaint = null;   // var: renderJobs may run before this line
+  function showTeamActivity() {
+    if (teamWin && document.body.contains(teamWin)) { document.body.appendChild(teamWin); return; }
+    teamWin = popup({ kicker: 'Team', title: 'What the team is doing', accent: tc('#ffb347'), kind: 'team', big: true,
+      render: (bar, content, tools) => {
+        content.classList.add('team-act');
+        const asksEl = document.createElement('div'), listEl = document.createElement('div');
+        content.append(asksEl, listEl);
+        let cw = null, lastAsks = null, lastList = '', timer = null;
+        const ago = s => { const m = Math.round(s / 60); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : `${Math.round(m / 60)} h ago`; };
+        const paint = () => {
+          if (!document.body.contains(content)) { clearInterval(timer); teamWinPaint = null; return; }
+          const reqs = [...pendingByChat.values()];
+          const key = reqs.map(r => r.ticket + ':' + (r.plain ? r.plain.length : 0)).join();
+          if (key !== lastAsks) {                 // approval cards hold their own buttons: redraw only on change
+            lastAsks = key; asksEl.innerHTML = '';
+            if (reqs.length) {
+              const h = document.createElement('h4'); h.textContent = `Waiting for you · ${reqs.length}`; asksEl.appendChild(h);
+              reqs.forEach(r => {
+                const card = approvalCard(r, () => { pendingByChat.delete(r.chat); lastAsks = null; paint(); });
+                const open = document.createElement('button'); open.type = 'button'; open.className = 'link-btn';
+                open.textContent = `Open ${r.agent}'s chat`; open.onclick = () => showTeamChat(r.agent, r.chat);
+                card.querySelector('.ap-actions').appendChild(open);
+                asksEl.appendChild(card);
+              });
+            }
+          }
+          const nowS = Date.now() / 1000, esc = escapeHtml;
+          const working = cw ? cw.workers.filter(w => !w.done) : [];
+          const byAgent = new Map();
+          working.forEach(w => { if (!byAgent.has(w.agent)) byAgent.set(w.agent, []); byAgent.get(w.agent).push(w); });
+          const projs = new Set(working.map(w => w.project));
+          let sum = !cw ? 'Checking on the team…'
+            : byAgent.size ? `${byAgent.size} ${byAgent.size === 1 ? 'agent is' : 'agents are'} working, on ${projs.size} ${projs.size === 1 ? 'project' : 'projects'}.`
+            : 'Nobody is working right now.';
+          if (reqs.length) sum += ` ${reqs.length} ${reqs.length === 1 ? 'thing needs' : 'things need'} you (above).`;
+          let html = `<p class="ta-sum">${esc(sum)}</p>`;
+          const running = [...jobs.values()].filter(j => j.status === 'running');
+          if (running.length) {
+            html += `<h4>Jobs under way · ${running.length}</h4>` + running.map(j =>
+              `<div class="ta-row"><div class="ta-head"><i></i><b>Job for Larry's team</b><span class="ta-src">started ${ago(nowS - j.started)}</span></div>` +
+              `<div class="ta-line"><span>Asked for</span>${esc(j.task)}</div>` +
+              (j.activity ? `<div class="ta-line now"><span>Right now</span>${esc(j.activity)}</div>` : '') + '</div>').join('');
+          }
+          if (byAgent.size) {
+            html += `<h4>Who is working on what · ${byAgent.size}</h4>` + [...byAgent].map(([name, ws]) =>
+              `<div class="ta-row" style="--accent:${colourOf(name)}"><div class="ta-head"><i></i><b>${esc(name)}</b>` +
+              `<span class="ta-src">${ws.some(w => w.source === 'job') ? 'on a job' : 'in a team chat'}</span></div>` +
+              ws.map(w => `<div class="ta-line"><span>Project</span>${esc(w.project || 'General')}</div>` +
+                (w.task ? `<div class="ta-line"><span>Task</span>${esc(w.task)}</div>` : '') +
+                `<div class="ta-line now"><span>Right now</span>${esc(w.activity || 'thinking it through')}</div>`).join('') +
+              `<div class="ta-tools"><button type="button" class="link-btn" data-chat-with="${esc(name)}">Chat with ${esc(name)}</button></div></div>`).join('');
+          }
+          const finished = [...jobs.values()].filter(j => j.status !== 'running' && nowS - (j.finished || 0) < 3 * 3600)
+            .sort((x, y) => (y.finished || 0) - (x.finished || 0)).slice(0, 6);
+          if (finished.length) {
+            html += '<h4>Finished recently</h4>' + finished.map(j => {
+              const { who } = jobDoneBy(j), ok = j.status === 'done';
+              return `<div class="ta-row ${ok ? 'done' : 'failed'}"><div class="ta-head"><b>${esc(who)}</b>&nbsp;${ok ? 'finished' : "couldn't finish"}` +
+                `<span class="ta-src">${ago(nowS - (j.finished || nowS))}</span></div><div class="ta-line">${esc(j.task)}</div>` +
+                (j.report ? `<div class="ta-tools"><button type="button" class="link-btn" data-report="${esc(j.id)}">Read report</button></div>` : '') + '</div>';
+            }).join('');
+          }
+          if (cw) {
+            const free = (cw.team || []).filter(n => !byAgent.has(n));
+            if (free.length) html += `<h4>Free</h4><p class="ta-free">${esc(free.join(', '))}</p>`;
+          }
+          if (html !== lastList) { lastList = html; listEl.innerHTML = html; }
+        };
+        listEl.addEventListener('click', e => {
+          const c = e.target.closest('[data-chat-with]'), r = e.target.closest('[data-report]');
+          if (c) { if (cw) crew = cw; chatWithBot(c.dataset.chatWith); }
+          if (r) { const j = [...jobs.values()].find(x => String(x.id) === r.dataset.report); if (j) showAnswer(`The team's report · ${j.task}`, j.report, []); }
+        });
+        const poll = async () => {
+          if (!document.body.contains(content)) { clearInterval(timer); return; }
+          try { cw = await api('/api/current-work'); } catch (_) {}
+          paint();
+        };
+        linkButton(tools, 'Office view', () => openCrew(), 'Show the team as bots in the office');
+        teamWinPaint = paint;
+        paint(); poll(); timer = setInterval(poll, 3000);
+      } });
   }
 
   // ---- context gauge ------------------------------------------------------------------

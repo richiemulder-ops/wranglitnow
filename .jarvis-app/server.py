@@ -241,8 +241,8 @@ without consulting the notes, and with no follow-up question. Don't steer the co
 Plain prose only: no headings, lists, markdown or emoji.
 
 After the reply, add two lines of their own:
-SPOKEN: what you would actually say aloud, at most 45 words, with the wit intact. It must carry \
-the answer and the short reason for it, and if your reply ends with a question, SPOKEN ends with it too. The reply and \
+SPOKEN: what you would actually say aloud, at most 110 words, with the wit intact. It must carry \
+the answer and explain the reasoning behind it, not just a verdict, and if your reply ends with a question, SPOKEN ends with it too. The reply and \
 the notes are already on screen, so never read them out: no quoting, no lists of names, figures or \
 dates. Give the gist in your own words, or a dry pointer to the screen. For small talk, SPOKEN is \
 simply your reply.
@@ -340,7 +340,7 @@ def load_team():
 
 
 load_team()
-MAX_SPOKEN_CHARS = 320
+MAX_SPOKEN_CHARS = 800   # about 110 words: room to explain the answer and its reasoning
 MAX_ACTIONS = 4
 
 STOPWORDS = set("""
