@@ -1168,6 +1168,19 @@ const tc = THEME.colour;
     if (pts.length > want) {   // thin evenly so the whole mark stays covered
       const k = pts.length / want; pts = Array.from({ length: want }, (_, i) => pts[Math.floor(i * k)]);
     }
+    // How far each point sits from the petal's edge (0 at the rim), so petals can be rounded in depth.
+    const F = 0.75, edge = [];
+    for (let y = F / 2; y < LOGO_H; y += F) for (let x = F / 2; x < LOGO_W; x += F) {
+      if (inside(x, y) && (!inside(x + F, y) || !inside(x - F, y) || !inside(x, y + F) || !inside(x, y - F))) edge.push([x, y]);
+    }
+    let maxD = 0.001;
+    pts = pts.map(([x, y]) => {
+      let d = Infinity;
+      for (const [ex, ey] of edge) { const dd = (ex - x) * (ex - x) + (ey - y) * (ey - y); if (dd < d) d = dd; }
+      d = Math.sqrt(d); if (d > maxD) maxD = d;
+      return [x, y, d];
+    });
+    pts.forEach(p => { p[2] /= maxD; });   // 0 at the rim, 1 at the thickest point
     logoGrid = { want, pts };
     return pts;
   }
@@ -1175,21 +1188,36 @@ const tc = THEME.colour;
   function layoutLogo(nodes, links, ctx) {
     if (typeof Path2D === 'undefined' || typeof document === 'undefined') return layoutHalo(nodes, links, ctx);
     const R = ctx.HUB_RADIUS, idx = index(nodes, links, ctx), pos = new Map();
-    if (idx.core) pos.set(idx.core.id, { x: 0, y: 0, z: -40 });
+    if (idx.core) pos.set(idx.core.id, { x: 0, y: 0, z: -R * 0.5 });
     const order = idx.types.flatMap(t => t.ordered);
     const pts = logoPoints(order.length);
     const K = (R * 2) / (LOGO_W / 2);   // the mark's radius maps to about 2x HUB_RADIUS
-    const at = ([x, y], id, depth) => ({ x: (x - LOGO_CX) * K, y: -(y - LOGO_CY) * K, z: (hash01(id, 9) - 0.5) * depth });
-    order.forEach((n, i) => pos.set(n.id, at(pts[Math.min(i, pts.length - 1)], n.id, R * 0.12)));
-    // Hubs float just in front of the middle of their own notes.
+    const THICK = R * 0.5, TWIST = R * 0.42;
+    // Each petal is a solid, rounded blade: notes fill its depth (thickest in the middle, thin at
+    // the rim), and the blades twist like a turbine, so the mark has volume from any angle.
+    const at = ([x, y, d], id) => {
+      const dx = x - LOGO_CX, dy = y - LOGO_CY, r = Math.hypot(dx, dy) / (LOGO_W / 2);
+      const a = Math.atan2(dx, -dy);
+      const half = Math.sqrt(Math.max(0, d)) * THICK;            // rounded cross-section
+      const u = hash01(id, 9) * 2 - 1;                            // where in the depth this note sits
+      const z = Math.sign(u) * Math.sqrt(Math.abs(u)) * half      // bias outwards so the surface reads
+              + Math.sin(a * 5 + 0.6) * TWIST * r                 // blade twist
+              - r * r * R * 0.35;                                 // slight dish: the rim curls back
+      return { x: dx * K, y: -dy * K, z };
+    };
+    order.forEach((n, i) => pos.set(n.id, at(pts[Math.min(i, pts.length - 1)], n.id)));
+    // Hubs float in front of the middle of their own notes.
     const centre = list => {
-      const c = { x: 0, y: 0 };
-      list.forEach(n => { const p = pos.get(n.id); c.x += p.x; c.y += p.y; });
-      return { x: c.x / (list.length || 1), y: c.y / (list.length || 1) };
+      const c = { x: 0, y: 0, z: 0 };
+      list.forEach(n => { const p = pos.get(n.id); c.x += p.x; c.y += p.y; c.z += p.z; });
+      const k = list.length || 1;
+      return { x: c.x / k, y: c.y / k, z: c.z / k };
     };
     idx.types.forEach(t => {
-      if (t.ordered.length) pos.set(t.hub.id, { ...centre(t.ordered), z: R * 0.25 });
-      t.groups.forEach(g => { if (g.sub && g.notes.length) pos.set(g.sub.id, { ...centre(g.notes), z: R * 0.15 }); });
+      if (t.ordered.length) { const c = centre(t.ordered); pos.set(t.hub.id, { ...c, z: c.z + THICK * 1.4 }); }
+      t.groups.forEach(g => {
+        if (g.sub && g.notes.length) { const c = centre(g.notes); pos.set(g.sub.id, { ...c, z: c.z + THICK * 0.9 }); }
+      });
     });
     return finish(nodes, pos, idx, R * 3);
   }
@@ -1426,7 +1454,16 @@ const tc = THEME.colour;
   // Where ⌂ and a view change put the camera, so each shape is seen whole and from its best side.
   const VIEW_CAM = { galaxy: { x: 0, y: 200, z: 1150 }, concentric: { x: 0, y: 1900, z: 1900 },
     rings: { x: 0, y: 1500, z: 2100 }, spiral: { x: 0, y: 2300, z: 900 }, tree: { x: 0, y: 300, z: 2700 },
-    logo: { x: 0, y: -150, z: 2900 } };
+    logo: { x: 1750, y: -850, z: 1950 } };   // three-quarter view, so the mark's depth shows
+  // In the Logo view connections bow out of the mark in arcs, each turned its own way, so they read
+  // as a 3D web around the blades rather than lines drawn on it.
+  const endId = e => (e && typeof e === 'object' ? e.id : e);
+  const arcTurn = l => ((endId(l.source) * 7919 + endId(l.target) * 104729) % 6283) / 1000;
+  function setLinkShape(v) {
+    const arcs = v === 'logo';
+    Graph.linkCurvature(arcs ? (l => (l.kind ? 0.12 : 0.45)) : 0)
+         .linkCurveRotation(arcs ? arcTurn : 0);
+  }
   function setView(v, ms = 1200) {
     if (!window.JarvisLayouts || (v !== 'galaxy' && !JarvisLayouts.LAYOUTS[v])) v = 'galaxy';
     viewSel.value = v;
@@ -1434,6 +1471,7 @@ const tc = THEME.colour;
     if (!window.JarvisLayouts) return;
     const pos = v === 'galaxy' ? null : JarvisLayouts.LAYOUTS[v](nodes, hubLinks, { NOTE_COUNT, HUB_RADIUS, typeHub });
     pauseDrift(ms + 4000);
+    setLinkShape(v);
     JarvisLayouts.applyLayout(Graph, v, pos, ms);
     Graph.cameraPosition(VIEW_CAM[v], { x: 0, y: 0, z: 0 }, ms);
   }
