@@ -1,7 +1,10 @@
 {
-  "version": "2026.11.08.1",
+  "version": "2026.11.08.2",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes.",
   "notes": [
+    "Faster answers. Small talk and screen commands (\"show my actions\") now take about 3 seconds, and questions about your notes about half as long as before. Jarvis replies the moment the answer is ready instead of waiting for Claude to shut down.",
+    "Calendar and email questions are quicker: only those words go to Outlook, other connectors are left out of the request, and \"what's on today\" or \"any new emails\" is answered from the Outlook card when it's fresh.",
+    "New View menu under the zoom buttons: show the galaxy as Concentric, Rings, Spiral, Tree or Logo. Galaxy stays the default and your choice is remembered.",
     "The 'Jarvis standing by' box is gone. Click 'See what the team is doing' and it opens up right there, showing each agent at work: project, task and what they're doing now. Click an agent to open their chat.",
     "In project chat, clicking another project in the Projects list switches the chat to it. Anything you'd typed but not sent is kept for each project. Team chat does the same when you click an agent.",
     "Add files to the Team Inbox from the main chat: click the paperclip, paste with Ctrl+V (screenshots too) or drop a file on the chat box. Jarvis is told about the file in your next question.",
@@ -41,6 +44,14 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.08.2",
+      "notes": [
+        "Faster answers. Small talk and screen commands (\"show my actions\") now take about 3 seconds, and questions about your notes about half as long as before. Jarvis replies the moment the answer is ready instead of waiting for Claude to shut down.",
+        "Calendar and email questions are quicker: only those words go to Outlook, other connectors are left out of the request, and \"what's on today\" or \"any new emails\" is answered from the Outlook card when it's fresh.",
+        "New View menu under the zoom buttons: show the galaxy as Concentric, Rings, Spiral, Tree or Logo. Galaxy stays the default and your choice is remembered."
+      ]
+    },
     {
       "version": "2026.11.08.1",
       "notes": [

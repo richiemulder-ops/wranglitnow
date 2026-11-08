@@ -95,6 +95,10 @@
     border: 1px solid var(--edge); background: rgba(255,255,255,0.04); color: var(--ink); font-size: 15px; line-height: 1; }
   #legend .zoom button:hover { background: rgba(186,211,103,0.18); }
   #legend .zoom button.fit { font-size: 12px; }
+  #legend .view { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+  #legend .view select { background: rgba(0,0,0,0.25); color: #fff; border: 1px solid var(--edge); border-radius: 8px;
+    padding: 3px 6px; font: inherit; cursor: pointer; }
+  #legend .view select option { background: #10151c; color: #fff; }
   #legend i { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 10px currentColor; background: currentColor; }
 
   #panel { position: fixed; top: 0; right: 0; height: 100%; width: min(420px, 100vw); box-sizing: border-box;
@@ -903,6 +907,388 @@ const tc = THEME.colour;
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 <script src="graph-data.js"></script>
 <script>
+// Galaxy views (CR-007): inline here because the updater only installs index.html.
+// CR-007 Galaxy layouts for the Jarvis viewer (viewer/index.html).
+//
+// Every layout is a pure function  (nodes, links, ctx) => Map<node.id, {x, y, z}>
+// and returns a position for EVERY node in `nodes` (notes and hubs).
+//
+// ctx contract (all already exist inside index.html's IIFE):
+//   ctx.NOTE_COUNT  number   nodes[0 .. NOTE_COUNT-1] are notes, the rest are hubs
+//   ctx.HUB_RADIUS  number   radius of the type-hub sphere (500); all layouts scale from it
+//   ctx.typeHub     object   { [typeName]: typeHubNode }, in creation order (the order types are drawn in)
+//
+// `links` must contain the hub structure: pass `hubLinks` (kinds 'spoke' note->hub,
+// 'sub' sub-hub->type hub, 'core' type hub->core). Other links are ignored, so passing
+// `backbone` also works. source/target may be ids or node objects (3d-force-graph swaps
+// them for objects), both are handled.
+//
+// Node fields read: id, hub ('core'|'type'|'sub'|undefined), group (type name), label.
+// Deterministic (index/hash based, no Math.random); O(n log n) (one sort per type).
+
+(function (root) {
+  'use strict';
+  const TAU = Math.PI * 2;
+  const idOf = v => (v !== null && typeof v === 'object' ? v.id : v);
+  // Deterministic hash of an integer to [0, 1).
+  const hash01 = (n, salt = 0) => {
+    let h = Math.imul((n | 0) ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(salt + 1, 0xc2b2ae35);
+    h ^= h >>> 15; h = Math.imul(h, 0x2c1b3c6d); h ^= h >>> 12; h = Math.imul(h, 0x297a2d39); h ^= h >>> 15;
+    return (h >>> 0) / 4294967296;
+  };
+  const byLabel = (a, b) => String(a.label || '').localeCompare(String(b.label || ''), undefined, { sensitivity: 'base' }) || a.id - b.id;
+
+  // Shared index: per type, its hub, its sub-hubs and its notes grouped by sub-hub (sorted).
+  function index(nodes, links, ctx) {
+    const parent = new Map();   // note -> hub id, sub-hub -> type hub id
+    for (const l of links) if (l.kind === 'spoke' || l.kind === 'sub') parent.set(idOf(l.source), idOf(l.target));
+    const byId = new Map(nodes.map(n => [n.id, n]));
+    const types = Object.values(ctx.typeHub).filter(h => byId.has(h.id));
+    const T = new Map(types.map((h, i) => [h.group, { hub: h, i, groups: new Map(), count: 0 }]));
+    const core = nodes.find(n => n.hub === 'core') || null;
+    const strays = [];
+    for (const n of nodes) {
+      if (n.hub === 'core' || n.hub === 'type') continue;
+      const t = T.get(n.group);
+      if (!t) { strays.push(n); continue; }
+      if (n.hub === 'sub') {
+        if (!t.groups.has(n.id)) t.groups.set(n.id, { sub: n, notes: [] });
+        continue;
+      }
+      const p = byId.get(parent.get(n.id));
+      const key = p && p.hub === 'sub' ? p.id : 'direct';
+      if (!t.groups.has(key)) t.groups.set(key, { sub: key === 'direct' ? null : p, notes: [] });
+      t.groups.get(key).notes.push(n);
+      t.count++;
+    }
+    for (const t of T.values()) {
+      const gs = [...t.groups.values()];
+      gs.forEach(g => g.notes.sort(byLabel));
+      // Sub-hubs alphabetically, notes filed straight under the type hub last.
+      gs.sort((a, b) => (!a.sub) - (!b.sub) || (a.sub && b.sub ? byLabel(a.sub, b.sub) : 0));
+      t.groups = gs;
+      t.ordered = gs.flatMap(g => g.notes);   // notes in sub-hub-then-name order
+    }
+    return { types: [...T.values()], core, strays, total: nodes.length };
+  }
+
+  // Splits a full turn into one sector per type, proportional to note count (with a floor).
+  function sectors(types, span = TAU, start = 0, gap = 0.04) {
+    const total = types.reduce((s, t) => s + t.count, 0) || 1;
+    const w = types.map(t => Math.max(t.count / total, 0.03));
+    const ws = w.reduce((a, b) => a + b, 0);
+    let a = start;
+    return types.map((t, i) => {
+      const width = (w[i] / ws) * span;
+      const s = { a0: a + gap / 2, a1: a + width - gap / 2 };
+      s.mid = (s.a0 + s.a1) / 2; s.w = s.a1 - s.a0;
+      a += width;
+      return s;
+    });
+  }
+
+  // Positions along [a0, a1] for an ordered list with a small gap between groups; returns per-note angles
+  // and per-group mid angles.
+  function spreadGroups(groups, a0, a1) {
+    const GAP = 1.5;
+    const units = groups.reduce((s, g) => s + g.notes.length, 0) + GAP * Math.max(0, groups.length - 1);
+    const step = units > 0 ? (a1 - a0) / Math.max(units, 1) : 0;
+    let u = 0;
+    const noteA = new Map(), groupMid = new Map();
+    groups.forEach((g, gi) => {
+      const first = u;
+      g.notes.forEach(n => { noteA.set(n.id, a0 + (u + 0.5) * step); u++; });
+      groupMid.set(g, a0 + ((first + u) / 2) * step);
+      if (gi < groups.length - 1) u += GAP;
+    });
+    return { noteA, groupMid };
+  }
+
+  function finish(nodes, pos, idx, R) {
+    // Anything the hub structure didn't cover (should be none) goes on a loose outer ring.
+    let k = 0;
+    for (const n of nodes) {
+      if (pos.has(n.id)) continue;
+      const a = k++ * 2.399963;
+      pos.set(n.id, { x: Math.cos(a) * R, y: (hash01(n.id) - 0.5) * 100, z: Math.sin(a) * R });
+    }
+    return pos;
+  }
+
+  // ---- Concentric: core / ring of type hubs / ring of sub-hubs / shells of notes by type sector ----
+  function layoutConcentric(nodes, links, ctx) {
+    const R = ctx.HUB_RADIUS, idx = index(nodes, links, ctx), pos = new Map();
+    if (idx.core) pos.set(idx.core.id, { x: 0, y: 0, z: 0 });
+    const secs = sectors(idx.types);
+    const R1 = R * 0.6, R2 = R * 1.25, SHELLS = [R * 2, R * 2.35, R * 2.7];
+    idx.types.forEach((t, i) => {
+      const s = secs[i];
+      pos.set(t.hub.id, { x: Math.cos(s.mid) * R1, y: 0, z: Math.sin(s.mid) * R1 });
+      const { groupMid } = spreadGroups(t.groups, s.a0, s.a1);
+      t.groups.forEach(g => {
+        if (!g.sub) return;
+        const a = groupMid.get(g);
+        pos.set(g.sub.id, { x: Math.cos(a) * R2, y: 0, z: Math.sin(a) * R2 });
+      });
+      // Notes: a grid over (azimuth in sector) x (elevation band), column-major so sub-hub groups stay together.
+      const k = t.ordered.length; if (!k) return;
+      const ELEV = 1.0;   // +-0.5 rad elevation band
+      const cols = Math.max(1, Math.round(Math.sqrt(k * s.w / ELEV)));
+      const rows = Math.ceil(k / cols);
+      t.ordered.forEach((n, j) => {
+        const c = Math.floor(j / rows), r = j % rows;
+        const a = s.a0 + ((c + 0.5) / cols) * s.w;
+        const e = rows > 1 ? (r / (rows - 1) - 0.5) * ELEV : 0;
+        const rad = SHELLS[j % SHELLS.length];
+        pos.set(n.id, { x: Math.cos(a) * Math.cos(e) * rad, y: Math.sin(e) * rad, z: Math.sin(a) * Math.cos(e) * rad });
+      });
+    });
+    return finish(nodes, pos, idx, R * 3);
+  }
+
+  // ---- Rings: one flat, tilted ring per type around the core, like planetary rings ----
+  function layoutRings(nodes, links, ctx) {
+    const R = ctx.HUB_RADIUS, idx = index(nodes, links, ctx), pos = new Map();
+    if (idx.core) pos.set(idx.core.id, { x: 0, y: 0, z: 0 });
+    const N = idx.types.length || 1;
+    const r0 = R * 0.7, dr = N > 1 ? (R * 2.6 - r0) / (N - 1) : 0;
+    idx.types.forEach((t, i) => {
+      const rr = r0 + i * dr;
+      const tilt = ((i - (N - 1) / 2) / N) * 0.9;   // about x: -0.45 .. 0.45 rad
+      const yaw = i * 0.55;                          // about y: each ring turned a bit
+      const ct = Math.cos(tilt), st = Math.sin(tilt), cy = Math.cos(yaw), sy = Math.sin(yaw);
+      const place = (a, rad, h) => {
+        // flat ring point (x, h, z), tilt about x, then yaw about y
+        const x = Math.cos(a) * rad, z0 = Math.sin(a) * rad;
+        const y1 = h * ct - z0 * st, z1 = h * st + z0 * ct;
+        return { x: x * cy + z1 * sy, y: y1, z: -x * sy + z1 * cy };
+      };
+      const a0 = i * 2.399963;   // where the ring's groups start (golden-angle stagger)
+      pos.set(t.hub.id, place(a0 - 0.12, rr, 0));
+      const { noteA, groupMid } = spreadGroups(t.groups, a0, a0 + TAU - 0.24);
+      t.groups.forEach(g => { if (g.sub) pos.set(g.sub.id, place(groupMid.get(g), rr - 45, 25)); });
+      t.ordered.forEach((n, j) => {
+        const band = (j % 3 - 1) * 14 + (hash01(n.id, 1) - 0.5) * 10;
+        pos.set(n.id, place(noteA.get(n.id), rr + band, (hash01(n.id, 2) - 0.5) * 12));
+      });
+    });
+    return finish(nodes, pos, idx, R * 3);
+  }
+
+  // ---- Spiral: one galaxy arm per type; notes along the arm by sub-hub then name ----
+  function layoutSpiral(nodes, links, ctx) {
+    const R = ctx.HUB_RADIUS, idx = index(nodes, links, ctx), pos = new Map();
+    if (idx.core) pos.set(idx.core.id, { x: 0, y: 0, z: 0 });
+    const N = idx.types.length || 1;
+    const kmax = Math.max(1, ...idx.types.map(t => t.count));
+    const rIn = R * 0.3, rOutMax = R * 2.8, TURN = Math.PI * 1.3;   // arm sweeps ~234 degrees
+    idx.types.forEach((t, i) => {
+      const th0 = (i / N) * TAU;
+      const rOut = rIn + (rOutMax - rIn) * Math.max(0.35, Math.sqrt(t.count / kmax));
+      const arm = s => {   // centre-line point and its outward-normal angle at s in [0,1]
+        const r = rIn + (rOut - rIn) * s, th = th0 + TURN * s;
+        return { r, th };
+      };
+      const at = (s, lateral, y) => {
+        const { r, th } = arm(s), rr = r + lateral;
+        return { x: Math.cos(th) * rr, y, z: Math.sin(th) * rr };
+      };
+      pos.set(t.hub.id, at(0, 0, 0));
+      const k = t.ordered.length;
+      const sOf = new Map();
+      // Notes start a little way out from the hub; sqrt spacing keeps density even along the widening arm.
+      t.ordered.forEach((n, j) => sOf.set(n.id, 0.06 + 0.94 * Math.sqrt((j + 0.5) / Math.max(k, 1))));
+      t.ordered.forEach(n => {
+        const s = sOf.get(n.id), width = 30 + 90 * s;
+        const lat = (hash01(n.id, 3) - 0.5) * width;
+        const y = (hash01(n.id, 4) - 0.5) * (50 - 25 * s);
+        pos.set(n.id, at(s, lat, y));
+      });
+      t.groups.forEach(g => {
+        if (!g.sub) return;
+        const ss = g.notes.length ? g.notes.reduce((a, n) => a + sOf.get(n.id), 0) / g.notes.length : 0.05;
+        pos.set(g.sub.id, at(ss, 0, 40));
+      });
+    });
+    return finish(nodes, pos, idx, R * 3);
+  }
+
+  // ---- Tree: core -> type hub -> sub-hub -> note, top-down levels by y, radial wedges by leaf count ----
+  function layoutTree(nodes, links, ctx) {
+    const R = ctx.HUB_RADIUS, idx = index(nodes, links, ctx), pos = new Map();
+    const Y = [R * 1.2, R * 0.5, -R * 0.2, -R * 0.9];   // core, type, sub, notes (top row)
+    if (idx.core) pos.set(idx.core.id, { x: 0, y: Y[0], z: 0 });
+    const secs = sectors(idx.types, TAU, 0, 0.06);
+    const RT = R * 0.5, RS = R * 1.2, RN = R * 1.9, ROWS = 4, ROW_DR = R * 0.22, ROW_DY = R * 0.14;
+    idx.types.forEach((t, i) => {
+      const s = secs[i];
+      pos.set(t.hub.id, { x: Math.cos(s.mid) * RT, y: Y[1], z: Math.sin(s.mid) * RT });
+      const { noteA, groupMid } = spreadGroups(t.groups, s.a0, s.a1);
+      t.groups.forEach(g => {
+        if (!g.sub) return;
+        const a = groupMid.get(g);
+        pos.set(g.sub.id, { x: Math.cos(a) * RS, y: Y[2], z: Math.sin(a) * RS });
+      });
+      t.ordered.forEach((n, j) => {
+        const a = noteA.get(n.id), row = j % ROWS, r = RN + row * ROW_DR;
+        pos.set(n.id, { x: Math.cos(a) * r, y: Y[3] - row * ROW_DY, z: Math.sin(a) * r });
+      });
+    });
+    return finish(nodes, pos, idx, R * 3);
+  }
+
+  // ---- Logo: notes form a halo ring with a gap (facing the default camera on +z) ----
+  // ---- Logo: the notes fill the Carbonhalo mark (five petals), each type a stretch round it ----
+  // The mark's path, from carbonhalo_logo_black.svg (viewBox 0 0 91.6415 90.7938).
+  const LOGO_PATH = 'M44.3513.0012A45.2618,45.2618,0,0,1,71.3378,8.9134c12.0207,8.9112,9.4169,22.413-.3761,22.413a22.5864,22.5864,0,0,1-21.5-15.597C46.91,7.8744,44.3513.0012,44.3513.0012ZM1.2359,31.3264A45.2622,45.2622,0,0,1,18.0513,8.4147c12.1895-8.6786,24.226-2.03,21.2,7.2838a22.5866,22.5866,0,0,1-21.4775,15.628Zm86.2309,0a45.2624,45.2624,0,0,1-.1368,28.42c-4.76,14.186-18.4061,15.8819-21.4323,6.5683a22.5864,22.5864,0,0,1,8.19-25.2675ZM17.7045,82.0116A45.2631,45.2631,0,0,1,1.1105,58.9392C-3.3766,44.6643,6.6662,35.2716,14.5889,41.0277a22.5867,22.5867,0,0,1,8.2262,25.2557C20.2628,74.1384,17.7045,82.0116,17.7045,82.0116Zm53.2937,0a45.2628,45.2628,0,0,1-27.0711,8.6521C28.9644,90.52,23.1347,78.0662,31.0574,72.31a22.5864,22.5864,0,0,1,26.5616-.0192Z';
+  const LOGO_W = 91.6415, LOGO_H = 90.7938, LOGO_CX = 45.82, LOGO_CY = 45.4;
+  let logoGrid = null;   // { step, pts: [[x, y], ...] } in logo units, cached per note count
+  function logoPoints(want) {
+    if (logoGrid && logoGrid.want === want) return logoGrid.pts;
+    const path = new Path2D(LOGO_PATH);
+    const cv = document.createElement('canvas'); cv.width = cv.height = 4;
+    const g = cv.getContext('2d');
+    const inside = (x, y) => g.isPointInPath(path, x, y, 'evenodd');
+    // Area share of the mark from a coarse pass, then a grid fine enough to hold every note.
+    let hit = 0, tot = 0;
+    for (let y = 0.25; y < LOGO_H; y += 0.5) for (let x = 0.25; x < LOGO_W; x += 0.5) { tot++; if (inside(x, y)) hit++; }
+    const area = LOGO_W * LOGO_H * hit / Math.max(1, tot);
+    let step = Math.sqrt(area / Math.max(1, want)) * 0.92, pts = [];
+    for (let tries = 0; tries < 6; tries++, step *= 0.85) {
+      pts = [];
+      for (let y = step / 2; y < LOGO_H; y += step) {
+        const off = (Math.round(y / step) % 2) * step / 2;   // staggered rows read as a finer mesh
+        for (let x = step / 2 + off; x < LOGO_W; x += step) if (inside(x, y)) pts.push([x, y]);
+      }
+      if (pts.length >= want) break;
+    }
+    // Sweep clockwise from the top petal, inner to outer, so each type takes a stretch of the mark.
+    const ang = ([x, y]) => (Math.atan2(x - LOGO_CX, -(y - LOGO_CY)) + TAU) % TAU;
+    pts.sort((p, q) => ang(p) - ang(q) || Math.hypot(p[0] - LOGO_CX, p[1] - LOGO_CY) - Math.hypot(q[0] - LOGO_CX, q[1] - LOGO_CY));
+    if (pts.length > want) {   // thin evenly so the whole mark stays covered
+      const k = pts.length / want; pts = Array.from({ length: want }, (_, i) => pts[Math.floor(i * k)]);
+    }
+    logoGrid = { want, pts };
+    return pts;
+  }
+
+  function layoutLogo(nodes, links, ctx) {
+    if (typeof Path2D === 'undefined' || typeof document === 'undefined') return layoutHalo(nodes, links, ctx);
+    const R = ctx.HUB_RADIUS, idx = index(nodes, links, ctx), pos = new Map();
+    if (idx.core) pos.set(idx.core.id, { x: 0, y: 0, z: -40 });
+    const order = idx.types.flatMap(t => t.ordered);
+    const pts = logoPoints(order.length);
+    const K = (R * 2) / (LOGO_W / 2);   // the mark's radius maps to about 2x HUB_RADIUS
+    const at = ([x, y], id, depth) => ({ x: (x - LOGO_CX) * K, y: -(y - LOGO_CY) * K, z: (hash01(id, 9) - 0.5) * depth });
+    order.forEach((n, i) => pos.set(n.id, at(pts[Math.min(i, pts.length - 1)], n.id, R * 0.12)));
+    // Hubs float just in front of the middle of their own notes.
+    const centre = list => {
+      const c = { x: 0, y: 0 };
+      list.forEach(n => { const p = pos.get(n.id); c.x += p.x; c.y += p.y; });
+      return { x: c.x / (list.length || 1), y: c.y / (list.length || 1) };
+    };
+    idx.types.forEach(t => {
+      if (t.ordered.length) pos.set(t.hub.id, { ...centre(t.ordered), z: R * 0.25 });
+      t.groups.forEach(g => { if (g.sub && g.notes.length) pos.set(g.sub.id, { ...centre(g.notes), z: R * 0.15 }); });
+    });
+    return finish(nodes, pos, idx, R * 3);
+  }
+
+  function layoutHalo(nodes, links, ctx) {
+    const R = ctx.HUB_RADIUS, idx = index(nodes, links, ctx), pos = new Map();
+    if (idx.core) pos.set(idx.core.id, { x: 0, y: 0, z: 0 });
+    const RING = R * 1.8, TUBE = R * 0.16, GAP = 0.7;   // ~40 degree gap at the upper right
+    const start = Math.PI / 4 + GAP / 2, span = TAU - GAP;
+    const secs = sectors(idx.types, span, start, 0.015);
+    const all = idx.types.reduce((s, t) => s + t.count, 0) || 1;
+    const turns = Math.max(1, Math.round(Math.sqrt(all) / 3));   // twists of the tube: spreads the dots
+    idx.types.forEach((t, i) => {
+      const s = secs[i];
+      pos.set(t.hub.id, { x: Math.cos(s.mid) * R * 1.2, y: Math.sin(s.mid) * R * 1.2, z: 0 });
+      const { noteA, groupMid } = spreadGroups(t.groups, s.a0, s.a1);
+      t.groups.forEach(g => {
+        if (!g.sub) return;
+        const a = groupMid.get(g);
+        pos.set(g.sub.id, { x: Math.cos(a) * R * 1.45, y: Math.sin(a) * R * 1.45, z: 0 });
+      });
+      t.ordered.forEach(n => {
+        const a = noteA.get(n.id);
+        const phi = ((a - start) / span) * turns * TAU * 7 + hash01(n.id, 5) * 0.6;   // around the tube
+        const tr = TUBE * (0.35 + 0.65 * hash01(n.id, 6));
+        const rr = RING + Math.cos(phi) * tr;
+        pos.set(n.id, { x: Math.cos(a) * rr, y: Math.sin(a) * rr, z: Math.sin(phi) * tr });
+      });
+    });
+    return finish(nodes, pos, idx, R * 3);
+  }
+
+  // ---- applyLayout: switch the live graph between layouts ----
+  // 'galaxy' restores the force layout: notes and sub-hubs unpinned, core and type hubs back on their
+  // original pins, simulation reheated. Any other name tweens every node from where it is to
+  // `positions` over `ms`, then leaves it pinned (fx/fy/fz) so the force sim doesn't move it.
+  // Returns a Promise that resolves when the move is done (or is superseded by a newer call).
+  const state = new WeakMap();   // Graph -> { pins: Map<id,{fx,fy,fz}>, raf, resolve }
+  function applyLayout(Graph, name, positions, ms = 1200) {
+    const nodes = Graph.graphData().nodes;
+    let st = state.get(Graph);
+    if (!st) {   // first switch: remember the original pins (core + type hubs)
+      st = { pins: new Map(), raf: 0, resolve: null };
+      for (const n of nodes) if (n.fx != null || n.fy != null || n.fz != null) st.pins.set(n.id, { fx: n.fx, fy: n.fy, fz: n.fz });
+      state.set(Graph, st);
+    }
+    if (st.raf) cancelAnimationFrame(st.raf);
+    if (st.resolve) st.resolve(false);
+    st.raf = 0; st.resolve = null;
+
+    let targets;
+    if (name === 'galaxy') {
+      targets = new Map();
+      for (const n of nodes) {
+        const p = st.pins.get(n.id);
+        if (p) targets.set(n.id, { x: p.fx, y: p.fy, z: p.fz });
+        else { n.fx = n.fy = n.fz = undefined; n.vx = n.vy = n.vz = 0; }
+      }
+    } else {
+      targets = positions;
+    }
+    const moving = [];
+    for (const n of nodes) {
+      const to = targets && targets.get(n.id);
+      if (!to) continue;
+      const fx = Number.isFinite(n.x) ? n.x : 0, fy = Number.isFinite(n.y) ? n.y : 0, fz = Number.isFinite(n.z) ? n.z : 0;
+      moving.push({ n, fx, fy, fz, to });
+    }
+    Graph.d3ReheatSimulation();   // keeps the engine ticking so pinned moves are drawn
+    const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+    const set = (m, e) => {
+      const n = m.n;
+      if (e >= 1) { n.fx = n.x = m.to.x; n.fy = n.y = m.to.y; n.fz = n.z = m.to.z; return; }
+      n.fx = n.x = m.fx + (m.to.x - m.fx) * e;
+      n.fy = n.y = m.fy + (m.to.y - m.fy) * e;
+      n.fz = n.z = m.fz + (m.to.z - m.fz) * e;
+    };
+    return new Promise(resolve => {
+      st.resolve = resolve;
+      const t0 = performance.now();
+      const step = now => {
+        const t = ms > 0 ? Math.min(1, (now - t0) / ms) : 1, e = ease(t);
+        for (const m of moving) set(m, e);
+        if (t < 1) { st.raf = requestAnimationFrame(step); return; }
+        st.raf = 0; st.resolve = null;
+        if (name === 'galaxy') Graph.d3ReheatSimulation();   // let the notes settle round their hubs again
+        resolve(true);
+      };
+      st.raf = requestAnimationFrame(step);
+    });
+  }
+
+  const LAYOUTS = { concentric: layoutConcentric, rings: layoutRings, spiral: layoutSpiral, tree: layoutTree, logo: layoutLogo };
+  const api = { layoutConcentric, layoutRings, layoutSpiral, layoutTree, layoutLogo, applyLayout, LAYOUTS };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.JarvisLayouts = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+<script>
 (() => {
   const PALETTE = [tc('#bad367'), tc('#ff9f43'), tc('#7fc35a'), tc('#f7853b'), tc('#d9ec8f'), tc('#ffc46b'),
                    tc('#4fa36b'), tc('#e8743b'), tc('#a3e37a'), tc('#ffb37a'), tc('#93c47d'), tc('#f2c14e')];
@@ -1028,8 +1414,33 @@ const tc = THEME.colour;
     const z = e.target.closest('button') && e.target.closest('button').dataset.z;
     if (z === 'in') zoomBy(0.75);
     else if (z === 'out') zoomBy(1.33);
-    else if (z === 'fit') { pauseDrift(6000); Graph.cameraPosition({ x: 0, y: 200, z: 1150 }, { x: 0, y: 0, z: 0 }, 900); }
+    else if (z === 'fit') { pauseDrift(6000); Graph.cameraPosition(VIEW_CAM[viewSel.value] || VIEW_CAM.galaxy, { x: 0, y: 0, z: 0 }, 900); }
   };
+
+  // ---- View: the galaxy (force layout) or a fixed shape, animated between (CR-007) ----------
+  const VIEWS = [['galaxy', 'Galaxy'], ['concentric', 'Concentric'], ['rings', 'Rings'], ['spiral', 'Spiral'],
+                 ['tree', 'Tree'], ['logo', 'Logo']];
+  legendEl.insertAdjacentHTML('beforeend', '<div class="view"><label for="view-sel">View</label><select id="view-sel">' +
+    VIEWS.map(([v, t]) => `<option value="${v}">${t}</option>`).join('') + '</select></div>');
+  const viewSel = document.getElementById('view-sel');
+  // Where ⌂ and a view change put the camera, so each shape is seen whole and from its best side.
+  const VIEW_CAM = { galaxy: { x: 0, y: 200, z: 1150 }, concentric: { x: 0, y: 1900, z: 1900 },
+    rings: { x: 0, y: 1500, z: 2100 }, spiral: { x: 0, y: 2300, z: 900 }, tree: { x: 0, y: 300, z: 2700 },
+    logo: { x: 0, y: -150, z: 2900 } };
+  function setView(v, ms = 1200) {
+    if (!window.JarvisLayouts || (v !== 'galaxy' && !JarvisLayouts.LAYOUTS[v])) v = 'galaxy';
+    viewSel.value = v;
+    try { localStorage.setItem('jarvis-layout', v); } catch (e) {}
+    if (!window.JarvisLayouts) return;
+    const pos = v === 'galaxy' ? null : JarvisLayouts.LAYOUTS[v](nodes, hubLinks, { NOTE_COUNT, HUB_RADIUS, typeHub });
+    pauseDrift(ms + 4000);
+    JarvisLayouts.applyLayout(Graph, v, pos, ms);
+    Graph.cameraPosition(VIEW_CAM[v], { x: 0, y: 0, z: 0 }, ms);
+  }
+  viewSel.onchange = () => setView(viewSel.value);
+  let savedView = 'galaxy';
+  try { savedView = localStorage.getItem('jarvis-layout') || 'galaxy'; } catch (e) {}
+  if (savedView !== 'galaxy') setTimeout(() => setView(savedView, 800), 300); else viewSel.value = 'galaxy';
 
   // ---- node dot texture: a hard-edged disc with a thin, faint halo ------------------------
   const DOT_CORE = 0.4;   // core diameter as a share of the sprite
