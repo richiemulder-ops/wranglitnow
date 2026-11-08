@@ -1,7 +1,8 @@
 {
-  "version": "2026.11.08.3",
+  "version": "2026.11.08.4",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes.",
   "notes": [
+    "The Logo view is back to the flat Carbonhalo mark.",
     "The Logo view is now 3D: each petal of the mark has depth and a slight twist, and the connections arc around it. It opens at an angle and slowly turns so the depth shows.",
     "Faster answers. Small talk and screen commands (\"show my actions\") now take about 3 seconds, and questions about your notes about half as long as before. Jarvis replies the moment the answer is ready instead of waiting for Claude to shut down.",
     "Calendar and email questions are quicker: only those words go to Outlook, other connectors are left out of the request, and \"what's on today\" or \"any new emails\" is answered from the Outlook card when it's fresh.",
@@ -45,6 +46,12 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.08.4",
+      "notes": [
+        "The Logo view is back to the flat Carbonhalo mark."
+      ]
+    },
     {
       "version": "2026.11.08.3",
       "notes": [
