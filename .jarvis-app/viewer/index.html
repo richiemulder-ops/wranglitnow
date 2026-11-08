@@ -570,6 +570,19 @@
     text-align: left; cursor: pointer; }
   .job.team-open:hover { border-color: var(--brand); }
   .job.team-open .n { margin-left: auto; color: var(--dim); font-size: 11.5px; }
+  .job.team-open.expanded { border-color: rgba(186,211,103,0.45); }
+  /* CR-006: the team button opened up, one block per agent at work. */
+  .job.crew-list { display: flex; flex-direction: column; gap: 8px; }
+  .crew-list .cl-agent { padding: 7px 9px; border-radius: 9px; background: rgba(255,255,255,0.04);
+    border-left: 3px solid var(--accent, #bad367); cursor: pointer; }
+  .crew-list .cl-agent:hover { background: rgba(255,255,255,0.08); }
+  .crew-list .cl-name { display: flex; align-items: center; gap: 7px; font-size: 13px; }
+  .crew-list .cl-name i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent, #bad367); animation: blink 2.4s ease-in-out infinite; }
+  .crew-list .cl-name span { margin-left: auto; font-size: 11.5px; color: var(--dim); text-align: right; }
+  .crew-list .cl-task { margin-top: 3px; color: #cfd6e6; font-size: 12.5px; }
+  .crew-list .cl-now { margin-top: 2px; color: #d6e89a; font-size: 12px; }
+  .crew-list .cl-empty { color: var(--dim); font-size: 12.5px; }
+  .crew-list .tools { margin-top: 0; }
   /* Team activity window (CR-003): who is working on what, in plain words. */
   .team-act { font-size: 13px; line-height: 1.5; }
   .team-act .ta-sum { margin: 10px 0 2px; font-size: 14px; color: var(--ink); }
@@ -668,7 +681,16 @@
   /* Speaker and mic: the same line icons as the rail cards, in the brand green with its glow. */
   .icon-btn svg { width: 19px; height: 19px; display: block; margin: auto; fill: none; stroke: currentColor;
     stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 5px currentColor); }
-  #voice-toggle, #mic, .icon-btn.mic { color: var(--brand); }
+  #voice-toggle, #mic, #attach, .icon-btn.mic { color: var(--brand); }
+  /* CR-017: files attached, pasted or dropped on the chat go to Team Inbox; chips name them. */
+  #ask form.drop-over { border-color: var(--brand); box-shadow: 0 0 50px rgba(186,211,103,0.4); }
+  #attached { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  #attached[hidden] { display: none; }
+  #attached .chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; font-size: 12px; color: var(--ink);
+    background: var(--glass); backdrop-filter: blur(14px); border: 1px solid rgba(127,195,90,0.55); border-radius: 999px; padding: 3px 6px 3px 10px; }
+  #attached .chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #attached .chip button { background: none; border: 0; color: var(--dim); cursor: pointer; font-size: 12px; padding: 0 3px; }
+  #attached .chip button:hover { color: var(--ink); }
   #mic.on, .icon-btn.mic.on { color: #ff8a9e; }
   @keyframes micpulse { 50% { box-shadow: 0 0 0 9px rgba(255,80,110,0.14); } }
 
@@ -863,8 +885,11 @@ const tc = THEME.colour;
 <div id="ask">
   <div id="answer" aria-live="polite"></div>
   <div id="status" role="status"><span class="dot">●</span><span id="status-text"></span></div>
+  <div id="attached" hidden></div>
   <form id="ask-form" autocomplete="off">
     <input id="q" type="text" maxlength="1000" placeholder="Ask your notes anything…" aria-label="Ask your notes">
+    <input id="attach-file" type="file" multiple hidden>
+    <button id="attach" class="icon-btn" type="button" title="Add a file to the Team Inbox (or paste one with Ctrl+V, or drop it here)" aria-label="Attach a file"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 11.5l-8.3 8.3a5 5 0 0 1-7.1-7.1l8.6-8.6a3.4 3.4 0 0 1 4.8 4.8l-8.6 8.6a1.8 1.8 0 0 1-2.5-2.5l7.9-7.9"/></svg></button>
     <button id="voice-toggle" class="icon-btn" type="button" title="Read answers aloud (on)" aria-pressed="true"></button>
     <button id="mic" class="icon-btn" type="button" title="Ask by voice" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></button>
     <button id="stop" type="button" title="Stop Jarvis and any work under way" aria-label="Stop" hidden><svg class="stop-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></svg></button>
@@ -1464,7 +1489,20 @@ const tc = THEME.colour;
     a.card = itemButton(agentsBody, { name: a.name, sub: a.role, color: a.color,
       title: a.description || a.role, onClick: () => toggleGroup(a) });
   });
-  function toggleGroup(g) { activeProject === g ? clearSelection() : showProject(g); }
+  // With a project chat (or team chat) on screen, clicking another project (or agent) in the
+  // sidebar switches that chat to it and lights it up, instead of opening the side panel (CR-016).
+  function toggleGroup(g) {
+    const kicker = workEl.classList.contains('open') && workEl.current ? workEl.current.kicker : '';
+    if (kicker === 'Project chat' && g.kind === 'Project') {
+      if (lastChatProject !== g.name) showProjectChat(g.name);
+      focusNodes(g.nodes); setActiveProject(g); return;
+    }
+    if (kicker.startsWith('Team chat') && g.kind !== 'Project') {
+      if (lastTeamAgent !== g.name) showTeamChat(g.name);
+      focusNodes(g.nodes); setActiveProject(g); return;
+    }
+    activeProject === g ? clearSelection() : showProject(g);
+  }
 
   // ---- workspace: documents, Actions, Meetings and the CRM in the main window ------------
   // Views stack: opening a document from a list keeps a "← Back" to that list.
@@ -2000,6 +2038,7 @@ const tc = THEME.colour;
   // Project chat: pick a project and talk to Jarvis about it alone. Each conversation is saved as
   // a markdown file in copilot/projects/<Project>/jarvis-chats/ and remembered when reopened.
   let lastChatProject = null;
+  const chatDrafts = {};   // unsent words per project, kept when you switch projects (CR-016)
   function showProjectChat(projectName = lastChatProject || (projects[0] && projects[0].name), chatPath = null) {
     lastChatProject = projectName;
     const project = projects.find(p => p.name === projectName);
@@ -2070,7 +2109,7 @@ const tc = THEME.colour;
         async function send() {
           const q = input.value.trim();
           if (!q || busy) return;
-          busy = true; input.value = '';
+          busy = true; input.value = ''; delete chatDrafts[projectName];
           sendBtn.innerHTML = STOP_ICON; sendBtn.title = 'Stop'; sendBtn.classList.add('stopper');
           stopSpeaking();
           addMsg('you', q);
@@ -2146,7 +2185,12 @@ const tc = THEME.colour;
           micBtn.classList.add('on'); setStatus('listening', 'listening… tap the mic to pause, the arrow to send');
           try { rec.start(); } catch (_) {}
         };
-        workEl.current.stop = () => { if (listening) { micOff(); input.value = ''; } };
+        workEl.current.stop = () => {
+          if (listening || held) micOff();
+          const left = input.value.trim();
+          if (left) chatDrafts[projectName] = left; else delete chatDrafts[projectName];
+        };
+        if (chatDrafts[projectName]) { input.value = chatDrafts[projectName]; input.oninput(); }
 
         loadList(); loadChat();
         setTimeout(() => input.focus(), 50);
@@ -2657,6 +2701,10 @@ const tc = THEME.colour;
     const picker = Object.assign(document.createElement('input'), { type: 'file', multiple: true, hidden: true });
     picker.onchange = () => { upload([...picker.files], 0); picker.value = ''; };
     sec.appendChild(picker);
+    inboxAdded = names => {   // the main chat added these to the inbox root: offer "File it" and refresh
+      justAdded = justAdded.concat(names);
+      if (sec.classList.contains('open') && !current) load(body, current);
+    };
 
     async function upload(files, skippedFolders) {
       if (!sec.classList.contains('open')) sec.querySelector('.head').click();
@@ -2690,22 +2738,28 @@ const tc = THEME.colour;
 
     const hasFiles = e => [...(e.dataTransfer?.types || [])].includes('Files');
     let dragDepth = 0;
-    const clearDrag = () => { dragDepth = 0; sec.classList.remove('drop-ready', 'drop-over'); };
+    const askForm = document.getElementById('ask-form');
+    const clearDrag = () => { dragDepth = 0; sec.classList.remove('drop-ready', 'drop-over'); askForm.classList.remove('drop-over'); };
     // Anywhere on the page: show where files can go, and stop the browser opening a dropped file.
     window.addEventListener('dragenter', e => { if (hasFiles(e)) { dragDepth++; sec.classList.add('drop-ready'); } });
     window.addEventListener('dragleave', e => { if (hasFiles(e) && --dragDepth <= 0) clearDrag(); });
     window.addEventListener('dragover', e => {
       if (!hasFiles(e)) return;
       e.preventDefault();
-      const over = sec.contains(e.target);
+      const over = sec.contains(e.target), onChat = askForm.contains(e.target);
       sec.classList.toggle('drop-over', over);
-      e.dataTransfer.dropEffect = over ? 'copy' : 'none';
+      askForm.classList.toggle('drop-over', onChat);
+      e.dataTransfer.dropEffect = over || onChat ? 'copy' : 'none';
     });
     window.addEventListener('drop', e => {
       if (!hasFiles(e)) return;
       e.preventDefault();
-      const over = sec.contains(e.target);
+      const over = sec.contains(e.target), onChat = askForm.contains(e.target);
       clearDrag();
+      if (onChat) {   // dropped on the chat box: straight into the inbox root (CR-017)
+        attachToInbox([...e.dataTransfer.files].filter(f => f.size || f.type));
+        return;
+      }
       if (!over) return;
       // Folders arrive as zero-byte "files"; keep real files only.
       const items = [...e.dataTransfer.items].filter(it => it.kind === 'file');
@@ -2715,6 +2769,7 @@ const tc = THEME.colour;
       if (files.length || skipped) upload(files, skipped);
     });
   }
+  var inboxAdded = null;   // set by the Team Inbox card: files the chat added (CR-017)
   folderSection('inbox', ICON.inbox, 'Team Inbox', tc('#7fc35a'));
   folderSection('deliverables', ICON.deliverables, 'Deliverables', tc('#ffc46b'));
 
@@ -2959,6 +3014,62 @@ const tc = THEME.colour;
     ask(qEl.value.trim());
   });
 
+  // CR-017: attach (📎), paste (Ctrl+V) or drop a file on the chat box and it goes straight into
+  // Team Inbox. Chips above the box name what arrived; the next question tells Jarvis about them.
+  const attachPick = document.getElementById('attach-file'), attachedEl = document.getElementById('attached');
+  let chatAttached = [];
+  document.getElementById('attach').onclick = () => attachPick.click();
+  attachPick.onchange = () => { attachToInbox([...attachPick.files]); attachPick.value = ''; };
+  function paintAttached() {
+    attachedEl.hidden = !chatAttached.length;
+    attachedEl.innerHTML = chatAttached.map((n, i) =>
+      `<span class="chip" title="In Team Inbox: ${escapeHtml(n)}">📎 <span>${escapeHtml(n)}</span>` +
+      `<button type="button" data-i="${i}" title="Don't mention it in my next question (the file stays in Team Inbox)">✕</button></span>`).join('');
+  }
+  attachedEl.onclick = e => { const b = e.target.closest('button[data-i]'); if (b) { chatAttached.splice(+b.dataset.i, 1); paintAttached(); } };
+  function pastedName(f, i) {
+    // Screenshots paste as "image.png": give them a dated name so they don't pile up as "image (7).png".
+    if (f.name && !/^image\.\w+$/i.test(f.name)) return f.name;
+    const d = new Date(), p = n => String(n).padStart(2, '0');
+    const ext = ((f.type || '').split('/')[1] || 'png').replace('jpeg', 'jpg').replace(/[^a-z0-9]/gi, '') || 'png';
+    return `pasted-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}` +
+           `${i ? '-' + (i + 1) : ''}.${ext}`;
+  }
+  async function attachToInbox(files) {
+    if (!files.length) return;
+    const added = [], failed = [];
+    for (const [i, f] of files.entries()) {
+      setStatus('thinking', `Adding ${files.length > 1 ? `${i + 1} of ${files.length} ` : ''}to Team Inbox…`);
+      try {
+        const res = await fetch(`/api/upload?name=inbox&path=&file=${encodeURIComponent(f.name)}`, {
+          method: 'POST', credentials: 'same-origin',
+          headers: { 'X-Galaxy': '1', 'Content-Type': 'application/octet-stream' }, body: f
+        });
+        const data = await res.json().catch(() => ({ error: `Server error ${res.status}` }));
+        if (!res.ok || data.error) throw new Error(data.error || `Server error ${res.status}`);
+        added.push(data.name);
+      } catch (err) { failed.push(`${f.name}: ${err.message}`); }
+    }
+    if (added.length) {
+      chatAttached = chatAttached.concat(added); paintAttached();
+      if (inboxAdded) inboxAdded(added);
+      setStatus('done', `Filed to Team Inbox: ${added.join(', ')}`, 5000);
+      speak(added.length === 1 ? 'Filed to the Team Inbox.' : `${added.length} files filed to the Team Inbox.`);
+    }
+    if (failed.length) setStatus('error', failed.join(' · '), 8000);
+    qEl.focus();
+  }
+  // Paste: in the chat box, or anywhere that isn't another text field. Plain text pastes as usual.
+  window.addEventListener('paste', e => {
+    const t = e.target;
+    if (t !== qEl && t.closest && t.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) return;
+    const files = [...((e.clipboardData && e.clipboardData.files) || [])];
+    // Text copied from Word or a web page can carry a picture of itself too: text wins.
+    if (!files.length || (e.clipboardData.getData('text/plain') || '').trim()) return;
+    e.preventDefault();
+    attachToInbox(files.map((f, i) => new File([f], pastedName(f, i), { type: f.type })));
+  });
+
   // What Jarvis was asked to do, beyond answering: the server has already saved the note or
   // opened the file; the page shows the result.
   function handleAction(a) {
@@ -3013,13 +3124,16 @@ const tc = THEME.colour;
     stopSpeaking();
     setStatus('thinking', 'thinking…');
     showAnswer(question, 'Processing your request…', []);
+    const mentioned = chatAttached.slice();   // files just put in Team Inbox from the chat (CR-017)
+    const sent = mentioned.length ? `${question}\n\n(I've just added to the Team Inbox: ${mentioned.join(', ')}.)` : question;
     try {
       const res = await fetch('/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question }), credentials: 'same-origin'
+        body: JSON.stringify({ question: sent }), credentials: 'same-origin'
       });
       const data = await res.json().catch(() => ({ error: `Server error ${res.status}` }));
       if (!res.ok || data.error) throw new Error(data.error || `Server error ${res.status}`);
+      if (mentioned.length) { chatAttached = chatAttached.filter(n => !mentioned.includes(n)); paintAttached(); }
       const used = (data.nodes || []).filter(i => Number.isInteger(i) && nodes[i]);
       showAnswer(question, data.answer, used);
       proveAnswer(used);
@@ -3801,27 +3915,48 @@ const tc = THEME.colour;
   // The tray is redrawn only when what it shows has changed, and only a card that's new rises in, so
   // the polling every few seconds no longer makes it flash (CR-003).
   let jobsHtml = '', jobsSeen = new Set();
+  // CR-006: no static "standing by" card. The team button opens up in place (▾) to show each agent
+  // at work: project, task and the step they're on, refreshed with the 5-second team poll.
+  let trayOpen = false;
+  try { trayOpen = localStorage.getItem('jarvis-tray-open') === '1'; } catch (_) {}
+  const crewNow = () => { try { return crew; } catch (_) { return null; } };   // crew is declared further down
   function renderJobs(now = Date.now() / 1000) {
     const box = document.createElement('div');
+    const cw = crewNow();
+    const live = cw ? cw.workers.filter(w => !w.done) : [];
+    const liveAgents = [...new Set(live.map(w => w.agent))];
     const open = document.createElement('button');
-    open.type = 'button'; open.className = 'job team-open'; open.dataset.key = 'open';
-    open.title = 'Open a window showing who is working on what';
-    const busyNow = [...jobs.values()].filter(j => j.status === 'running').length;
-    open.innerHTML = '<span>👥</span><b>See what the team is doing</b>' +
-      `<span class="n">${busyNow ? busyNow + (busyNow === 1 ? ' job' : ' jobs') + ' · ' : ''}⤢</span>`;
-    open.onclick = () => showTeamActivity();
+    open.type = 'button'; open.className = 'job team-open' + (trayOpen ? ' expanded' : ''); open.dataset.key = 'open';
+    open.title = trayOpen ? 'Fold the team list away' : 'Show who is working on what';
+    open.setAttribute('aria-expanded', String(trayOpen));
+    open.innerHTML = `<span>👥</span><b>See what the team is doing</b><span class="n">` +
+      `${liveAgents.length ? liveAgents.length + ' working · ' : ''}${trayOpen ? '▴' : '▾'}</span>`;
+    open.onclick = () => {
+      trayOpen = !trayOpen;
+      try { localStorage.setItem('jarvis-tray-open', trayOpen ? '1' : '0'); } catch (_) {}
+      renderJobs();
+    };
     box.appendChild(open);
+    if (trayOpen) {
+      const crewEl = document.createElement('div');
+      crewEl.className = 'job crew-list'; crewEl.dataset.key = 'crew';
+      const esc = escapeHtml;
+      const byAgent = new Map();
+      live.forEach(w => { if (!byAgent.has(w.agent)) byAgent.set(w.agent, []); byAgent.get(w.agent).push(w); });
+      let html = !cw ? '<div class="cl-empty">Checking on the team…</div>'
+        : byAgent.size ? [...byAgent].map(([name, ws]) =>
+            `<div class="cl-agent" style="--accent:${colourOf(name)}" data-chat-with="${esc(name)}" title="Open ${esc(name)}'s chat">` +
+            `<div class="cl-name"><i></i><b>${esc(name)}</b><span>${esc(ws[0].project || 'General')}</span></div>` +
+            ws.map(w => (w.task ? `<div class="cl-task">${esc(w.task)}</div>` : '') +
+              `<div class="cl-now">● ${esc(w.activity || 'thinking it through')}</div>`).join('') + '</div>').join('')
+        : `<div class="cl-empty">Nobody is working right now.${(cw.team || []).length ? ' Ask me for any work and the team takes it.' : ''}</div>`;
+      html += '<div class="tools"><button type="button" class="link-btn" data-act="window">Full window ⤢</button>' +
+        '<button type="button" class="link-btn" data-act="office">Office view</button></div>';
+      crewEl.innerHTML = html;
+      box.appendChild(crewEl);
+    }
     hires.forEach(h => { const c = hireCard(h); c.dataset.key = 'hire:' + h.folder; box.appendChild(c); });
     const shown = [...jobs.values()].filter(j => !dismissed.has(j.id)).slice(0, 3);
-    if (!shown.some(j => j.status === 'running')) {
-      // Nothing under way: Larry is on standby, with a hint of what he takes.
-      const idle = document.createElement('div');
-      idle.className = 'job idle'; idle.dataset.key = 'idle';
-      idle.innerHTML = '<div class="top"><span class="spin"></span><b>Jarvis</b><span>standing by</span></div>' +
-        '<div class="what">Ask me for any work and the team takes it, e.g. "File today\'s Fireflies ' +
-        'notes" or "Draft replies to anything urgent".</div>';
-      box.appendChild(idle);
-    }
     shown.forEach(j => {
       const el = document.createElement('div');
       el.className = `job ${j.status}`; el.dataset.key = 'job:' + j.id;
@@ -3869,6 +4004,12 @@ const tc = THEME.colour;
       [...box.children].forEach(c => { keys.add(c.dataset.key); if (!jobsSeen.has(c.dataset.key)) c.classList.add('fresh'); });
       jobsSeen = keys;
       jobsEl.replaceChildren(...box.children);
+      const crewEl = jobsEl.querySelector('.crew-list');
+      if (crewEl) crewEl.onclick = e => {
+        const a = e.target.closest('[data-act]'), c = e.target.closest('[data-chat-with]');
+        if (a) { a.dataset.act === 'window' ? showTeamActivity() : openCrew(); return; }
+        if (c) chatWithBot(c.dataset.chatWith);
+      };
     }
     if (teamWinPaint) teamWinPaint();
     refreshStop();
@@ -4702,6 +4843,7 @@ const tc = THEME.colour;
       live.length ? escapeHtml(projects.join(' · ')) : 'Nobody is working',
       live.length ? live.map(w => `${w.agent}: ${w.project}${w.activity ? ' (' + w.activity + ')' : ''}`).join('\n') : 'Click to see the team');
     if (crewOpen) { assignBots(); renderCrewList(); }
+    if (trayOpen) renderJobs();   // the opened-up team tray follows the team (CR-006)
   }
   pollCrew();
   setInterval(() => { if (!crewOpen) pollCrew(); }, 5000);

@@ -1,7 +1,10 @@
 {
-  "version": "2026.11.06.5",
+  "version": "2026.11.08.1",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes.",
   "notes": [
+    "The 'Jarvis standing by' box is gone. Click 'See what the team is doing' and it opens up right there, showing each agent at work: project, task and what they're doing now. Click an agent to open their chat.",
+    "In project chat, clicking another project in the Projects list switches the chat to it. Anything you'd typed but not sent is kept for each project. Team chat does the same when you click an agent.",
+    "Add files to the Team Inbox from the main chat: click the paperclip, paste with Ctrl+V (screenshots too) or drop a file on the chat box. Jarvis is told about the file in your next question.",
     "Spoken replies can now run to about 110 words, so Jarvis explains the answer and his reasoning, not just a verdict.",
     "Microphone: tap it once to talk, tap again to pause. Your words stay in the box and nothing is sent until you press the arrow (or Enter). Tap the mic again to carry on.",
     "Microphone: Jarvis no longer hears himself. While he speaks, the mic holds and picks up again when he finishes.",
@@ -38,6 +41,14 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.08.1",
+      "notes": [
+        "The 'Jarvis standing by' box is gone. Click 'See what the team is doing' and it opens up right there, showing each agent at work: project, task and what they're doing now. Click an agent to open their chat.",
+        "In project chat, clicking another project in the Projects list switches the chat to it. Anything you'd typed but not sent is kept for each project. Team chat does the same when you click an agent.",
+        "Add files to the Team Inbox from the main chat: click the paperclip, paste with Ctrl+V (screenshots too) or drop a file on the chat box. Jarvis is told about the file in your next question."
+      ]
+    },
     {
       "version": "2026.11.06.5",
       "notes": [
