@@ -1,7 +1,10 @@
 {
-  "version": "2026.11.08.6",
+  "version": "2026.11.08.7",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes.",
   "notes": [
+    "Jarvis starts talking sooner: the spoken answer begins as soon as it's ready, while the written reply is still appearing on screen.",
+    "Project chat now takes files too: attach with the paperclip, paste with Ctrl+V or drop a file on the box, and it goes into the Team Inbox.",
+    "Settings > Jobs > Add a job offers a Weekly knowledge capture (Friday afternoon: turns the week's decisions and repeatable work into decision log entries, draft how-to guides and templates).",
     "New 'Your tools' step: tick what you use (Outlook, Fireflies, Gmail and Google Calendar, Slack, monday.com) and Jarvis checks each one is connected. Existing installs see it once as a card. Anything you don't use is switched off, so the daily brief never waits on it.",
     "Settings > Jobs > Add a job now offers a ready-made Weekly status update (Friday afternoon: what moved per client, what's overdue, what's next).",
     "Ticking an action off in Jarvis now records the day it was done (date_closed).",
@@ -52,6 +55,14 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.08.7",
+      "notes": [
+        "Jarvis starts talking sooner: the spoken answer begins as soon as it's ready, while the written reply is still appearing on screen.",
+        "Project chat now takes files too: attach with the paperclip, paste with Ctrl+V or drop a file on the box, and it goes into the Team Inbox.",
+        "Settings > Jobs > Add a job offers a Weekly knowledge capture (Friday afternoon: turns the week's decisions and repeatable work into decision log entries, draft how-to guides and templates)."
+      ]
+    },
     {
       "version": "2026.11.08.6",
       "notes": [

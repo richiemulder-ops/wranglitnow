@@ -734,13 +734,15 @@
   #voice-toggle, #mic, #attach, .icon-btn.mic { color: var(--brand); }
   /* CR-017: files attached, pasted or dropped on the chat go to Team Inbox; chips name them. */
   #ask form.drop-over { border-color: var(--brand); box-shadow: 0 0 50px rgba(186,211,103,0.4); }
-  #attached { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
-  #attached[hidden] { display: none; }
-  #attached .chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; font-size: 12px; color: var(--ink);
+  #attached, .convo .attached { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .convo .attached { justify-content: flex-start; padding-top: 8px; }
+  #attached[hidden], .convo .attached[hidden] { display: none; }
+  .convo .compose.drop-over { outline: 2px dashed var(--brand); outline-offset: 2px; border-radius: 10px; }
+  #attached .chip, .convo .attached .chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; font-size: 12px; color: var(--ink);
     background: var(--glass); backdrop-filter: blur(14px); border: 1px solid rgba(127,195,90,0.55); border-radius: 999px; padding: 3px 6px 3px 10px; }
-  #attached .chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #attached .chip button { background: none; border: 0; color: var(--dim); cursor: pointer; font-size: 12px; padding: 0 3px; }
-  #attached .chip button:hover { color: var(--ink); }
+  #attached .chip span, .convo .attached .chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #attached .chip button, .convo .attached .chip button { background: none; border: 0; color: var(--dim); cursor: pointer; font-size: 12px; padding: 0 3px; }
+  #attached .chip button:hover, .convo .attached .chip button:hover { color: var(--ink); }
   #mic.on, .icon-btn.mic.on { color: #ff8a9e; }
   @keyframes micpulse { 50% { box-shadow: 0 0 0 9px rgba(255,80,110,0.14); } }
 
@@ -2514,7 +2516,9 @@ const tc = THEME.colour;
                    'Open this project’s saved chats on your desktop');
 
         content.innerHTML = `<div class="chat-grid"><div class="chat-list"><div class="about"></div><div class="list"></div></div>
-          <div class="convo"><div class="msgs"></div><div class="compose">
+          <div class="convo"><div class="msgs"></div><div class="attached" hidden></div><div class="compose">
+            <input type="file" multiple hidden>
+            <button class="icon-btn clip" type="button" title="Add a file to the Team Inbox (or paste one with Ctrl+V, or drop it here)" aria-label="Attach a file"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 11.5l-8.3 8.3a5 5 0 0 1-7.1-7.1l8.6-8.6a3.4 3.4 0 0 1 4.8 4.8l-8.6 8.6a1.8 1.8 0 0 1-2.5-2.5l7.9-7.9"/></svg></button>
             <textarea rows="1" placeholder="Ask about ${escapeHtml(projectName)}…"></textarea>
             <button class="icon-btn mic" type="button" title="Talk (click again to send)">${ICON.mic}</button>
             <button class="icon-btn send" type="button" title="Send (Enter)" aria-label="Send" style="background:var(--brand);color:#10170a;border-color:var(--brand)">${ICON.send}</button>
@@ -2542,6 +2546,34 @@ const tc = THEME.colour;
           msgsEl.appendChild(m); msgsEl.scrollTop = msgsEl.scrollHeight;
           return m;
         };
+        // CR-017 in project chat: 📎, Ctrl+V or drop puts the file in Team Inbox; the next question names it.
+        const chipsEl = content.querySelector('.convo .attached'), pickEl = content.querySelector('.compose input[type=file]');
+        const composeEl = content.querySelector('.compose');
+        let attached = [];
+        const paintChips = () => {
+          chipsEl.hidden = !attached.length;
+          chipsEl.innerHTML = attached.map((n, i) =>
+            `<span class="chip" title="In Team Inbox: ${escapeHtml(n)}">📎 <span>${escapeHtml(n)}</span>` +
+            `<button type="button" data-i="${i}" title="Don't mention it in my next question (the file stays in Team Inbox)">✕</button></span>`).join('');
+        };
+        chipsEl.onclick = e => { const b = e.target.closest('button[data-i]'); if (b) { attached.splice(+b.dataset.i, 1); paintChips(); } };
+        const attach = async files => { const got = await uploadToInbox(files); if (got.length) { attached = attached.concat(got); paintChips(); } input.focus(); };
+        content.querySelector('.clip').onclick = () => pickEl.click();
+        pickEl.onchange = () => { attach([...pickEl.files]); pickEl.value = ''; };
+        input.addEventListener('paste', e => {
+          const files = [...((e.clipboardData && e.clipboardData.files) || [])];
+          if (!files.length || (e.clipboardData.getData('text/plain') || '').trim()) return;
+          e.preventDefault();
+          attach(files.map((f, i) => new File([f], pastedName(f, i), { type: f.type })));
+        });
+        const hasFileDrag = e => [...((e.dataTransfer && e.dataTransfer.types) || [])].includes('Files');
+        composeEl.addEventListener('dragover', e => { if (!hasFileDrag(e)) return; e.preventDefault(); e.stopPropagation(); composeEl.classList.add('drop-over'); e.dataTransfer.dropEffect = 'copy'; });
+        composeEl.addEventListener('dragleave', () => composeEl.classList.remove('drop-over'));
+        composeEl.addEventListener('drop', e => {
+          if (!hasFileDrag(e)) return;
+          e.preventDefault(); e.stopPropagation(); composeEl.classList.remove('drop-over');
+          attach([...e.dataTransfer.files].filter(f => f.size || f.type));
+        });
         const greet = () => addMsg('jarvis', `Ask me anything about ${projectName}. I'll stick to its ${project ? project.nodes.length : ''} notes, and this conversation is saved in the project folder.`);
 
         async function loadList() {
@@ -2567,25 +2599,29 @@ const tc = THEME.colour;
           const q = input.value.trim();
           if (!q || busy) return;
           busy = true; input.value = ''; delete chatDrafts[projectName];
+          const mentioned = attached.slice();
+          const sent = mentioned.length ? `${q}
+
+(I've just added to the Team Inbox for ${projectName}: ${mentioned.join(', ')}.)` : q;
           sendBtn.innerHTML = STOP_ICON; sendBtn.title = 'Stop'; sendBtn.classList.add('stopper');
           stopSpeaking();
           addMsg('you', q);
           const wait = addMsg('jarvis', 'Consulting the project notes…', { cls: 'thinking' });
           setStatus('thinking', 'thinking…');
           try {
-            const res = await fetch('/chat', { method: 'POST', credentials: 'same-origin',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ question: q, project: projectName, chat: current }) });
-            const data = await res.json().catch(() => ({ error: `Server error ${res.status}` }));
-            if (!res.ok || data.error) throw new Error(data.error || `Server error ${res.status}`);
+            const data = await streamChat({ question: sent, project: projectName, chat: current }, {
+              onText: t => { wait.textContent = t || 'Consulting the project notes…'; msgsEl.scrollTop = msgsEl.scrollHeight; },
+              onSpeak: line => speak(line),
+            });
             wait.remove();
+            if (mentioned.length) { attached = attached.filter(n => !mentioned.includes(n)); paintChips(); }
             addMsg('jarvis', data.answer, { sources: data.sources });
             const isNew = !current;
             current = data.path;
             if (data.context) { jarvisContext = data.context; renderContext(); }
             if (data.job) trackJob(data.job);
             setStatus('');
-            speak(data.speech || data.answer);
+            if (data.spokenEarly !== data.speech) speak(data.speech || data.answer);
             actionsOf(data).forEach(handleAction);
             loadList();   // new chat appears, question counts update
           } catch (err) {
@@ -3493,7 +3529,13 @@ const tc = THEME.colour;
            `${i ? '-' + (i + 1) : ''}.${ext}`;
   }
   async function attachToInbox(files) {
-    if (!files.length) return;
+    const added = await uploadToInbox(files);
+    if (added.length) { chatAttached = chatAttached.concat(added); paintAttached(); }
+    qEl.focus();
+  }
+  // Shared by the main chat and project chat: files go to the Team Inbox root; returns the names saved.
+  async function uploadToInbox(files) {
+    if (!files.length) return [];
     const added = [], failed = [];
     for (const [i, f] of files.entries()) {
       setStatus('thinking', `Adding ${files.length > 1 ? `${i + 1} of ${files.length} ` : ''}to Team Inbox…`);
@@ -3508,13 +3550,12 @@ const tc = THEME.colour;
       } catch (err) { failed.push(`${f.name}: ${err.message}`); }
     }
     if (added.length) {
-      chatAttached = chatAttached.concat(added); paintAttached();
       if (inboxAdded) inboxAdded(added);
       setStatus('done', `Filed to Team Inbox: ${added.join(', ')}`, 5000);
       speak(added.length === 1 ? 'Filed to the Team Inbox.' : `${added.length} files filed to the Team Inbox.`);
     }
     if (failed.length) setStatus('error', failed.join(' · '), 8000);
-    qEl.focus();
+    return added;
   }
   // Paste: in the chat box, or anywhere that isn't another text field. Plain text pastes as usual.
   window.addEventListener('paste', e => {
@@ -3576,6 +3617,58 @@ const tc = THEME.colour;
     if (node) select(node); else setStatus('error', `I couldn't find ${subject} in the galaxy`, 5000);
   }
 
+  // CR-008: /chat streams the reply as it is written. The SPOKEN line comes first and is said the
+  // moment it is complete; the text shows as it arrives. Returns the same payload as before.
+  const TAG_RE = /^\W*(SOURCES|SPOKEN|DELEGATE|ACTION)\W*:/i;
+  function visibleDraft(raw) {
+    const lines = raw.split('\n'), last = lines.pop();
+    const keep = lines.filter(l => !TAG_RE.test(l.trim()));
+    // the line still being written: hide it while it could turn out to be a tag
+    const t = last.trim().replace(/^\W+/, '').toUpperCase();
+    const maybeTag = !t || ['SOURCES', 'SPOKEN', 'DELEGATE', 'ACTION'].some(w => w.startsWith(t.split(':')[0]) && (t.includes(':') ? TAG_RE.test(last.trim()) : true));
+    if (!maybeTag) keep.push(last);
+    return keep.join('\n').trim();
+  }
+  async function streamChat(body, { onText, onSpeak } = {}) {
+    const res = await fetch('/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+      body: JSON.stringify(Object.assign({}, body, { stream: true }))
+    });
+    if (!(res.headers.get('Content-Type') || '').includes('ndjson') || !res.body) {
+      const data = await res.json().catch(() => ({ error: `Server error ${res.status}` }));
+      if (!res.ok || data.error) throw new Error(data.error || `Server error ${res.status}`);
+      return data;
+    }
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    let buf = '', raw = '', done = null, spoke = '', shown = 0;
+    const handle = ev => {
+      if (ev.t === 'm') { raw = ''; if (onText) onText(''); }
+      else if (ev.t === 't') { if (spoke) { stopSpeaking(); spoke = ''; } raw = ''; if (onText) onText(''); }   // that was a lead-in to tool use
+      else if (ev.t === 'd') {
+        raw += ev.x;
+        const now = Date.now();
+        if (onText && now - shown > 80) { shown = now; onText(visibleDraft(raw)); }
+      }
+      else if (ev.t === 's') { spoke = ev.x; if (onSpeak) onSpeak(ev.x); }
+      else if (ev.t === 'done') done = ev;
+    };
+    for (;;) {
+      const { value, done: end } = await reader.read();
+      if (value) buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+        if (line) { try { handle(JSON.parse(line)); } catch (_) {} }
+      }
+      if (end) break;
+    }
+    if (!done) throw new Error('The answer was cut off. Try again.');
+    const data = done.result || {};
+    if (done.status !== 200 || data.error) throw new Error(data.error || `Server error ${done.status}`);
+    data.spokenEarly = spoke;
+    return data;
+  }
+
   async function ask(question) {
     if (!question || askEl.classList.contains('busy')) return;
     askEl.classList.add('busy'); sendEl.disabled = true; refreshStop();
@@ -3585,19 +3678,17 @@ const tc = THEME.colour;
     const mentioned = chatAttached.slice();   // files just put in Team Inbox from the chat (CR-017)
     const sent = mentioned.length ? `${question}\n\n(I've just added to the Team Inbox: ${mentioned.join(', ')}.)` : question;
     try {
-      const res = await fetch('/chat', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: sent }), credentials: 'same-origin'
+      const data = await streamChat({ question: sent }, {
+        onText: t => showAnswer(question, t || 'Processing your request…', []),
+        onSpeak: line => speak(line),
       });
-      const data = await res.json().catch(() => ({ error: `Server error ${res.status}` }));
-      if (!res.ok || data.error) throw new Error(data.error || `Server error ${res.status}`);
       if (mentioned.length) { chatAttached = chatAttached.filter(n => !mentioned.includes(n)); paintAttached(); }
       const used = (data.nodes || []).filter(i => Number.isInteger(i) && nodes[i]);
       showAnswer(question, data.answer, used);
       proveAnswer(used);
       qEl.value = '';
       setStatus('');
-      if (!actionsOf(data).some(a => a.listen)) speak(data.speech || data.answer);   // only the spoken line: the answer and notes are on screen
+      if (!actionsOf(data).some(a => a.listen) && data.spokenEarly !== data.speech) speak(data.speech || data.answer);   // only the spoken line: the answer and notes are on screen
       if (data.context) { jarvisContext = data.context; renderContext(); }
       if (data.job) trackJob(data.job);
       actionsOf(data).forEach(handleAction);

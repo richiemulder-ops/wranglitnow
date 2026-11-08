@@ -270,12 +270,15 @@ without consulting the notes, and with no follow-up question. Don't steer the co
 
 Plain prose only: no headings, lists, markdown or emoji.
 
-After the reply, add two lines of their own:
+Start with the SPOKEN line, on a line of its own before the reply: it is said aloud while the \
+rest is still being written. If you look things up with tools first, write SPOKEN only in your final \
+reply, after the looking is done.
 SPOKEN: what you would actually say aloud, at most 110 words, with the wit intact. It must carry \
 the answer and explain the reasoning behind it, not just a verdict, and if your reply ends with a question, SPOKEN ends with it too. The reply and \
 the notes are already on screen, so never read them out: no quoting, no lists of names, figures or \
 dates. Give the gist in your own words, or a dry pointer to the screen. For small talk, SPOKEN is \
 simply your reply.
+Then the reply itself. After the reply, add a line of its own:
 SOURCES: the index numbers of the notes you actually drew facts from, most important first, \
 comma-separated (e.g. SOURCES: 551, 807). For small talk, or when no note supports the answer, \
 write SOURCES: none."""
@@ -894,7 +897,8 @@ VAULT_TOOLS = ["Read", "Glob", "Grep"]
 VAULT_MAX_TURNS = "12"   # a search and a few files; stops a wandering answer
 
 
-def call_claude(model, prompt, system=None, tools=None, mcp_config=None, vault=False, sid=None):
+def call_claude(model, prompt, system=None, tools=None, mcp_config=None, vault=False, sid=None,
+                on_event=None):
     """Run `claude -p`. With `tools`, only those (read-only Microsoft 365) tools are available.
     With `vault`, it can also read (never write) the vault. Returns (reply text, context usage)."""
     exe = find_claude()
@@ -995,6 +999,15 @@ def call_claude(model, prompt, system=None, tools=None, mcp_config=None, vault=F
                 if se.get("type") == "message_start":
                     msg_id = (se.get("message") or {}).get("id")
                     usage = dict((se.get("message") or {}).get("usage") or {})
+                    if on_event:
+                        on_event("msg", None)
+                elif on_event and se.get("type") == "content_block_delta":
+                    d = se.get("delta") or {}
+                    if d.get("type") == "text_delta" and d.get("text"):
+                        on_event("delta", d["text"])
+                elif on_event and se.get("type") == "content_block_start":
+                    if (se.get("content_block") or {}).get("type") == "tool_use":
+                        on_event("tool", None)
                 elif se.get("type") == "message_delta":
                     usage.update({k: v for k, v in (se.get("usage") or {}).items() if v is not None})
                     if (se.get("delta") or {}).get("stop_reason") == "end_turn" and texts.get(msg_id, "").strip():
@@ -1049,7 +1062,7 @@ def call_claude(model, prompt, system=None, tools=None, mcp_config=None, vault=F
     return (data.get("result") or "").strip() or "No answer came back.", context_of(data)
 
 
-def answer(sid, question, project=None, history=None):
+def answer(sid, question, project=None, history=None, on_event=None):
     """Answer a question. With `project`, only that project's notes are searched and the chat is
     framed around it; with `history` (a saved project chat), those turns are the memory instead
     of the in-browser session."""
@@ -1103,14 +1116,15 @@ def answer(sid, question, project=None, history=None):
               personality_prompt())   # last, so the chosen personality wins
     choice = chat_choice()
     if fast:
-        raw, context = call_claude(FAST_MODEL, prompt, system, sid=sid)
+        raw, context = call_claude(FAST_MODEL, prompt, system, sid=sid, on_event=on_event)
     elif outlook:   # Outlook needs Claude's connector
-        raw, context = call_claude(model, prompt, system + M365_PROMPT, M365_TOOLS, vault=True, sid=sid)
+        raw, context = call_claude(model, prompt, system + M365_PROMPT, M365_TOOLS, vault=True, sid=sid,
+                                   on_event=on_event)
     elif choice.startswith("openai:") and openai_key():
         raw, context = call_openai(choice, prompt,
                                    system.replace(VAULT_PROMPT.replace("{vault}", VAULT), "") + OPENAI_NOTE)
     else:
-        raw, context = call_claude(model, prompt, system, vault=True, sid=sid)
+        raw, context = call_claude(model, prompt, system, vault=True, sid=sid, on_event=on_event)
     text, spoken, cited, task, action_lines = parse_reply(raw)
     actions = [run_action(line) for line in action_lines]
     action = actions[0] if actions else None
@@ -1149,11 +1163,50 @@ def recent_meetings_brief():
            "\n</recent_meetings>"
 
 
+class ReplyStream:
+    """CR-008: send the reply to the page as it is written (NDJSON lines). "m" starts a new model
+    message (an earlier one was only a lead-in to tool use), "d" is text, "t" says tools are being
+    used, "s" is the finished SPOKEN line, said at once while the rest is still being written."""
+
+    def __init__(self, write):
+        self.write, self.text, self.spoken, self.dead = write, "", False, False
+
+    def send(self, obj):
+        if self.dead:
+            return
+        try:
+            self.write((json.dumps(obj) + "\n").encode("utf-8"))
+        except OSError:   # the page went away; the answer still finishes and is saved
+            self.dead = True
+
+    def __call__(self, kind, value):
+        if kind == "msg":
+            self.text, self.spoken = "", False
+            self.send({"t": "m"})
+        elif kind == "tool":
+            self.send({"t": "t"})
+        elif kind == "delta":
+            self.text += value
+            self.send({"t": "d", "x": value})
+            if not self.spoken:
+                m = re.match(r"\s*\W*SPOKEN\W*:\s*(.*?)\n", self.text, re.I | re.S)
+                if m and m.group(1).strip():
+                    self.spoken = True
+                    self.send({"t": "s", "x": m.group(1).strip()[:MAX_SPOKEN_CHARS]})
+
+
 def parse_reply(raw):
     """Strip the trailing SPOKEN: / SOURCES: / DELEGATE: lines. Returns (answer, line to say
     aloud, [indexes] or None when SOURCES is absent, task for Larry or None)."""
     lines = raw.strip().splitlines()
     tags, actions = {}, []
+    while lines:   # SPOKEN comes first (CR-008: it is spoken while the rest streams)
+        m = TAG_LINE.match(lines[0].strip())
+        if m and m.group(1).upper() == "SPOKEN":
+            tags.setdefault("SPOKEN", m.group(2).strip())
+        elif lines[0].strip():
+            break
+        lines.pop(0)
     while lines:
         m = TAG_LINE.match(lines[-1].strip())
         if m and m.group(1).upper() == "ACTION":   # one request can take several steps, kept in order
@@ -1165,7 +1218,8 @@ def parse_reply(raw):
         elif lines[-1].strip():
             break
         lines.pop()
-    answer_text = "\n".join(lines).strip() or "No answer came back."
+    # Small talk can be only the SPOKEN line (it "is simply your reply"): show it as the reply too.
+    answer_text = "\n".join(lines).strip() or tags.get("SPOKEN") or "No answer came back."
     cited = [int(n) for n in re.findall(r"\d+", tags["SOURCES"])] if "SOURCES" in tags else None
     # Without a SPOKEN line, say only the first sentence: the rest is on screen.
     spoken = tags.get("SPOKEN") or re.split(r"(?<=[.!?])\s", answer_text, maxsplit=1)[0]
@@ -2602,7 +2656,7 @@ def get_chat(name, rel):
     return {"project": p["name"], "path": str(rel), "turns": turns}
 
 
-def project_chat(sid, name, question, rel=None):
+def project_chat(sid, name, question, rel=None, on_event=None):
     """Answer within a project and append the turn to its chat file (a new file if none given)."""
     p = get_project(name)
     with _chat_lock:
@@ -2617,7 +2671,7 @@ def project_chat(sid, name, question, rel=None):
                 n += 1
                 full = os.path.join(chats_dir(p), f"{base}-{n}.md")
             fields, turns = {}, []
-    result = answer(sid, question, project=p, history=turns[-CHAT_MEMORY_TURNS:])
+    result = answer(sid, question, project=p, history=turns[-CHAT_MEMORY_TURNS:], on_event=on_event)
     stamp = time.strftime("%Y-%m-%d %H:%M")
     sources = ", ".join(f"[[{INDEX.notes[i]['label']}]]" for i in result["nodes"])
     entry = (f"### You · {stamp}\n\n{question.strip()}\n\n### Jarvis\n\n{result['answer'].strip()}\n"
@@ -3623,12 +3677,81 @@ REGULATORY_PROMPT = """This is the scheduled weekly regulatory guidance check. R
 
 Finish with the note path and one line: Regulatory check: <n> material changes (or: no material changes)."""
 
+# CR-013: weekly knowledge capture. {jarvis_activity} is filled by run_schedule (jarvis_activity()),
+# because jobs run in the vault and can't read Jarvis's data folder without asking.
+KNOWLEDGE_PROMPT = """This is the scheduled weekly knowledge capture. Your job is to turn what the team did this week into knowledge we can reuse: decision log entries, how-to guides and templates. Write only the notes described below.
+
+Window: the seven days ending now. Use dates in frontmatter where they exist; otherwise the file's modified date.
+
+1. Gather. Read what happened in the window:
+- Session logs in Team Knowledge/session-logs/YYYY/MM/ (their decisions and insights).
+- Meeting notes in PKM/CRM/Meetings/, if you keep them.
+- Project chats in copilot/projects/<Name>/jarvis-chats/ and new or changed files in copilot/projects/<Name>/ and Deliverables/.
+- Actions closed in Actions/ (done: true with date_closed in the window).
+- Jarvis jobs and team chats this week, supplied by Jarvis:
+{jarvis_activity}
+
+2. Pick. Keep only what someone would want again in three months:
+- A decision: a choice between options that changes how the work is done or what is delivered.
+- A how-to: a procedure done this week, with more than three steps, likely to be done again.
+- A template: a structure built for one job that would fit others.
+Skip anything trivial or already recorded. Before writing, search Team Knowledge/ (Decisions, SOPs, Workstreams, Guidelines, Templates) for an existing entry on the same thing. If one exists, update it instead and say so. If a Guideline or Workstream already covers it, link to it and write nothing.
+
+3. Decisions. I'm routing these to Penn. One file per decision at Team Knowledge/Decisions/DL-NNN-<slug>.md, next free number, using the format in Team Knowledge/Decisions/INDEX.md (create the folder and INDEX with that format if missing), plus a row in the INDEX table. Every entry wikilinks its source note. Write only what the source shows; if the reason isn't there, write "Reason not recorded." A reversed decision gets a new entry and the old one is marked superseded, never deleted.
+
+4. How-to guides. Write each as a draft SOP at Team Knowledge/SOPs/SOP-NNN-<slug>.md, next free number in the SOP INDEX, in the existing SOP header format, marked "Status: draft (weekly knowledge capture, review before use)", with a "Built from" line linking the sources. List it in the SOP INDEX under "Drafts awaiting review", not with the active SOPs. Describe only steps that were actually done. If a guide covers specialist subject matter (legal, tax, technical method), ask the specialist on the team for that subject to check it first and include their comments.
+
+5. Templates. Only if reusable beyond the one job. Save to Team Knowledge/Templates/<slug>.md and add it under "Work templates" in Team Knowledge/Templates/INDEX.md. Remove all names, figures, places, emails and dates from the source; use placeholders like <Client>, <Date>.
+
+6. Rules. Kebab-case file names per GL-001. Plain language. Don't edit meeting notes, actions, project notes, deliverables, AGENTS.md files, Guidelines or Workstreams; list proposed changes under "Proposed updates" instead. No email, no drafts, no git.
+
+7. If nothing in the window is worth keeping, write nothing and say so.
+
+Finish with a short summary, which Jarvis saves to Team Inbox: three lines at the top, then lists of decision entries, how-to guides and templates written (new or updated, each wikilinked with its source), anything skipped as already covered, "Proposed updates", and any open questions. End with one line: Knowledge capture: <n> decisions, <n> how-tos, <n> templates."""
+
 JOB_TEMPLATES = [
     {"id": "weekly-status", "name": "Weekly status update", "runner": "larry",
      "schedule": {"type": "weekly", "day": "fri", "at": "15:00"}, "tools": ["vault"], "outputs": ["tray"],
      "note_folder": "Team Inbox", "about": "Friday afternoon: what moved per client this week, what's overdue, what's next.",
      "prompt": WEEKLY_STATUS_PROMPT.replace("{org}_", "")},
+    {"id": "knowledge-capture", "name": "Weekly knowledge capture", "runner": "larry",
+     "schedule": {"type": "weekly", "day": "fri", "at": "16:00"}, "tools": ["vault"], "outputs": ["tray", "note"],
+     "note_folder": "Team Inbox",
+     "about": "Friday afternoon: turn this week's decisions and repeatable work into decision log entries, how-to guides and templates.",
+     "prompt": KNOWLEDGE_PROMPT},
 ]
+
+
+def jarvis_activity(days=7, cap=12000):
+    """The week's finished jobs and team chats as plain text, newest first (for {jarvis_activity})."""
+    since = time.time() - days * 86400
+    out = []
+    for j in reversed(_read_jsonl(JOBS_LOG, since)):
+        when = time.strftime("%Y-%m-%d", time.localtime(j.get("at") or 0))
+        out.append(f"- Job {when} ({', '.join(j.get('agents') or []) or 'team'}): {(j.get('task') or '')[:200]}"
+                   + (f"\n  Document: {j['document']}" if j.get("document") else "")
+                   + f"\n  Report: {(j.get('report') or '').strip()[:600]}")
+    chats = []
+    if os.path.isdir(AGENT_CHATS_DIR):
+        for n in os.listdir(AGENT_CHATS_DIR):
+            full = os.path.join(AGENT_CHATS_DIR, n)
+            if n.endswith(".json") and os.path.getmtime(full) > since:
+                chats.append((os.path.getmtime(full), full))
+    for mt, full in sorted(chats, reverse=True):
+        try:
+            with open(full, encoding="utf-8") as f:
+                c = json.load(f)
+        except (OSError, ValueError):
+            continue
+        msgs = c.get("messages") or []
+        first = next((m.get("text", "") for m in msgs if m.get("who") == "you"), "")
+        last = next((m.get("text", "") for m in reversed(msgs) if m.get("who") != "you"), "")
+        if first.startswith("Test of"):
+            continue
+        out.append(f"- Team chat {time.strftime('%Y-%m-%d', time.localtime(mt))} with {c.get('agent', '?')}: "
+                   f"{first.strip()[:200]}\n  Last reply: {last.strip()[:600]}")
+    text = "\n".join(out) or "No Jarvis jobs or team chats this week."
+    return text if len(text) <= cap else text[:cap].rsplit("\n- ", 1)[0] + "\n(More this week, cut for length.)"
 
 
 def public_schedules():
@@ -3806,7 +3929,10 @@ def run_schedule(s, trigger="schedule"):
         else:   # larry: the team, as a background job of its own (not Larry's thread with you)
             grants = [g for g in _tool_grants(s.get("tools")) if g in JOB_TOOLS]
             tools = list(dict.fromkeys(VAULT_GRANTS + TEAM_GRANTS + grants))
-            pub = start_job(s["prompt"], f"Scheduled job: {s['name']}", origin=f"schedule:{sid}", tools=tools,
+            prompt = s["prompt"]
+            if "{jarvis_activity}" in prompt:
+                prompt = prompt.replace("{jarvis_activity}", jarvis_activity())
+            pub = start_job(prompt, f"Scheduled job: {s['name']}", origin=f"schedule:{sid}", tools=tools,
                             resume=False, quiet="speak" not in (s.get("outputs") or []))
             job_id = pub["id"]
             _update_schedule(sid, last_job=job_id)
@@ -4355,6 +4481,7 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
             body = self._body()
             question = str(body.get("question", "")).strip()[:1000]
             project, chat = body.get("project"), body.get("chat")   # optional: a project chat
+            stream = bool(body.get("stream"))
         except ChatError as e:
             self._json(e.status, {"error": str(e)})
             return
@@ -4368,6 +4495,29 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
         if not sid or not re.fullmatch(r"[A-Za-z0-9_-]{20,64}", sid):
             sid = new_sid = secrets.token_urlsafe(24)
 
+        if stream:   # CR-008: NDJSON lines as the reply is written, then {"t": "done", ...}
+            self.send_response(200)
+            self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "close")
+            if new_sid:
+                self.send_header("Set-Cookie", f"galaxy_sid={new_sid}; Path=/; HttpOnly; SameSite=Strict")
+            self.end_headers()
+            self.close_connection = True
+
+            def write(data):
+                self.wfile.write(data)
+                self.wfile.flush()
+            out = ReplyStream(write)
+            try:
+                result = (project_chat(sid, project, question, chat, on_event=out) if project
+                          else answer(sid, question, on_event=out))
+                out.send({"t": "done", "status": 200, "result": result})
+            except ChatError as e:
+                out.send({"t": "done", "status": e.status, "result": {"error": str(e)}})
+            except Exception as e:   # never leave the page waiting on a half-sent stream
+                out.send({"t": "done", "status": 500, "result": {"error": f"Server error: {e}"}})
+            return
         try:
             result = project_chat(sid, project, question, chat) if project else answer(sid, question)
             status = 200
