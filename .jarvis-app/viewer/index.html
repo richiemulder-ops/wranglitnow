@@ -1169,28 +1169,64 @@ const tc = THEME.colour;
     return finish(nodes, pos, idx, R * 3);
   }
 
-  // ---- Tree: core -> type hub -> sub-hub -> note, top-down levels by y, radial wedges by leaf count ----
-  function layoutTree(nodes, links, ctx) {
+  // ---- Nucleus: a ball of notes swirling round a nucleus ----
+  // The core sits at the centre, packed with the sub-hubs (projects, agents, folders). The notes make a
+  // thick spherical shell, one latitude band per type; each type hub sits just inside its band, so its
+  // label reads clearly. Every node gets {spin} so swirl() can turn the bands at different speeds.
+  function layoutNucleus(nodes, links, ctx) {
     const R = ctx.HUB_RADIUS, idx = index(nodes, links, ctx), pos = new Map();
-    const Y = [R * 1.2, R * 0.5, -R * 0.2, -R * 0.9];   // core, type, sub, notes (top row)
-    if (idx.core) pos.set(idx.core.id, { x: 0, y: Y[0], z: 0 });
-    const secs = sectors(idx.types, TAU, 0, 0.06);
-    const RT = R * 0.5, RS = R * 1.2, RN = R * 1.9, ROWS = 4, ROW_DR = R * 0.22, ROW_DY = R * 0.14;
-    idx.types.forEach((t, i) => {
-      const s = secs[i];
-      pos.set(t.hub.id, { x: Math.cos(s.mid) * RT, y: Y[1], z: Math.sin(s.mid) * RT });
-      const { noteA, groupMid } = spreadGroups(t.groups, s.a0, s.a1);
-      t.groups.forEach(g => {
-        if (!g.sub) return;
-        const a = groupMid.get(g);
-        pos.set(g.sub.id, { x: Math.cos(a) * RS, y: Y[2], z: Math.sin(a) * RS });
-      });
-      t.ordered.forEach((n, j) => {
-        const a = noteA.get(n.id), row = j % ROWS, r = RN + row * ROW_DR;
-        pos.set(n.id, { x: Math.cos(a) * r, y: Y[3] - row * ROW_DY, z: Math.sin(a) * r });
-      });
+    const GOLD = Math.PI * (3 - Math.sqrt(5));
+    if (idx.core) pos.set(idx.core.id, { x: 0, y: 0, z: 0, spin: 0 });
+    // Nucleus: sub-hubs fill a small ball (Fibonacci directions, cube-root radii so it's evenly full).
+    const subs = idx.types.flatMap(t => t.groups.filter(g => g.sub).map(g => g.sub));
+    subs.forEach((n, i) => {
+      const k = subs.length, y = 1 - 2 * (i + 0.5) / k, r0 = Math.sqrt(1 - y * y), th = i * GOLD;
+      const rad = R * 0.42 * Math.cbrt((i + 1) / k) + R * 0.06;
+      pos.set(n.id, { x: Math.cos(th) * r0 * rad, y: y * rad, z: Math.sin(th) * r0 * rad, spin: -0.5 });
     });
-    return finish(nodes, pos, idx, R * 3);
+    // Shell: notes in type order, then sub-hub order, laid on a Fibonacci sphere from pole to pole, so
+    // each type is a band. Three layers keep it a thick ball rather than a skin.
+    const all = idx.types.flatMap(t => t.ordered.map(n => [t, n]));
+    const N = all.length || 1, RS = R * 1.8, SPAN = R * 0.35;
+    const band = new Map();
+    all.forEach(([t, n], i) => {
+      const y = 1 - 2 * (i + 0.5) / N, r0 = Math.sqrt(1 - y * y), th = i * GOLD;
+      const rad = RS + (hash01(n.id, 7) - 0.5) * SPAN;
+      pos.set(n.id, { x: Math.cos(th) * r0 * rad, y: y * rad, z: Math.sin(th) * r0 * rad, spin: 1 });
+      const bb = band.get(t) || { y: 0, k: 0 }; bb.y += y; bb.k++; band.set(t, bb);
+    });
+    idx.types.forEach((t, i) => {
+      const bb = band.get(t), y = bb ? bb.y / bb.k : 0, r0 = Math.sqrt(Math.max(0, 1 - y * y));
+      const th = (i / Math.max(1, idx.types.length)) * TAU, rad = R * 1.3;
+      pos.set(t.hub.id, { x: Math.cos(th) * r0 * rad, y: y * rad, z: Math.sin(th) * r0 * rad, spin: 1 });
+    });
+    return finish(nodes, pos, idx, R * 2.2);
+  }
+
+  // Turns a laid-out Nucleus round the vertical axis: the shell one way (faster at the equator than the
+  // poles, so the bands slide past each other), the nucleus slowly the other way. Runs until stopped.
+  function swirl(Graph, st, positions) {
+    const nodes = Graph.graphData().nodes;
+    const orbit = [];
+    for (const n of nodes) {
+      const p = positions.get(n.id);
+      if (!p || !p.spin) continue;
+      const r = Math.hypot(p.x, p.z), rr = Math.hypot(p.x, p.y, p.z) || 1;
+      orbit.push({ n, r, y: p.y, a: Math.atan2(p.z, p.x), w: p.spin * (0.035 + 0.05 * (r / rr)) });   // rad per second
+    }
+    let last = performance.now(), kick = last;
+    const tick = now => {
+      const dt = Math.min(0.1, (now - last) / 1000); last = now;
+      for (const o of orbit) {
+        o.a += o.w * dt;
+        const n = o.n;
+        n.fx = n.x = Math.cos(o.a) * o.r; n.fy = n.y = o.y; n.fz = n.z = Math.sin(o.a) * o.r;
+      }
+      if (now - kick > 8000) { kick = now; Graph.d3ReheatSimulation(); }   // keeps the graph redrawing
+      st.swirl = requestAnimationFrame(tick);
+    };
+    Graph.d3ReheatSimulation();
+    st.swirl = requestAnimationFrame(tick);
   }
 
   // ---- Logo: notes form a halo ring with a gap (facing the default camera on +z) ----
@@ -1293,6 +1329,7 @@ const tc = THEME.colour;
       state.set(Graph, st);
     }
     if (st.raf) cancelAnimationFrame(st.raf);
+    if (st.swirl) { cancelAnimationFrame(st.swirl); st.swirl = 0; }
     if (st.resolve) st.resolve(false);
     st.raf = 0; st.resolve = null;
 
@@ -1332,14 +1369,16 @@ const tc = THEME.colour;
         if (t < 1) { st.raf = requestAnimationFrame(step); return; }
         st.raf = 0; st.resolve = null;
         if (name === 'galaxy') Graph.d3ReheatSimulation();   // let the notes settle round their hubs again
+        const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (name === 'nucleus' && positions && !still) swirl(Graph, st, positions);
         resolve(true);
       };
       st.raf = requestAnimationFrame(step);
     });
   }
 
-  const LAYOUTS = { concentric: layoutConcentric, rings: layoutRings, spiral: layoutSpiral, tree: layoutTree, logo: layoutLogo };
-  const api = { layoutConcentric, layoutRings, layoutSpiral, layoutTree, layoutLogo, applyLayout, LAYOUTS };
+  const LAYOUTS = { concentric: layoutConcentric, rings: layoutRings, spiral: layoutSpiral, nucleus: layoutNucleus, logo: layoutLogo };
+  const api = { layoutConcentric, layoutRings, layoutSpiral, layoutNucleus, layoutLogo, applyLayout, LAYOUTS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.JarvisLayouts = api;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -1475,13 +1514,13 @@ const tc = THEME.colour;
 
   // ---- View: the galaxy (force layout) or a fixed shape, animated between (CR-007) ----------
   const VIEWS = [['galaxy', 'Galaxy'], ['concentric', 'Concentric'], ['rings', 'Rings'], ['spiral', 'Spiral'],
-                 ['tree', 'Tree'], ['logo', 'Logo']];
+                 ['nucleus', 'Nucleus'], ['logo', 'Logo']];
   legendEl.insertAdjacentHTML('beforeend', '<div class="view"><label for="view-sel">View</label><select id="view-sel">' +
     VIEWS.map(([v, t]) => `<option value="${v}">${t}</option>`).join('') + '</select></div>');
   const viewSel = document.getElementById('view-sel');
   // Where ⌂ and a view change put the camera, so each shape is seen whole and from its best side.
   const VIEW_CAM = { galaxy: { x: 0, y: 200, z: 1150 }, concentric: { x: 0, y: 1900, z: 1900 },
-    rings: { x: 0, y: 1500, z: 2100 }, spiral: { x: 0, y: 2300, z: 900 }, tree: { x: 0, y: 300, z: 2700 },
+    rings: { x: 0, y: 1500, z: 2100 }, spiral: { x: 0, y: 2300, z: 900 }, nucleus: { x: 0, y: 450, z: 2900 },
     logo: { x: 0, y: -150, z: 2900 } };
   function setView(v, ms = 1200) {
     if (!window.JarvisLayouts || (v !== 'galaxy' && !JarvisLayouts.LAYOUTS[v])) v = 'galaxy';
@@ -1489,6 +1528,8 @@ const tc = THEME.colour;
     try { localStorage.setItem('jarvis-layout', v); } catch (e) {}
     if (!window.JarvisLayouts) return;
     const pos = v === 'galaxy' ? null : JarvisLayouts.LAYOUTS[v](nodes, hubLinks, { NOTE_COUNT, HUB_RADIUS, typeHub });
+    // Nucleus: the note-to-note links would cross the ball and hide the core, so only the hub lines show.
+    Graph.linkVisibility(v === 'nucleus' ? l => l.kind === 'sub' || l.kind === 'core' : l => l.kind !== 'spoke');
     pauseDrift(ms + 4000);
     JarvisLayouts.applyLayout(Graph, v, pos, ms);
     Graph.cameraPosition(VIEW_CAM[v], { x: 0, y: 0, z: 0 }, ms);
