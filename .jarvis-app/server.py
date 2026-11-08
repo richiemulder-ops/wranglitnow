@@ -329,6 +329,7 @@ Doing things:
 - Write a document, report, summary, brief, letter or plan ("write me a one-pager on...", "draft a proposal for..."): ACTION: write | <the project it belongs to, exactly as listed below, or empty> | <everything the writer needs in one line: what it is, who it is for, what it should cover, in their words>. The team writes it and it opens on screen when finished; say it is being written.
 - Draft an email: ACTION: draft | <who it is to, what it should say in their words, the tone if given, and the subject or sender of any email being replied to>. The team puts it in their Outlook Drafts; nothing is sent.
 - Talk to one team member: ACTION: chat | <their name> | <the message to pass on, in their words, or empty just to open the chat>. Use this rather than DELEGATE whenever they want to talk to or ask one person.
+- Set up a scheduled or repeat job ("every Monday, check...", "set up a job to...", "each morning send me..."): first make sure you know three things: what it should do, when it runs, and what happens with the result (shown in their tray, said out loud, saved as a note in Team Inbox). If any is missing or vague, ask about it with no ACTION line: one short question per reply, offering a sensible default they can just say yes to ("Weekdays at 7:30, shown in your tray and saved as a note in Team Inbox?"). The team does it unless it only needs a quick read-only answer. Once you have all three, create it: ACTION: job | <a short name> | <team or quick> | <daily, weekdays, weekly <day>, or every <n> hours> | <the time as HH:MM, 24-hour, or empty for every few hours> | <tools it needs, comma-separated ids from: {tools}; empty for notes only> | <any of tray, speak, note, comma-separated> | <what to do: complete instructions in plain English, as you would brief the team, including what to look at and what to write>. Ready-made jobs ({templates}): give that name and leave what-to-do empty. Then confirm in a line that it's on and when it first runs; they can pause or change it in Settings > Jobs. To change a job (one you just set up, or any listed in Settings > Jobs), write the whole job line again with exactly the same name: it replaces that job. Never create a job they haven't asked for.
 Anything else that is real work goes to the team with DELEGATE.
 Their projects: {projects}. The team: {team}."""
 
@@ -1111,7 +1112,9 @@ def answer(sid, question, project=None, history=None, on_event=None):
     prompt = f"Now: {now_local()}.\n\n" + prompt
     system = (persona(style=False) + ("" if fast else VAULT_PROMPT.replace("{vault}", VAULT)) +
               ACTION_PROMPT.replace("{projects}", ", ".join(sorted(PROJECTS)) or "none yet")
-                           .replace("{team}", ", ".join(TEAM) or "none") +
+                           .replace("{team}", ", ".join(TEAM) or "none")
+                           .replace("{tools}", ", ".join(f"{t['id']} ({t['name']})" for t in list_tools_raw() if t["enabled"]) or "none")
+                           .replace("{templates}", ", ".join(t["name"] for t in JOB_TEMPLATES) or "none") +
               DELEGATE_PROMPT +   # Jarvis is the orchestrator's front door: work needn't name the team
               personality_prompt())   # last, so the chosen personality wins
     choice = chat_choice()
@@ -1280,6 +1283,8 @@ def run_action(line):
             return show_window(parts)
         if kind == "close":
             return {"type": "close", "what": window_key(parts[0] if parts else "") or "all"}
+        if kind == "job":
+            return job_from_chat(parts)
         if kind == "write":
             name = match_project(parts[0]) if parts and parts[0] else None
             brief = " | ".join(parts[1:]).strip() or " | ".join(parts).strip()
@@ -3789,6 +3794,49 @@ def _valid_schedule(sc):
     except (TypeError, ValueError) as e:
         raise ChatError(400, str(e) or "Bad schedule.")
     return out
+
+
+def job_from_chat(parts):
+    """ACTION: job | name | team/quick | when | HH:MM | tools | outputs | what to do: add a scheduled job."""
+    name, who, when, at, tools, outs = (parts + [""] * 6)[:6]
+    what = " | ".join(parts[6:]).strip()
+    tpl = next((t for t in JOB_TEMPLATES if t["name"].lower() == name.lower() or t["id"] == name.lower()), None)
+    w = when.lower().strip()
+    m_every = re.search(r"every\s*(\d+(?:\.\d+)?)\s*h", w) or re.fullmatch(r"every\s*:?\s*(\d+(?:\.\d+)?)", w)
+    day = next((d for d in DAYS if re.search(r"\b" + d, w)), None)
+    if m_every:
+        sched = {"type": "every", "hours": float(m_every.group(1))}
+    elif "weekday" in w:
+        sched = {"type": "weekdays", "at": at}
+    elif "week" in w or day:
+        sched = {"type": "weekly", "day": day or "", "at": at}
+    elif "day" in w or "daily" in w:
+        sched = {"type": "daily", "at": at}
+    elif tpl:
+        sched = dict(tpl["schedule"])
+    else:
+        return {"type": "error", "message": "I need to know when the job runs before I can set it up."}
+    if tpl and not sched.get("at") and sched["type"] != "every":
+        sched["at"] = tpl["schedule"].get("at", "")
+    known = {t["id"] for t in list_tools_raw()}
+    job = {"name": name or (tpl or {}).get("name", ""),
+           "runner": "quick" if who.lower().startswith("quick") else (tpl or {}).get("runner", "larry"),
+           "prompt": what or (tpl or {}).get("prompt", ""),
+           "schedule": sched,
+           "tools": [t.strip() for t in tools.split(",") if t.strip() in known] or (tpl or {}).get("tools") or ["vault"],
+           "outputs": [o.strip().lower() for o in outs.split(",") if o.strip().lower() in ("tray", "speak", "note")]
+                      or (tpl or {}).get("outputs") or ["tray"],
+           "note_folder": (tpl or {}).get("note_folder", "Team Inbox")}
+    with _sched_lock:   # same name as an existing job: they're changing it, not adding another
+        same = next((x for x in load_schedules() if not x.get("builtin")
+                     and x["name"].lower() == _clean(job["name"], 80).lower()), None)
+    try:
+        data = edit_schedules({"op": "update", "id": same["id"], "job": job} if same else {"op": "add", "job": job})
+    except ChatError as e:
+        return {"type": "error", "message": f"I couldn't set up that job: {e}"}
+    made = next((r for r in reversed(data["schedules"]) if r["name"] == _clean(job["name"], 80)), None)
+    return {"type": "jobset", "changed": bool(same), "name": job["name"], "label": (made or {}).get("label", ""),
+            "next": (made or {}).get("next_label", "")}
 
 
 def edit_schedules(body):

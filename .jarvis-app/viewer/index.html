@@ -129,7 +129,8 @@
   .popwin { position: fixed; z-index: 8; width: min(440px, calc(100vw - 24px)); height: min(520px, calc(100vh - 140px));
     display: flex; flex-direction: column; border-radius: 14px; background: rgba(14, 17, 44, 0.96); backdrop-filter: blur(16px);
     border: 1px solid var(--edge); border-top: 2px solid var(--accent); box-shadow: 0 18px 50px rgba(0,0,0,0.55);
-    animation: rise 0.25s ease-out; --accent: #cfe49a; }
+    animation: rise 0.25s ease-out; --accent: #cfe49a;
+    resize: both; overflow: hidden; box-sizing: border-box; min-width: 300px; min-height: 200px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); }
   .popwin.big { width: min(680px, calc(100vw - 24px)); height: min(640px, calc(100vh - 140px)); }
   .popwin .cal-day { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); padding: 12px 4px 4px; }
   .popwin header { display: flex; align-items: center; gap: 8px; padding: 12px 12px 10px 16px; border-bottom: 1px solid var(--edge);
@@ -146,7 +147,7 @@
     border-radius: 8px; color: var(--ink); font: inherit; font-size: 12.5px; padding: 6px 9px; outline: none; }
   .popwin .link-btn.on { background: rgba(186,211,103,0.32); border-color: rgba(186,211,103,0.6); }
   .popwin .count { font-size: 11.5px; color: var(--dim); }
-  .popwin .content { flex: 1; overflow-y: auto; padding: 2px 14px 14px; }
+  .popwin .content { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 2px 14px 14px; }
   .popwin .row-item { padding: 9px 2px; }
   .popwin .row-item .t { font-size: 13px; }
   .popwin .empty, .popwin .loading { padding: 18px 2px; color: var(--dim); font-size: 12.5px; }
@@ -251,11 +252,16 @@
   #settings .st-acts { grid-column: 2; display: flex; gap: 12px; font-size: 12px; }
   #settings .st-dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 5px; background: #6b7488; }
   #settings .st-dot.ok { background: #8fdc6a; box-shadow: 0 0 8px #8fdc6a; } #settings .st-dot.bad { background: #ff6b7e; box-shadow: 0 0 8px #ff6b7e; }
-  .popwin .jobform { display: grid; gap: 10px; padding-top: 10px; font-size: 13px; }
+  #settings .st-job .st-dot.live { animation: jobdot 2.4s ease-in-out infinite; }
+  #settings .st-job .st-dot.run { background: #ffc857; box-shadow: 0 0 8px #ffc857; animation: jobdot 0.8s ease-in-out infinite; }
+  @keyframes jobdot { 50% { opacity: 0.35; transform: scale(0.75); } }
+  @media (prefers-reduced-motion: reduce) { #settings .st-job .st-dot.live, #settings .st-job .st-dot.run { animation: none; } }
+  .popwin .jobform { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding-top: 10px; font-size: 13px; }
   .popwin .jobform label { display: grid; gap: 4px; color: var(--dim); font-size: 12px; }
   .popwin .jobform input[type=text], .popwin .jobform input[type=time], .popwin .jobform input[type=number],
   .popwin .jobform select, .popwin .jobform textarea { font: inherit; font-size: 13px; color: var(--ink); background: rgba(255,255,255,0.04);
-    border: 1px solid var(--edge); border-radius: 8px; padding: 7px 9px; }
+    border: 1px solid var(--edge); border-radius: 8px; padding: 7px 9px; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
+  .popwin .jobform textarea { resize: vertical; }
   .popwin .jobform select option { background: #12163a; }
   .popwin .jobform .when { display: flex; gap: 10px; flex-wrap: wrap; } .popwin .jobform .when > label { flex: 1; min-width: 110px; }
   .popwin .jobform .checks { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
@@ -2249,8 +2255,27 @@ const tc = THEME.colour;
     const step = popups.length % 6, w = Math.min(big ? 680 : 440, innerWidth - 24), h = Math.min(big ? 640 : 520, innerHeight - 140);
     el.style.left = Math.max(12, Math.min(innerWidth - w - 12, innerWidth / 2 - w / 2 + step * 28)) + 'px';
     el.style.top = Math.max(72, Math.min(innerHeight - h - 12, (innerHeight - h) / 2 + step * 28)) + 'px';
+    // Drag the bottom-right corner to resize; the size is remembered per kind of window.
+    const sizeKey = kind ? `jarvis-pop-size-${kind}` : '';
+    try {
+      const sz = sizeKey && JSON.parse(localStorage.getItem(sizeKey) || 'null');
+      if (sz && sz.w && sz.h) {
+        el.style.width = Math.min(sz.w, innerWidth - 16) + 'px'; el.style.height = Math.min(sz.h, innerHeight - 16) + 'px';
+        el.style.left = Math.max(8, Math.min(parseFloat(el.style.left), innerWidth - Math.min(sz.w, innerWidth - 16) - 8)) + 'px';
+        el.style.top = Math.max(8, Math.min(parseFloat(el.style.top), innerHeight - Math.min(sz.h, innerHeight - 16) - 8)) + 'px';
+      }
+    } catch (_) {}
     document.body.appendChild(el); popups.push(el);
-    const close = () => { el.remove(); popups.splice(popups.indexOf(el), 1); };
+    let sized = null;
+    const opened = [el.offsetWidth, el.offsetHeight];   // only a size you changed is saved
+    const saveSize = () => {
+      if (!sizeKey || !el.isConnected) return;
+      const w = Math.round(el.offsetWidth), h = Math.round(el.offsetHeight);
+      if (w === opened[0] && h === opened[1]) return;
+      try { localStorage.setItem(sizeKey, JSON.stringify({ w, h })); } catch (_) {}
+    };
+    if (sizeKey && window.ResizeObserver) { sized = new ResizeObserver(saveSize); sized.observe(el); }
+    const close = () => { saveSize(); if (sized) sized.disconnect(); el.remove(); popups.splice(popups.indexOf(el), 1); };
     el.querySelector('.x').onclick = close;
     el.addEventListener('pointerdown', () => { if (el.nextElementSibling) document.body.appendChild(el); }, true);   // to the front
     el.querySelector('header').onpointerdown = e => {
@@ -3592,6 +3617,7 @@ const tc = THEME.colour;
     else if (a.type === 'galaxy') flyToSubject(a.subject);
     else if (a.type === 'close') closeWindows(a.what);
     else if (a.type === 'job') { trackJob(a.job); setStatus('thinking', 'the team is writing it; it opens here when done', 6000); }
+    else if (a.type === 'jobset') { openSettingsTab('jobs'); setStatus('done', `${a.changed ? 'Job changed' : 'Job set up'}: ${a.name}${a.label ? ' · ' + a.label : ''}${a.next ? ' · next ' + a.next : ''}`, 8000); }
     else if (a.type === 'error') setStatus('error', a.message, 6000);
   }
   const actionsOf = data => data.actions || (data.action ? [data.action] : []);
@@ -4203,12 +4229,20 @@ const tc = THEME.colour;
       api('/api/schedules').then(paintJobs).catch(err => { body.innerHTML = `<p class="st-err">${esc(err.message)}</p>`; });
     }
     const STATUS = { done: '✓ done', failed: '✗ failed', skipped: 'skipped', missed: 'missed (PC was off)', interrupted: 'interrupted', running: 'running…' };
+    // The job's light: pulsing green while it's on, amber while it runs, red if it's on but its last
+    // run failed, grey when paused.
+    function jobDot(s) {
+      const bad = ['failed', 'skipped', 'missed'].includes(s.last_status);
+      const [cls, tip] = s.running ? ['run', 'Running now'] : !s.enabled ? ['', 'Paused'] :
+        bad ? ['bad live', `On, but the last run ${{ failed: 'failed', skipped: 'was skipped', missed: 'was missed (PC off)' }[s.last_status]}`] : ['ok live', 'On'];
+      return `<i class="st-dot ${cls}" title="${esc(tip)}"></i>`;
+    }
     function paintJobs(d) {
       if (tab !== 'jobs') return;
       jobsData = d;
       body.innerHTML = `<div class="st-list">${d.schedules.map(s => `
         <div class="st-tool st-job${s.enabled ? '' : ' off'}" data-id="${esc(s.id)}">
-          <i class="st-dot ${s.last_status === 'done' ? 'ok' : ['failed', 'skipped', 'missed'].includes(s.last_status) ? 'bad' : 'unk'}"></i>
+          ${jobDot(s)}
           <div class="st-main"><b>${esc(s.name)}</b> <span class="st-kind">${s.runner === 'brief' ? 'Built in' : s.runner === 'quick' ? 'Quick' : 'Team'}</span>
             <small>${esc(s.label)}${s.enabled ? ' · next ' + esc(s.next_label) : ' · paused'}</small>
             ${s.last_status ? `<small class="st-stat" title="${esc(s.last_result || '')}">Last: ${esc(STATUS[s.last_status] || s.last_status)}${s.last_label ? ' · ' + esc(s.last_label) : ''}</small>` : ''}</div>
@@ -4248,7 +4282,7 @@ const tc = THEME.colour;
       const d = jobsData || { tools: [] };
       const brief = s && s.runner === 'brief';
       const sc = (s && s.schedule) || { type: 'weekdays', at: '07:30' };
-      popup({ kicker: brief ? 'Daily brief' : 'Scheduled job', title: s ? s.name : 'New job', big: !brief, accent: tc('#bad367'),
+      popup({ kicker: brief ? 'Daily brief' : 'Scheduled job', title: s ? s.name : 'New job', big: !brief, accent: tc('#bad367'), kind: 'jobedit',
         render: (bar, content) => {
           content.innerHTML = `<form class="jobform">${brief ? `
             <p>Shows the first time you open Jarvis each day (from 4am), as a card plus a short spoken summary.

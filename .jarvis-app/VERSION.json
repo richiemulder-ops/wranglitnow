@@ -1,7 +1,10 @@
 {
-  "version": "2026.11.08.7",
+  "version": "2026.11.08.8",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes.",
   "notes": [
+    "Ask Jarvis to set up a job (\"every Friday at 2pm, remind me what's still open\"): he asks what he needs, then creates it. Say it again with changes and he updates the same job.",
+    "Settings > Jobs: each job's light pulses green while it's on, amber while it runs, red if its last run failed, and is grey when paused.",
+    "Pop-up windows, including the job editor, can be resized from the bottom-right corner and remember their size. The job editor no longer scrolls sideways.",
     "Jarvis starts talking sooner: the spoken answer begins as soon as it's ready, while the written reply is still appearing on screen.",
     "Project chat now takes files too: attach with the paperclip, paste with Ctrl+V or drop a file on the box, and it goes into the Team Inbox.",
     "Settings > Jobs > Add a job offers a Weekly knowledge capture (Friday afternoon: turns the week's decisions and repeatable work into decision log entries, draft how-to guides and templates).",
@@ -55,6 +58,14 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.08.8",
+      "notes": [
+        "Ask Jarvis to set up a job (\"every Friday at 2pm, remind me what's still open\"): he asks what he needs, then creates it. Say it again with changes and he updates the same job.",
+        "Settings > Jobs: each job's light pulses green while it's on, amber while it runs, red if its last run failed, and is grey when paused.",
+        "Pop-up windows, including the job editor, can be resized from the bottom-right corner and remember their size. The job editor no longer scrolls sideways."
+      ]
+    },
     {
       "version": "2026.11.08.7",
       "notes": [
