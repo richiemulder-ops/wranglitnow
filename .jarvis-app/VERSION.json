@@ -1,7 +1,10 @@
 {
-  "version": "2026.11.08.4",
+  "version": "2026.11.08.5",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes.",
   "notes": [
+    "Daily brief: the first time you open Jarvis each day, a card shows what's due, what's waiting for your decision, today's calendar, and what changed since last time (new email, finished jobs, notes, Team Inbox). Jarvis reads out a short summary instead of the usual greeting. Ask \"show me my brief\" to see it again.",
+    "Settings > Tools: the tools Jarvis and the team use (Claude Code, your notes, Outlook, Fireflies, and any you add), each with a Test button and a green or red light.",
+    "Settings > Jobs: schedule work for the team (every day, weekdays, weekly or every few hours), with Run now, Pause and a log. Jobs run while your computer is on; one missed while it was off runs once when Jarvis starts again.",
     "The Logo view is back to the flat Carbonhalo mark.",
     "The Logo view is now 3D: each petal of the mark has depth and a slight twist, and the connections arc around it. It opens at an angle and slowly turns so the depth shows.",
     "Faster answers. Small talk and screen commands (\"show my actions\") now take about 3 seconds, and questions about your notes about half as long as before. Jarvis replies the moment the answer is ready instead of waiting for Claude to shut down.",
@@ -46,6 +49,14 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.08.5",
+      "notes": [
+        "Daily brief: the first time you open Jarvis each day, a card shows what's due, what's waiting for your decision, today's calendar, and what changed since last time (new email, finished jobs, notes, Team Inbox). Jarvis reads out a short summary instead of the usual greeting. Ask \"show me my brief\" to see it again.",
+        "Settings > Tools: the tools Jarvis and the team use (Claude Code, your notes, Outlook, Fireflies, and any you add), each with a Test button and a green or red light.",
+        "Settings > Jobs: schedule work for the team (every day, weekdays, weekly or every few hours), with Run now, Pause and a log. Jobs run while your computer is on; one missed while it was off runs once when Jarvis starts again."
+      ]
+    },
     {
       "version": "2026.11.08.4",
       "notes": [
