@@ -1,7 +1,8 @@
 {
-  "version": "2026.11.08.8",
+  "version": "2026.11.08.9",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes.",
   "notes": [
+    "\"See what the team is doing\" opens the team window again. The small arrow on its right shows or folds the short list in the tray.",
     "Ask Jarvis to set up a job (\"every Friday at 2pm, remind me what's still open\"): he asks what he needs, then creates it. Say it again with changes and he updates the same job.",
     "Settings > Jobs: each job's light pulses green while it's on, amber while it runs, red if its last run failed, and is grey when paused.",
     "Pop-up windows, including the job editor, can be resized from the bottom-right corner and remember their size. The job editor no longer scrolls sideways.",
@@ -58,6 +59,12 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.08.9",
+      "notes": [
+        "\"See what the team is doing\" opens the team window again. The small arrow on its right shows or folds the short list in the tray."
+      ]
+    },
     {
       "version": "2026.11.08.8",
       "notes": [

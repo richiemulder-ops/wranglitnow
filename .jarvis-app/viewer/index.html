@@ -629,6 +629,8 @@
   .job.team-open.expanded { border-color: rgba(186,211,103,0.45); }
   /* CR-006: the team button opened up, one block per agent at work. */
   .job.crew-list { display: flex; flex-direction: column; gap: 8px; }
+  .team-open .fold { display: inline-block; padding: 2px 7px; margin: -2px -4px -2px 2px; border-radius: 6px; }
+  .team-open .fold:hover { background: rgba(255,255,255,0.12); color: var(--ink); }
   .crew-list .cl-agent { padding: 7px 9px; border-radius: 9px; background: rgba(255,255,255,0.04);
     border-left: 3px solid var(--accent, #bad367); cursor: pointer; }
   .crew-list .cl-agent:hover { background: rgba(255,255,255,0.08); }
@@ -4814,11 +4816,13 @@ const tc = THEME.colour;
     const liveAgents = [...new Set(live.map(w => w.agent))];
     const open = document.createElement('button');
     open.type = 'button'; open.className = 'job team-open' + (trayOpen ? ' expanded' : ''); open.dataset.key = 'open';
-    open.title = trayOpen ? 'Fold the team list away' : 'Show who is working on what';
-    open.setAttribute('aria-expanded', String(trayOpen));
+    // Click opens the team window; the arrow on the right opens or folds the short list here (CR-006).
+    open.title = 'Open the team window: who is working on what, and anything waiting for you';
     open.innerHTML = `<span>👥</span><b>See what the team is doing</b><span class="n">` +
-      `${liveAgents.length ? liveAgents.length + ' working · ' : ''}${trayOpen ? '▴' : '▾'}</span>`;
-    open.onclick = () => {
+      `${liveAgents.length ? liveAgents.length + ' working ' : ''}<span class="fold" role="button" aria-expanded="${trayOpen}" ` +
+      `title="${trayOpen ? 'Fold the list away' : 'Show the list here'}">${trayOpen ? '▴' : '▾'}</span></span>`;
+    open.onclick = e => {
+      if (!e.target.closest('.fold')) { showTeamActivity(); return; }
       trayOpen = !trayOpen;
       try { localStorage.setItem('jarvis-tray-open', trayOpen ? '1' : '0'); } catch (_) {}
       renderJobs();
