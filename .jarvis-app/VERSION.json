@@ -1,7 +1,10 @@
 {
-  "version": "2026.11.08.5",
+  "version": "2026.11.08.6",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes.",
   "notes": [
+    "New 'Your tools' step: tick what you use (Outlook, Fireflies, Gmail and Google Calendar, Slack, monday.com) and Jarvis checks each one is connected. Existing installs see it once as a card. Anything you don't use is switched off, so the daily brief never waits on it.",
+    "Settings > Jobs > Add a job now offers a ready-made Weekly status update (Friday afternoon: what moved per client, what's overdue, what's next).",
+    "Ticking an action off in Jarvis now records the day it was done (date_closed).",
     "Daily brief: the first time you open Jarvis each day, a card shows what's due, what's waiting for your decision, today's calendar, and what changed since last time (new email, finished jobs, notes, Team Inbox). Jarvis reads out a short summary instead of the usual greeting. Ask \"show me my brief\" to see it again.",
     "Settings > Tools: the tools Jarvis and the team use (Claude Code, your notes, Outlook, Fireflies, and any you add), each with a Test button and a green or red light.",
     "Settings > Jobs: schedule work for the team (every day, weekdays, weekly or every few hours), with Run now, Pause and a log. Jobs run while your computer is on; one missed while it was off runs once when Jarvis starts again.",
@@ -49,6 +52,14 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.08.6",
+      "notes": [
+        "New 'Your tools' step: tick what you use (Outlook, Fireflies, Gmail and Google Calendar, Slack, monday.com) and Jarvis checks each one is connected. Existing installs see it once as a card. Anything you don't use is switched off, so the daily brief never waits on it.",
+        "Settings > Jobs > Add a job now offers a ready-made Weekly status update (Friday afternoon: what moved per client, what's overdue, what's next).",
+        "Ticking an action off in Jarvis now records the day it was done (date_closed)."
+      ]
+    },
     {
       "version": "2026.11.08.5",
       "notes": [

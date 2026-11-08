@@ -2737,7 +2737,14 @@ def set_action_done(rel, done):
         m = re.match(r"\A---\s*\r?\n.*?\r?\n---", text, re.S)
         if not m or not re.search(r"^done:.*$", m.group(0), re.M):
             raise ChatError(400, "This action has no done: field.")
-        head = re.sub(r"^done:.*$", f"done: {'true' if done else 'false'}", m.group(0), count=1, flags=re.M)
+        head = re.sub(r"^done:[^\r\n]*", f"done: {'true' if done else 'false'}", m.group(0), count=1, flags=re.M)
+        # GL-002 v2.7: date_closed is the day it was done; blank again if it's reopened.
+        stamp = time.strftime("%Y-%m-%d") if done else ""
+        if re.search(r"^date_closed:", head, re.M):
+            head = re.sub(r"^date_closed:[^\r\n]*", f"date_closed: {stamp}".rstrip(), head, count=1, flags=re.M)
+        elif done:
+            nl = "\r\n" if "\r\n" in head else "\n"
+            head = re.sub(r"^(done:[^\r\n]*)", lambda d: d.group(1) + nl + f"date_closed: {stamp}", head, count=1, flags=re.M)
         with open(path, "w", encoding="utf-8", newline="") as f:
             f.write(head + text[m.end():])
     return {"ok": True, "done": bool(done)}
@@ -3321,7 +3328,7 @@ def public_tools():
         rows.append(r)
     order = {k: i for i, k in enumerate(["builtin"] + TOOL_KINDS)}
     rows.sort(key=lambda r: (not r["builtin"], order.get(r["kind"], 9), r["name"].lower()))
-    return {"tools": rows, "kinds": TOOL_KINDS}
+    return {"tools": rows, "kinds": TOOL_KINDS, "asked": bool(read_config().get("tools_asked"))}
 
 
 def note_connector(name, status):
@@ -3459,6 +3466,8 @@ def edit_tools(body):
             cfg["tools"] = [x for x in mine if x.get("id") != tid]
             (cfg.get("api_keys") or {}).pop(tid, None)
             _tool_status.pop(tid, None)
+        elif op == "asked":   # the "which tools do you use?" question has been answered (or skipped)
+            cfg["tools_asked"] = True
         elif op in ("enable", "disable"):
             off = set(cfg.get("tools_disabled") or [])
             (off.discard if op == "enable" else off.add)(tid)
@@ -3576,6 +3585,52 @@ def _sched_ts_label(ts):
     return f"{day} {d.strftime('%I:%M %p').lstrip('0').lower()}"
 
 
+# Ready-made jobs offered in Settings > Jobs > Add a job ("Start from a template"). Nothing runs until
+# a job is saved from one.
+WEEKLY_STATUS_PROMPT = """This is the scheduled weekly status job. Run it yourself; no delegation. Read only, except for the one note below.
+
+Window: the seven days ending now. Use dates in frontmatter where they exist; otherwise use the file's modified date and say so.
+
+Which clients: every org with a project in copilot/projects/ listed as active in Projects.md, plus any org with a meeting, action or project file change in the window. Skip internal projects with no movement.
+
+For each client or project, report:
+1. Meetings filed: notes in PKM/CRM/Meetings/ dated in the window, matched by org. One line each, wikilinked.
+2. Actions raised: notes in Actions/ with date_raised in the window.
+3. Actions closed: done: true with date_closed in the window. Where an action has no date_closed (ticked in Obsidian), use its modified date and mark it "(from file date)".
+4. Deliverables added or changed: files in copilot/projects/<Name>/ created or modified in the window, by file name.
+5. Overdue: done: false with a due before today, oldest first, with owner. Open actions with no due: a count only. Never infer a due date.
+6. Next week: open actions due in the next seven days, and any next step a meeting note in the window states. Nothing else.
+
+Leave out a heading that would be empty. A client with nothing in any section gets one line: "No movement this week."
+
+Write one note at Deliverables/YYYYMMDD_{org}_Weekly_Status_Report_v1.0.md (if that name exists, v1.1; never overwrite), with a three-line summary at the top, then one section per client in alphabetical order. Wikilink every meeting, action and project. Plain language, Australian spelling.
+
+Do not send or draft email, edit any existing note, tick off actions or create action notes. A meeting with no action notes goes under "Gaps" at the end; don't file anything.
+
+Finish with the note path, then one line: Weekly status: <n> clients moved, <n> actions closed, <n> overdue."""
+
+REGULATORY_PROMPT = """This is the scheduled weekly regulatory guidance check. Read only, except for the one note below.
+
+1. Baseline. Read the "Standing currency duty" section and open questions in Clara's AGENTS.md, PKM/My Life/Topics/carbon-accounting.md, and the most recent earlier note in copilot/projects/Regulatory Watch/. That is what the vault already records. The window starts at that note's date, or 30 days back if there is none.
+
+2. Pax reads the sources. Ask Pax to check the issuing bodies' own sites for anything new or changed in the window: AASB (AASB S2), ASIC (RG 280, sustainability reporting guidance and releases), Treasury (Group 1/2/3 timing), Clean Energy Regulator (NGER, Safeguard), DCCEEW (NGA Factors, Climate Active), ISSB (IFRS S1/S2), GHG Protocol (Scope 2 and 3 revisions). Pax reads only: no posting, sign-ups or downloads. For each item: title, issuing body, publication date as printed, URL, two-line summary. Drop anything without a source page; mark undated items "date not stated".
+
+3. You sort them first. Compare Pax's items with the baseline and mark each material, minor or no change. Only if something is material, pass those items (not the rest) to Clara to judge which clients they touch. She names a client only where a vault note shows the link, and wikilinks that note.
+
+4. Write copilot/projects/Regulatory Watch/YYYYMMDD_Regulatory_Watch_v1.0.md with: Summary; What changed (each item with its source link); Impact on clients; Suggested actions; Sources checked with nothing new. If nothing material changed, the first line is "No material changes since <date>." Cite a source for every claim. Never state a date, threshold or rule a source page doesn't show; mark anything uncertain "unconfirmed".
+
+5. Don't edit Clara's AGENTS.md, the Topic or any client note: list proposed updates under "Proposed vault updates". No email, no drafts.
+
+Finish with the note path and one line: Regulatory check: <n> material changes (or: no material changes)."""
+
+JOB_TEMPLATES = [
+    {"id": "weekly-status", "name": "Weekly status update", "runner": "larry",
+     "schedule": {"type": "weekly", "day": "fri", "at": "15:00"}, "tools": ["vault"], "outputs": ["tray"],
+     "note_folder": "Team Inbox", "about": "Friday afternoon: what moved per client this week, what's overdue, what's next.",
+     "prompt": WEEKLY_STATUS_PROMPT.replace("{org}_", "")},
+]
+
+
 def public_schedules():
     with _sched_lock:
         items = load_schedules()
@@ -3589,7 +3644,7 @@ def public_schedules():
         r["running"] = _sched_state["busy"] == s["id"]
         rows.append(r)
     return {"schedules": rows, "tools": [{"id": t["id"], "name": t["name"]} for t in list_tools_raw() if t["enabled"]],
-            "cap": SCHED_DAILY_CAP}
+            "cap": SCHED_DAILY_CAP, "templates": JOB_TEMPLATES}
 
 
 def _valid_schedule(sc):
