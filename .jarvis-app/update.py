@@ -23,7 +23,8 @@ ZIP_URL = f"https://github.com/{REPO}/archive/refs/heads/{BRANCH}.zip"
 APP_FILES = ["server.py", "build.py", "approval_mcp.py", "launch.py", "setup.py", "update.py",
              "VERSION.json", os.path.join("viewer", "index.html"),
              os.path.join("viewer", "jarvis.ico")]
-CHECK_EVERY = 6 * 3600
+CHECK_EVERY = 24 * 3600   # GitHub is asked when Jarvis starts, then once a day; "update yourself" asks at once
+RETRY_AFTER = 10 * 60     # a failed check (offline at start-up) tries again soon, not a day later
 _cache = {"at": 0, "remote": None, "problem": None}
 
 
@@ -58,7 +59,8 @@ def _notes_since(remote, current):
 
 
 def check(force=False):
-    if force or time.time() - _cache["at"] > CHECK_EVERY:
+    wait = RETRY_AFTER if _cache["problem"] else CHECK_EVERY
+    if force or time.time() - _cache["at"] > wait:
         try:
             _cache["remote"] = json.loads(_fetch(f"{RAW_VERSION}?t={int(time.time())}", 10))
             _cache["problem"] = None

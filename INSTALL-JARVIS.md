@@ -178,7 +178,7 @@ That's it. Don't list what you did unless they ask. Don't mention Obsidian unles
 
 ### Later
 
-- **Update Jarvis:** Jarvis shows an **Update** tile in its top bar when a new version is out; one click installs it. It replaces program files only (in `ROOT\app` and `KNOWLEDGE\.jarvis-app`), never notes, `config.json` or `data\`. For older installs without that tile, see below.
+- **Update Jarvis:** Jarvis checks for a new version when it starts and once a day. When there is one, a flashing **Update now** pill appears at the top centre of the screen; one click installs it. They can also say "update yourself" in the chat to check straight away. It replaces program files only (in `ROOT\app` and `KNOWLEDGE\.jarvis-app`), never notes, `config.json` or `data\`. For older installs without that tile, see below.
 - **Stop Jarvis:** run `& "<PY>" "<ROOT>\app\launch.py" --stop`, or restart the PC.
 - **Move the knowledge folder:** stop Jarvis, move the folder, then run setup from its new place, pointing at the same Jarvis folder: `& "<PY>" "<NEW KNOWLEDGE>\.jarvis-app\setup.py" --install "<ROOT>"`. It updates `config.json`, rebuilds the index and restarts Jarvis. Settings and chat history stay.
 - **Rerun the welcome:** in the browser console, run `JARVIS_ONBOARD()`.
@@ -205,6 +205,6 @@ Remove-Item $tmp, "$tmp.zip" -Recurse -Force
 ```
 
 4. Run setup again, naming the Jarvis folder it already uses (no name needed; it keeps `config.json` and `data\`, and restarts Jarvis): `& "<PY>" "$k\.jarvis-app\setup.py" --install "<ROOT>"`
-5. Tell them: "Jarvis is updated and open again. From now on, an **Update** tile appears in the top bar whenever there's a new version: one click and it's done."
+5. Tell them: "Jarvis is updated and open again. From now on it checks for new versions each day and shows a flashing **Update now** button at the top of the screen when there is one. You can also just say \"update yourself\"."
 
 Never touch anything else in the knowledge folder: no notes, no `.claude` files, no `Team` folders.

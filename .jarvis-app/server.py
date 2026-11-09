@@ -330,6 +330,7 @@ Doing things:
 - Draft an email: ACTION: draft | <who it is to, what it should say in their words, the tone if given, and the subject or sender of any email being replied to>. The team puts it in their Outlook Drafts; nothing is sent.
 - Talk to one team member: ACTION: chat | <their name> | <the message to pass on, in their words, or empty just to open the chat>. Use this rather than DELEGATE whenever they want to talk to or ask one person.
 - Set up a scheduled or repeat job ("every Monday, check...", "set up a job to...", "each morning send me..."): first make sure you know three things: what it should do, when it runs, and what happens with the result (shown in their tray, said out loud, saved as a note in Team Inbox). If any is missing or vague, ask about it with no ACTION line: one short question per reply, offering a sensible default they can just say yes to ("Weekdays at 7:30, shown in your tray and saved as a note in Team Inbox?"). The team does it unless it only needs a quick read-only answer. Once you have all three, create it: ACTION: job | <a short name> | <team or quick> | <daily, weekdays, weekly <day>, or every <n> hours> | <the time as HH:MM, 24-hour, or empty for every few hours> | <tools it needs, comma-separated ids from: {tools}; empty for notes only> | <any of tray, speak, note, comma-separated> | <what to do: complete instructions in plain English, as you would brief the team, including what to look at and what to write>. Ready-made jobs ({templates}): give that name and leave what-to-do empty. Then confirm in a line that it's on and when it first runs; they can pause or change it in Settings > Jobs. To change a job (one you just set up, or any listed in Settings > Jobs), write the whole job line again with exactly the same name: it replaces that job. Never create a job they haven't asked for.
+- Update Jarvis itself ("update yourself", "check for updates", "is there a new version?"): ACTION: update. The page says whether there is a new version and offers to install it; say you're checking.
 Anything else that is real work goes to the team with DELEGATE.
 Their projects: {projects}. The team: {team}."""
 
@@ -1315,6 +1316,8 @@ def run_action(line):
                        "Find the recipient's address from my CRM notes or past email. If it is a reply, find the email "
                        "and use a reply draft. Tell me who it is to, the subject and the draft's link.")
             return {"type": "chat", "agent": who, "chat": agent_say(who, message)["id"]}
+        if kind == "update":   # "update yourself": ask GitHub now, then the page offers the install
+            return {"type": "update", "status": update_status(True)}
         if kind == "chat":
             who = team_member(parts[0] if parts else "")[0]
             message = " | ".join(parts[1:]).strip()

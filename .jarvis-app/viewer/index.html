@@ -567,6 +567,21 @@
   #crew { position: fixed; inset: 0; z-index: 45; display: flex; flex-direction: column; padding: 18px 22px 22px;
     box-sizing: border-box; background: rgba(8, 10, 26, 0.86); backdrop-filter: blur(6px); }
   #crew[hidden] { display: none; }
+  /* Update ready: a flashing pill top centre, outside the metrics bar so no screen width hides it. */
+  #updateBar { position: fixed; z-index: 70; top: 78px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 12px; max-width: calc(100vw - 32px); box-sizing: border-box;
+    padding: 9px 10px 9px 16px; border-radius: 999px; background: #10233d; border: 2px solid #9fd3ff;
+    color: #e8f4ff; font-size: 14px; animation: updflash 1.1s ease-in-out infinite; cursor: pointer; }
+  #updateBar[hidden] { display: none; }
+  #updateBar .dot { width: 10px; height: 10px; border-radius: 50%; background: #9fd3ff; flex: 0 0 auto; }
+  #updateBar .txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #updateBar button { font: inherit; font-weight: 700; padding: 7px 16px; border-radius: 999px; border: 0;
+    background: #9fd3ff; color: #0b1830; cursor: pointer; flex: 0 0 auto; }
+  #updateBar.busy { animation: none; }
+  #updateBar.busy button { display: none; }
+  @keyframes updflash { 0%, 100% { box-shadow: 0 0 0 0 rgba(159, 211, 255, 0.85); border-color: #9fd3ff; }
+    50% { box-shadow: 0 0 0 10px rgba(159, 211, 255, 0); border-color: #ffffff; background: #1b3a63; } }
+  body.waking #updateBar { opacity: 0; }
   #crew header { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
   #crew header .kick { font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); }
   #crew header h2 { margin: 2px 0 0; font-size: 20px; font-weight: 600; }
@@ -3648,6 +3663,7 @@ const tc = THEME.colour;
     }
     else if (a.type === 'open') setStatus('thinking', `opened ${a.path.split('/').pop()} on your desktop`, 4000);
     else if (a.type === 'chat') showTeamChat(a.agent, a.chat || null);
+    else if (a.type === 'update') updateAsked(a.status);
     else if (a.type === 'list') popClientList(a);
     else if (a.type === 'projectnotes') showNotes(null, false, a.project);
     else if (a.type === 'calendar') popCalendar(a.span);
@@ -5695,29 +5711,63 @@ const tc = THEME.colour;
   }
 
   // ---- updates ------------------------------------------------------------------------------
-  // A tile that shows only when GitHub has a newer Jarvis. Click it to install: Jarvis copies in
-  // the new app files (your notes and settings stay as they are), restarts and reloads this page.
-  const tUpdate = tile(tc('#9fd3ff'), 'Update', () => installUpdate());
-  tUpdate.el.hidden = true;
-  let updateInfo = null, updating = false;
+  // A flashing pill, top centre, that shows only when GitHub has a newer Jarvis. Click Update now to
+  // install: Jarvis copies in the new app files (your notes and settings stay as they are), restarts
+  // and reloads this page. The server asks GitHub when Jarvis starts and then once a day; the page
+  // only asks the server (on load, every 15 minutes, on coming back to the tab), never GitHub.
+  // "Update yourself" in chat (ACTION: update) asks GitHub at once and offers the install.
+  const updateBar = document.createElement('div');
+  updateBar.id = 'updateBar';
+  updateBar.hidden = true;
+  updateBar.setAttribute('role', 'status');
+  updateBar.innerHTML = '<span class="dot"></span><span class="txt"></span><button type="button">Update now</button>';
+  document.body.appendChild(updateBar);
+  updateBar.onclick = () => installUpdate();
+  const tUpdate = { set(v, sub, title) {
+    updateBar.querySelector('.txt').textContent = sub ? `${v.replace(/<[^>]+>/g, '')}: ${sub.replace(/<[^>]+>/g, '')}` : v;
+    if (title) updateBar.title = title;
+  } };
+  let updateInfo = null, updating = false, lastCheck = 0;
   async function checkUpdate() {
     if (updating) return;
+    lastCheck = Date.now();
     try { updateInfo = await api('/api/update'); } catch (_) { return; }
-    tUpdate.el.hidden = !updateInfo.available;
-    if (updateInfo.available) tUpdate.set(`<small>New version</small>`, 'Click to update',
-      `Jarvis ${updateInfo.latest} is ready (you have ${updateInfo.current}).\n` + (updateInfo.notes || []).map(n => '• ' + n).join('\n'));
+    updateBar.hidden = !updateInfo.available;
+    if (updateInfo.available) {
+      updateBar.querySelector('.txt').textContent = `New Jarvis ready (${updateInfo.latest})`;
+      updateBar.title = `Jarvis ${updateInfo.latest} is ready (you have ${updateInfo.current}).\n` +
+        (updateInfo.notes || []).map(n => '• ' + n).join('\n');
+    }
   }
   checkUpdate();
-  setInterval(checkUpdate, 6 * 60 * 60 * 1000);
+  setInterval(checkUpdate, 15 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && Date.now() - lastCheck > 5 * 60 * 1000) checkUpdate();
+  });
+  function updateAsked(s) {
+    if (!s || updating) return;
+    if (s.available) {
+      updateInfo = s;
+      updateBar.hidden = false;
+      updateBar.querySelector('.txt').textContent = `New Jarvis ready (${s.latest})`;
+      setStatus('thinking', `Jarvis ${s.latest} is ready`, 4000);
+      setTimeout(installUpdate, 400);   // the same "Update Jarvis to ...?" question as the button
+    } else if (s.problem) {
+      setStatus('thinking', `couldn't check for updates: ${s.problem}`, 6000);
+    } else {
+      setStatus('thinking', `Jarvis is up to date (${s.current})`, 5000);
+    }
+  }
   async function installUpdate() {
     if (updating || !updateInfo || !updateInfo.available) return;
     const notes = (updateInfo.notes || []).map(n => '• ' + n).join('\n');
     if (!confirm(`Update Jarvis to ${updateInfo.latest}?\n\n${notes ? "What's new:\n" + notes + '\n\n' : ''}` +
                  'Your notes and settings stay as they are. Jarvis restarts, which takes about 20 seconds.')) return;
     updating = true;
+    updateBar.classList.add('busy');
     tUpdate.set('<small>Updating…</small>', 'Downloading');
     try { await api('/api/update', {}); }
-    catch (err) { updating = false; tUpdate.set('<small>Not updated</small>', escapeHtml(err.message), err.message); return; }
+    catch (err) { updating = false; updateBar.classList.remove('busy'); tUpdate.set('Not updated', err.message, err.message); return; }
     tUpdate.set('<small>Restarting…</small>', 'Back in a moment');
     const want = updateInfo.latest, started = Date.now();
     const wait = async () => {

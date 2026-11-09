@@ -1,7 +1,8 @@
 {
-  "version": "2026.11.08.10",
+  "version": "2026.11.09.1",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes.",
   "notes": [
+    "Updates are easier to spot: when a new version is out, a flashing \"Update now\" button appears at the top centre of the screen. Jarvis checks when it starts and once a day, and you can say \"update yourself\" to check straight away.",
     "New Nucleus view (replaces Tree, in the View menu under the index): your notes form a ball that slowly swirls round a nucleus of projects, agents and folders.",
     "\"See what the team is doing\" opens the team window again. The small arrow on its right shows or folds the short list in the tray.",
     "Ask Jarvis to set up a job (\"every Friday at 2pm, remind me what's still open\"): he asks what he needs, then creates it. Say it again with changes and he updates the same job.",
@@ -60,6 +61,12 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.09.1",
+      "notes": [
+        "Updates are easier to spot: when a new version is out, a flashing \"Update now\" button appears at the top centre of the screen. Jarvis checks when it starts and once a day, and you can say \"update yourself\" to check straight away."
+      ]
+    },
     {
       "version": "2026.11.08.10",
       "notes": [
