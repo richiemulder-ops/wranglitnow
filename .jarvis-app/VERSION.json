@@ -1,7 +1,8 @@
 {
-  "version": "2026.11.09.1",
-  "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes.",
+  "version": "2026.11.09.2",
+  "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes. 'tour' lists the tutorial step ids (TOUR_STEPS in viewer/index.html) this release added or changed, for the 'what's new' tour; run check_tour.py before pushing.",
   "notes": [
+    "New tutorial: Jarvis tells you what he can do for you, then shows you round every menu, the top bar, the team and Settings, step by step with made-up example data (your own notes are never shown or changed). It starts on a new install before his greeting; replay it any time from Settings > Tutorial, or say \"give me a tour\". After each update he offers to show you just what's new.",
     "Updates are easier to spot: when a new version is out, a flashing \"Update now\" button appears at the top centre of the screen. Jarvis checks when it starts and once a day, and you can say \"update yourself\" to check straight away.",
     "New Nucleus view (replaces Tree, in the View menu under the index): your notes form a ball that slowly swirls round a nucleus of projects, agents and folders.",
     "\"See what the team is doing\" opens the team window again. The small arrow on its right shows or folds the short list in the tray.",
@@ -61,6 +62,16 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.09.2",
+      "notes": [
+        "New tutorial: Jarvis tells you what he can do for you, then shows you round every menu, the top bar, the team and Settings, step by step with made-up example data (your own notes are never shown or changed). It starts on a new install before his greeting; replay it any time from Settings > Tutorial, or say \"give me a tour\". After each update he offers to show you just what's new."
+      ],
+      "tour": [
+        "s.tutorial",
+        "a.help"
+      ]
+    },
     {
       "version": "2026.11.09.1",
       "notes": [

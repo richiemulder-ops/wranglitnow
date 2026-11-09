@@ -238,7 +238,7 @@
     font-size: 13px; background: rgba(13, 16, 40, 0.96); border: 1px solid var(--edge); box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
   #settings .st-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
   #settings .st-close { font: 20px/1 inherit; color: var(--dim); background: none; border: 0; cursor: pointer; padding: 0 4px; }
-  #settings .st-tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid var(--edge); }
+  #settings .st-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid var(--edge); }
   #settings .st-tabs button { font: inherit; font-size: 12px; color: var(--dim); background: none; border: 0;
     border-bottom: 2px solid transparent; padding: 6px 5px; cursor: pointer; }
   #settings .st-list { display: grid; gap: 6px; }
@@ -582,6 +582,48 @@
   @keyframes updflash { 0%, 100% { box-shadow: 0 0 0 0 rgba(159, 211, 255, 0.85); border-color: #9fd3ff; }
     50% { box-shadow: 0 0 0 10px rgba(159, 211, 255, 0); border-color: #ffffff; background: #1b3a63; } }
   body.waking #updateBar { opacity: 0; }
+  /* Tutorial: the screen dims except what Jarvis is explaining; a pointer glides over and clicks;
+     a card carries the words, with Back / Next. It sits above everything, pop-ups included. */
+  #tourShade { position: fixed; inset: 0; z-index: 80; width: 100vw; height: 100vh; pointer-events: all; }
+  #tourShade .ring { fill: none; stroke: var(--brand, #bad367); stroke-width: 2.5; filter: drop-shadow(0 0 6px var(--brand, #bad367)); }
+  #tourPointer { position: fixed; z-index: 82; left: 0; top: 0; width: 28px; height: 28px; pointer-events: none;
+    transition: transform 0.6s cubic-bezier(.3,.8,.3,1); filter: drop-shadow(0 2px 4px rgba(0,0,0,.6)); }
+  #tourPointer[hidden], #tourShade[hidden], #tourCard[hidden], #tourOffer[hidden] { display: none; }
+  #tourPointer .tap { position: absolute; left: -14px; top: -14px; width: 28px; height: 28px; border-radius: 50%;
+    border: 2px solid #fff; opacity: 0; }
+  #tourPointer.tapping .tap { animation: tourtap 0.5s ease-out; }
+  @keyframes tourtap { from { opacity: 0.9; transform: scale(0.3); } to { opacity: 0; transform: scale(1.8); } }
+  #tourCard { position: fixed; z-index: 83; left: 50%; transform: translateX(-50%); width: min(480px, calc(100vw - 32px));
+    box-sizing: border-box; padding: 16px 18px 12px; border-radius: 14px; background: #121831; color: #e8ecf4;
+    border: 1px solid var(--brand, #bad367); box-shadow: 0 10px 40px rgba(0,0,0,.55); font-size: 14.5px; line-height: 1.5; }
+  #tourCard .tk { display: flex; justify-content: space-between; gap: 10px; font-size: 10.5px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--brand, #bad367); margin-bottom: 6px; }
+  #tourCard .tk span:last-child { color: var(--dim, #9aa3c0); letter-spacing: 0.06em; }
+  #tourCard .tt { min-height: 44px; }
+  #tourCard .tq { margin-top: 8px; padding: 7px 10px; border-radius: 8px; background: rgba(255,255,255,.05);
+    font-size: 13px; color: var(--dim, #9aa3c0); }
+  #tourCard .tq:empty { display: none; }
+  #tourCard .tq { white-space: pre-line; }
+  #tourCard .tb { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+  #tourCard .tb .sp { flex: 1; }
+  #tourCard button { font: inherit; font-size: 13px; padding: 6px 14px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--edge, #3a4560); background: transparent; color: inherit; }
+  #tourCard button.next { background: var(--brand, #bad367); color: #10142a; border: 0; font-weight: 700; padding: 7px 20px; }
+  #tourCard button:disabled { opacity: 0.45; cursor: default; }
+  #tourCard .bar { height: 3px; margin-top: 10px; border-radius: 2px; background: rgba(255,255,255,.08); overflow: hidden; }
+  #tourCard .bar i { display: block; height: 100%; background: var(--brand, #bad367); transition: width 0.3s; }
+  #tourOffer { position: fixed; z-index: 65; right: 22px; bottom: 120px; width: min(340px, calc(100vw - 32px)); box-sizing: border-box;
+    padding: 14px 16px; border-radius: 14px; background: #121831; color: #e8ecf4; border: 1px solid var(--brand, #bad367);
+    box-shadow: 0 8px 30px rgba(0,0,0,.45); font-size: 14px; line-height: 1.45; }
+  #tourOffer b { display: block; margin-bottom: 4px; }
+  #tourOffer .tb { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
+  #tourOffer button { font: inherit; font-size: 13px; padding: 6px 14px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--edge, #3a4560); background: transparent; color: inherit; }
+  #tourOffer button.go { background: var(--brand, #bad367); color: #10142a; border: 0; font-weight: 700; }
+  .st-tour { display: grid; gap: 6px; }
+  .st-tour button { text-align: left; font: inherit; font-size: 13px; color: inherit; background: rgba(255,255,255,.04); border: 1px solid var(--edge, #3a4560); border-radius: 10px; padding: 8px 12px; cursor: pointer; }
+  .st-tour button:hover { border-color: var(--brand, #bad367); }
+  .st-tour button small { display: block; opacity: 0.7; font-size: 11.5px; }
   #crew header { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
   #crew header .kick { font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); }
   #crew header h2 { margin: 2px 0 0; font-size: 20px; font-weight: 600; }
@@ -907,7 +949,7 @@ const tc = THEME.colour;
 </button>
 <div id="settings" role="dialog" aria-label="Settings" hidden>
   <div class="st-head"><b>Settings</b><button type="button" class="st-close" aria-label="Close settings">&times;</button></div>
-  <nav class="st-tabs"><button type="button" data-tab="voice">Voice</button><button type="button" data-tab="personality">Personality</button><button type="button" data-tab="colours">Colours</button><button type="button" data-tab="model">Model</button><button type="button" data-tab="tools">Tools</button><button type="button" data-tab="jobs">Jobs</button></nav>
+  <nav class="st-tabs"><button type="button" data-tab="voice">Voice</button><button type="button" data-tab="personality">Personality</button><button type="button" data-tab="colours">Colours</button><button type="button" data-tab="model">Model</button><button type="button" data-tab="tools">Tools</button><button type="button" data-tab="jobs">Jobs</button><button type="button" data-tab="tutorial">Tutorial</button></nav>
   <div class="st-body"></div>
 </div>
 
@@ -1940,6 +1982,8 @@ const tc = THEME.colour;
   let activeProject = null;   // the project or agent currently lit up
 
   async function api(path, body) {
+    if (body && tourOn && path !== '/api/setup') throw new Error('Not while the tutorial is playing.');
+    if (!body && tourOn) { const demo = tourDemo(path); if (demo) return JSON.parse(JSON.stringify(demo)); }   // examples, not your data
     const res = await fetch(path, {
       method: body ? 'POST' : 'GET', credentials: 'same-origin',
       headers: body ? { 'X-Galaxy': '1', 'Content-Type': 'application/json' } : { 'X-Galaxy': '1' },
@@ -2589,7 +2633,7 @@ const tc = THEME.colour;
       render: async (bar, content, tools) => {
         let current = chatPath, busy = false, listening = false, rec = null;   // current: this chat's file
         const pick = document.createElement('select'); pick.className = 'project-pick'; pick.setAttribute('aria-label', 'Project');
-        projects.forEach(p => { const o = document.createElement('option'); o.value = o.textContent = p.name; pick.appendChild(o); });
+        (tourOn ? TOUR_DEMO.projects : projects).forEach(p => { const o = document.createElement('option'); o.value = o.textContent = p.name; pick.appendChild(o); });
         pick.value = projectName;
         pick.onchange = () => showProjectChat(pick.value);
         bar.appendChild(pick);
@@ -3220,6 +3264,7 @@ const tc = THEME.colour;
     catch (err) { setStatus('error', err.message, 4000); }
   }
 
+  const tourRefreshers = [];   // cards that cache a listing: the tour swaps examples in and out
   function folderSection(key, icon, title, color) {
     const root = { inbox: 'Team Inbox', deliverables: 'Deliverables' }[key];
     const inFolder = nodes.filter(n => n.folder === root || n.folder.startsWith(root + '/')).map(n => n.id);
@@ -3233,6 +3278,7 @@ const tc = THEME.colour;
       subEl.parentElement.parentElement.title = d.vault + '\\' + root;
     }).catch(() => {});
     let current = '', justAdded = [];
+    tourRefreshers.push(() => { loaded = false; if (body.parentElement.classList.contains('open')) load(body, ''); else body.innerHTML = ''; });
 
     async function load(b, path) {
       loaded = true; current = path;
@@ -3355,6 +3401,7 @@ const tc = THEME.colour;
     let loaded = false;
     const body = addSection({ icon: ICON.outlook, title: 'Outlook', sub: "Today's calendar and email", color: tc('#f7853b'),
                               onOpen: b => { if (!loaded) load(b, false); } });
+    tourRefreshers.push(() => { loaded = false; if (body.parentElement.classList.contains('open')) load(body, false); else body.innerHTML = ''; });
     async function load(b, refresh) {
       loaded = true;
       b.innerHTML = '<div class="note">Checking Outlook… this takes about 20 seconds.</div>';
@@ -3664,6 +3711,7 @@ const tc = THEME.colour;
     else if (a.type === 'open') setStatus('thinking', `opened ${a.path.split('/').pop()} on your desktop`, 4000);
     else if (a.type === 'chat') showTeamChat(a.agent, a.chat || null);
     else if (a.type === 'update') updateAsked(a.status);
+    else if (a.type === 'tour') setTimeout(() => startTour(a.topic || 'all'), 1500);   // after he says it's starting
     else if (a.type === 'list') popClientList(a);
     else if (a.type === 'projectnotes') showNotes(null, false, a.project);
     else if (a.type === 'calendar') popCalendar(a.span);
@@ -3763,7 +3811,7 @@ const tc = THEME.colour;
     const mentioned = chatAttached.slice();   // files just put in Team Inbox from the chat (CR-017)
     const sent = mentioned.length ? `${question}\n\n(I've just added to the Team Inbox: ${mentioned.join(', ')}.)` : question;
     try {
-      const data = await streamChat({ question: sent }, {
+      const data = await streamChat({ question: sent, tour: tourOn || undefined }, {
         onText: t => showAnswer(question, t || 'Processing your request…', []),
         onSpeak: line => speak(line),
       });
@@ -3869,8 +3917,7 @@ const tc = THEME.colour;
     const u = new SpeechSynthesisUtterance(' ');
     u.volume = 0;
     synth.speak(u);
-    if (greetingPending && !(e && e.target && askEl.contains(e.target)) && !briefGreeting())
-      speak(GREETING.replace('J.A.R.V.I.S.', 'Jarvis'), 8);
+    if (greetingPending && !(e && e.target && askEl.contains(e.target))) announceOrHold();
     greetingPending = false;
   }
   ['pointerdown', 'keydown', 'touchstart'].forEach(ev =>
@@ -4034,6 +4081,20 @@ const tc = THEME.colour;
   let skipWake = false;
   try { skipWake = sessionStorage.getItem('jarvis-skip-wake') === '1'; sessionStorage.removeItem('jarvis-skip-wake'); } catch (_) {}
   let greetingPending = !skipWake;
+  // First run (the tour has never been offered): the tour goes first and the greeting, or the
+  // daily brief, waits until the tour ends or is turned down, so neither cuts the other off.
+  let greetHeld = false;
+  const setupAtBoot = api('/api/setup').catch(() => null);
+  async function announceOrHold() {
+    const s = await setupAtBoot;
+    if (s && s.version && !s.tour_seen) { greetHeld = true; return; }
+    if (!briefGreeting()) speak(GREETING.replace('J.A.R.V.I.S.', 'Jarvis'), 8);
+  }
+  function announceAfterTour() {
+    if (!greetHeld) return;
+    greetHeld = false;
+    setTimeout(() => { if (!briefGreeting()) speak(GREETING.replace('J.A.R.V.I.S.', 'Jarvis'), 8); }, 800);
+  }
   if (!skipWake) showAnswer('', GREETING, []);
 
   // Wake screen: any click or key wakes Jarvis (unlockSpeech above has already started the greeting).
@@ -4089,7 +4150,7 @@ const tc = THEME.colour;
     function render() {
       box.querySelectorAll('.st-tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
       ({ voice: renderVoice, personality: renderPersonality, colours: renderColours, model: renderModel,
-         tools: renderTools, jobs: renderJobs })[tab]();
+         tools: renderTools, jobs: renderJobs, tutorial: renderTutorial })[tab]();
     }
 
     function renderVoice() {
@@ -4283,6 +4344,11 @@ const tc = THEME.colour;
     }
 
     // ---- Jobs (CR-010): scheduled work, and the daily brief ---------------------------------------
+    function renderTutorial() {   // replay the tour, all of it or one chapter, or what's new
+      body.innerHTML = `<p class="st-note">I show you round the screen and say what each part does. Click Next to move on; nothing is changed.</p>
+        <div class="st-tour">${tourMenu().map(c => `<button type="button" data-ch="${esc(c.key)}"><b>${esc(c.title)}</b><small>${esc(c.sub)}</small></button>`).join('')}</div>`;
+      body.querySelectorAll('[data-ch]').forEach(b => b.onclick = () => { close(); startTour(b.dataset.ch); });
+    }
     function renderJobs() {
       body.innerHTML = '<p class="st-note">Loading…</p>';
       api('/api/schedules').then(paintJobs).catch(err => { body.innerHTML = `<p class="st-err">${esc(err.message)}</p>`; });
@@ -4714,7 +4780,7 @@ const tc = THEME.colour;
   const briefLoad = skipWake ? Promise.resolve(null)
     : api('/api/brief?open=1').then(d => (briefInfo = d)).catch(() => null);
   briefLoad.then(d => {   // it arrived after the wake click: show it now (after the greeting)
-    if (d && d.show && !waking && speechUnlocked && !briefStarted) startBrief(d, false);
+    if (d && d.show && !waking && speechUnlocked && !briefStarted && !greetHeld) startBrief(d, false);
   });
   // Called from the wake click: true when the brief takes the greeting's place.
   function briefGreeting() {
@@ -5448,7 +5514,7 @@ const tc = THEME.colour;
     try { info = await api('/api/setup'); } catch (_) { return; }
     Object.assign(SETUP, info);
     try { localStorage.setItem('jarvis-setup', JSON.stringify(SETUP)); } catch (_) {}
-    if (info.onboarded && !force) { setTimeout(askToolsOnce, 4000); return; }   // installs from before the tools question
+    if (info.onboarded && !force) { setTimeout(askToolsOnce, 4000); setTimeout(() => maybeOfferTour(info), info.tour_seen ? 9000 : 1500); return; }   // installs from before the tools question
     onboardStarted = true;
     runOnboarding(info);
   }
@@ -5701,6 +5767,7 @@ const tc = THEME.colour;
       if (st.done || i === steps.length - 1) {
         await saveSetup({ onboarded: true });
         wrap.remove();
+        setTimeout(() => offerTour('all'), 1200);   // a new install: offer the full tour straight away
         return;
       }
       i += 1;
@@ -7068,6 +7135,598 @@ const tc = THEME.colour;
     F.renderer.render(F.scene, F.camera);
     crewFrame = requestAnimationFrame(drawCrew);
   }
+
+  // ---- tutorial: Jarvis shows you round ----------------------------------------------------
+  // One list of steps (TOUR_STEPS) drives the full tour, a chapter on its own, and "what's new"
+  // after an update (VERSION.json history entries list the step ids they added or changed under
+  // "tour"). Each step: the part of the screen to point at, what to open, and what Jarvis says.
+  // Click Next to move on. Nothing is changed while it plays: api() refuses writes, and the example
+  // questions go to /chat with tour: true, which only lets through actions that show things.
+  // When a menu item or feature changes, change its step here and list the step id in VERSION.json.
+  var tourOn = false;
+  const $ = s => document.querySelector(s);
+  const railSec = title => [...railEl.querySelectorAll('.section')].find(s => (s.querySelector('.label b') || {}).textContent === title);
+  const railHead = title => { const s = railSec(title); return s && s.querySelector('.head'); };
+  function openRail(title) {
+    const s = railSec(title);
+    if (s && !s.classList.contains('open') && s.querySelector('.body')) s.querySelector('.head').click();
+  }
+  function tourReset() {
+    try { closeWindows('all'); } catch (_) {}
+    railEl.querySelectorAll('.section.open').forEach(s => { s.classList.remove('open'); s.querySelector('.head').setAttribute('aria-expanded', 'false'); });
+    const st = document.getElementById('settings');
+    if (st && !st.hidden) { st.hidden = true; document.getElementById('settings-btn').setAttribute('aria-expanded', 'false'); }
+    qEl.value = '';
+  }
+  const lastPop = () => popups[popups.length - 1];
+  const firstProject = () => projects[0] && projects[0].name;
+
+  // ---- tour example data ------------------------------------------------------------------
+  // While the tour plays, every list it opens shows these made-up examples instead of the
+  // user's own notes: a new install has nothing to show yet, and a demo never shows real
+  // clients. api() hands these back for GETs while tourOn; nothing here is ever saved.
+  const tourDay = n => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+  const tourTs = n => Math.round(Date.now() / 1000 + n * 86400);
+  const TOUR_DEMO = {
+    projects: [
+      { name: 'Harbour Cafe rebrand', notes: 24, deliverables: 3, color: '#bad367',
+        description: 'New name, logo and menu design for a waterfront cafe, launching in spring.',
+        spread: 'Projects 12 · Meetings 6 · CRM 4 · Fleeting Notes 2',
+        noteList: ['Harbour Cafe rebrand', 'Kick-off with Mia Chen', 'Logo options round 1', 'Menu wording ideas', 'Launch plan', 'Supplier list', 'Budget and quote', 'Feedback from the owners'],
+        files: [['Brand guidelines.pdf', '2.1 MB'], ['Launch plan.docx', '84 KB'], ['Logo concepts.pptx', '6.4 MB']] },
+      { name: 'Greenway Logistics carbon report', notes: 41, deliverables: 2, color: '#7fc35a',
+        description: 'Annual emissions report for a regional freight company.',
+        spread: 'Projects 22 · Meetings 9 · CRM 7 · Actions 3', noteList: [], files: [] },
+      { name: 'New website', notes: 15, deliverables: 1, color: '#6fb7ff',
+        description: 'A simple five-page site for the business.',
+        spread: 'Projects 10 · Fleeting Notes 5', noteList: [], files: [] },
+    ],
+    agentNotes: ['Research brief: cafe trends 2026', 'Supplier comparison', 'Draft launch email', 'Weekly status: Harbour Cafe'],
+    actions: [
+      { id: 101, action: 'Send the logo options to Mia', owner: 'Sam Taylor', org: 'Harbour Cafe', due: tourDay(1), raised: tourDay(-3), meeting: 'Harbour Cafe kick-off', done: false },
+      { id: 102, action: 'Ask Greenway for last year’s fuel data', owner: 'You', org: 'Greenway Logistics', due: tourDay(-2), raised: tourDay(-10), meeting: 'Greenway monthly catch-up', done: false },
+      { id: 103, action: 'Book the photographer for the menu shoot', owner: 'Priya Shah', org: 'Harbour Cafe', due: tourDay(5), raised: tourDay(-1), meeting: '', done: false },
+      { id: 104, action: 'Choose a web host', owner: 'You', org: '', due: tourDay(9), raised: tourDay(-4), meeting: '', done: false },
+      { id: 100, action: 'Agree the project budget', owner: 'You', org: 'Harbour Cafe', due: tourDay(-6), raised: tourDay(-14), meeting: 'Harbour Cafe kick-off', done: true },
+    ],
+    meetings: [
+      { date: tourDay(-1), title: 'Greenway monthly catch-up', org: 'Greenway Logistics', attendees: 4, fireflies: true },
+      { date: tourDay(-4), title: 'Logo review', org: 'Harbour Cafe', attendees: 3, fireflies: false },
+      { date: tourDay(-9), title: 'Harbour Cafe kick-off', org: 'Harbour Cafe', attendees: 5, fireflies: true },
+    ],
+    organizations: [
+      { name: 'Harbour Cafe', sub: 'Client · Active' }, { name: 'Greenway Logistics', sub: 'Client · Active' },
+      { name: 'Bright Print Co', sub: 'Supplier · Active' }, { name: 'Northside Bank', sub: 'Partner · Prospect' },
+    ],
+    people: [
+      { name: 'Mia Chen', sub: 'Owner · Harbour Cafe' }, { name: 'Sam Taylor', sub: 'Designer · Bright Print Co' },
+      { name: 'Priya Shah', sub: 'Operations Manager · Greenway Logistics' },
+    ],
+    fleeting: [
+      { name: 'Idea for the cafe loyalty card', topic: 'Harbour Cafe rebrand', modified: tourTs(-0.1), preview: 'Stamp card, tenth coffee free, printed on recycled card' },
+      { name: tourDay(-1), topic: '', modified: tourTs(-1), preview: 'Call Priya about the fuel data before Friday' },
+    ],
+    inbox: [['Menu photos', true, 0], ['Quote from Bright Print.pdf', false, 182000], ['Greenway fuel data 2026.xlsx', false, 54000], ['Notes from the phone.txt', false, 900]],
+    deliverables: [['Harbour Cafe rebrand', true, 0], ['Greenway Logistics carbon report', true, 0], ['New website', true, 0]],
+    today: { fetched: 'just now',
+      events: [{ title: 'Harbour Cafe: menu tasting', start: '10:00', end: '11:00', location: 'The cafe' },
+               { title: 'Greenway report review', start: '14:30', end: '15:00', location: 'Teams' }],
+      emails: [{ subject: 'Re: logo options', from: 'Mia Chen', received: '9:12', unread: true },
+               { subject: 'Fuel data attached', from: 'Priya Shah', received: 'Yesterday', unread: false }] },
+    workers: [
+      { key: 'demo:1:main', source: 'job', agent: 'Larry', project: 'Harbour Cafe rebrand', task: 'Write the launch plan', activity: 'briefing the team', done: false },
+      { key: 'demo:1:penn', source: 'job', agent: 'Penn', project: 'Harbour Cafe rebrand', task: 'Draft the launch plan', activity: 'writing', done: false },
+      { key: 'demo:1:scout', source: 'job', agent: 'Scout', project: 'Harbour Cafe rebrand', task: 'Research local cafe launches', activity: 'searching the web', done: false },
+    ],
+  };
+  function tourDemo(path) {
+    const u = new URL(path, location.origin), q = k => u.searchParams.get(k) || '';
+    const files = rows => rows.map(([name, dir, size], i) => ({ name, path: name, dir, size, modified: tourTs(-i - 1) }));
+    switch (u.pathname) {
+      case '/api/actions': return { actions: TOUR_DEMO.actions.map(a => ({ ...a, path: '' })) };
+      case '/api/meetings': return { meetings: TOUR_DEMO.meetings.map(m => ({ ...m, path: '' })) };
+      case '/api/crm': return { rows: (q('kind') === 'people' ? TOUR_DEMO.people : TOUR_DEMO.organizations).map(r => ({ ...r, path: '' })) };
+      case '/api/fleeting': return { notes: TOUR_DEMO.fleeting.map(n => ({ ...n, path: '' })) };
+      case '/api/today': {
+        const at = m => { const d = new Date(Date.now() + m * 60000); return d.toTimeString().slice(0, 5); };
+        return { ...TOUR_DEMO.today, events: [{ title: 'Harbour Cafe: menu tasting', start: at(40), end: at(100), location: 'The cafe' },
+                                              { title: 'Greenway report review', start: at(180), end: at(210), location: 'Teams' }] };
+      }
+      case '/api/metrics': return { period: +q('period') || 30,
+        tokens: { fresh: 1250000, cached: 9800000, output: 210000, jarvis: 48000, since: '' },
+        actions: { open: 4, overdue: 1, due_week: 2 }, to_file: { total: 6, fleeting: 2, inbox: 4 },
+        activity: { notes_changed: 37, meetings: 3 } };
+      case '/api/approvals': return { pending: [] };
+      case '/api/project-chats': return { description: '', notes: 24, chats: [
+        { title: 'What did the owners think of the logos?', updated: tourDay(-1), turns: 3, path: '' }] };
+      case '/api/agent-chats': return { chats: [] };
+      case '/api/current-work': return { now: Date.now() / 1000, team: ['Larry', ...agents.map(a => a.name).filter(n => n !== 'Larry')],
+        projects: TOUR_DEMO.projects.map(p => p.name), workers: TOUR_DEMO.workers, jobs_running: [] };
+      case '/api/folder': {
+        const key = q('name');
+        if (q('path')) return { folder: key, path: q('path'), entries: [] };
+        if (key === 'inbox') return { folder: 'Team Inbox', path: '', entries: files(TOUR_DEMO.inbox) };
+        if (key === 'deliverables') return { folder: 'Deliverables', path: '', entries: files(TOUR_DEMO.deliverables) };
+        return { folder: key, path: '', entries: [] };
+      }
+    }
+    return null;
+  }
+  // The Projects card shows the example projects instead of yours while the tour plays.
+  let tourCards = [];
+  function tourDemoCards(on) {
+    tourCards.forEach(c => c.remove()); tourCards = [];
+    projects.forEach(p => { if (p.card) p.card.hidden = on; });
+    if (!on) return;
+    TOUR_DEMO.projects.forEach(p => tourCards.push(itemButton(projectsBody, { name: p.name,
+      sub: `${plural(p.notes, 'note')} · ${plural(p.deliverables, 'deliverable')}`, color: p.color, title: p.description, onClick: () => tourPanel(p) })));
+  }
+  // The side panel for an example project, or for an agent with example notes.
+  function tourPanel(p, agent) {
+    ++deliverablesFor;
+    const pg = document.getElementById('p-group');
+    pg.textContent = agent ? 'Agent' : 'Project'; pg.style.color = agent ? agent.color : p.color;
+    const pa = document.getElementById('p-actions'); pa.innerHTML = '';
+    linkButton(pa, agent ? `💬 Chat with ${agent.name}` : '💬 Chat about this project', () => {});
+    document.getElementById('p-title').textContent = agent ? agent.name : p.name;
+    const list = agent ? TOUR_DEMO.agentNotes : p.noteList;
+    document.getElementById('p-folder').textContent = agent ? `${list.length} notes they've worked on` : `${p.notes} notes · ${plural(p.deliverables, 'deliverable')}`;
+    document.getElementById('p-excerpt').textContent = agent ? (agent.description || agent.role || '')
+      : `${p.description}\n\nWhere it lives: ${p.spread}`;
+    document.getElementById('p-ncount').textContent = `${agent ? 'Related' : 'Project'} notes · ${list.length}`;
+    const box = document.getElementById('neighbors'); box.innerHTML = '';
+    list.forEach(n => { const b = document.createElement('button'); b.textContent = n; b.style.borderColor = (agent ? agent.color : p.color) + '66'; box.appendChild(b); });
+    const head = document.getElementById('p-dhead'), files = document.getElementById('p-deliverables');
+    head.hidden = files.hidden = !!agent;
+    if (!agent) {
+      head.textContent = `Files · ${p.files.length}`; files.innerHTML = '';
+      p.files.forEach(([name, size]) => itemButton(files, { name, sub: size, icon: '📄', color: p.color }));
+    }
+    const panel = document.getElementById('panel');
+    panel.classList.add('open'); panel.setAttribute('aria-hidden', 'false'); document.body.classList.add('panel-open');
+  }
+
+  const TOUR_CHAPTERS = [
+    { key: 'welcome', title: 'Welcome', sub: 'Who Jarvis is and how this tour works' },
+    { key: 'can', title: 'What I can do for you', sub: 'The things you can ask for, before we look at the screen' },
+    { key: 'menu', title: 'The left menu', sub: 'Every menu item and what is inside it' },
+    { key: 'topbar', title: 'The top bar', sub: 'Your numbers at a glance, and the Current work office' },
+    { key: 'team', title: 'Your team at work', sub: 'The tray, "See what the team is doing", approvals' },
+    { key: 'talking', title: 'Talking to Jarvis', sub: 'Typing, speaking, files, with live examples' },
+    { key: 'settings', title: 'Settings', sub: 'Voice, personality, colours, model, tools, jobs, tutorial' },
+    { key: 'around', title: 'Getting around', sub: 'Index, zoom, views, models and updates' },
+  ];
+  const wq = s => workEl.querySelector(s);
+  const railTool = (title, label) => { const s = railSec(title); return s && [...s.querySelectorAll('.tools button, .tools .link-btn')].find(b => b.textContent.includes(label)); };
+  const stTab = t => () => openSettingsTab(t);
+  const stBox = () => document.getElementById('settings');
+  const TOUR_STEPS = [
+    // Welcome
+    { id: 'w.hello', ch: 'welcome', target: () => jarvisEl,
+      say: () => `Welcome${SETUP.user_name ? ' ' + SETUP.user_name : ''}, I'm Jarvis. I'll show you what I can do for you, and then show you round the screen. Click Next whenever you're ready to move on, or End tour to stop. I won't change anything while I show you.` },
+    { id: 'w.galaxy', ch: 'welcome', do: () => flyToSubject(''),
+      say: 'Behind everything is your galaxy. This represents all of your knowledge, and how it all links together. Each dot is a note, and you can click any dot to read it.' },
+    // What I can do for you
+    { id: 'c.ask', ch: 'can', target: () => askEl,
+      list: ['Where are we up to with Acme?', "What did we agree in Tuesday's meeting?", 'Who owns the data request, and when is it due?'],
+      say: "First, ask me anything about your work. What was agreed with a client, where a project is up to, who owns an action. I can read your notes and files before answering, and I will hone in on the galaxy to exactly where these live within your knowledge system, so you can check." },
+    { id: 'c.day', ch: 'can',
+      list: ["What's on today?", 'Any new email from Sam?', 'Show me my brief'],
+      say: "Second, your day. The first time you open me each morning, I give you a brief: what's due, what's waiting on you, today's meetings, and what changed since yesterday. You can also ask about your calendar and email." },
+    { id: 'c.capture', ch: 'can', target: () => askEl,
+      list: ['Take a note: call Sam on Friday about the proposal', 'Paste or drop a file on the chat box'],
+      say: "I can capture things for you. For example, tell me a note, typed or spoken, and I save it. Give me a file, and it goes to the Team Inbox for the team to file in the right place." },
+    { id: 'c.find', ch: 'can', target: () => askEl,
+      list: ['Show me my overdue actions', 'Show me the meetings with Acme', 'Open the latest proposal for Acme', 'Show me the deliverables for this project'],
+      say: "I can also hunt things down for you. Ask me to show your actions, meetings, contacts or a project's files, and they open on screen. Ask me to open a document, and it opens on your desktop." },
+    { id: 'c.team', ch: 'can', target: () => jarvisEl,
+      list: ['Triage my Team Inbox', 'Have the team write a one-page summary of this project', 'Draft an email to Sam thanking him for today', 'Research the new reporting rules for me', 'Build a presentation from the Acme proposal', 'Build a simple website for our new service'],
+      say: "If you ask nicely, I can get your work done. Bigger jobs go to my team of specialists: research, writing a report or proposal, sorting the inbox, drafting emails. Emails only ever go to your Drafts folder; nothing is sent without you. I can also do presentations, build websites, and more. I tell you when the work is done." },
+    { id: 'c.jobs', ch: 'can', target: () => jarvisEl,
+      list: ['Every Friday at 3pm, tell me what is still open', 'Each weekday at 8, check my inbox for anything urgent'],
+      say: "If you need something scheduled, tell me what type of job you want me to do each week, and I can schedule and run it, provided your PC stays on." },
+    { id: 'c.next', ch: 'can', target: () => railEl,
+      say: "Everything I can do by voice or chat also has a place on screen. Let me show you round, starting with the menu on the left." },
+    // The left menu
+    { id: 'm.projects', ch: 'menu', target: () => railSec('Projects'), do: () => openRail('Projects'),
+      say: "Projects. The projects you're currently working on live in here. Each project card shows the number of notes and deliverables it has." },
+    { id: 'm.newproject', ch: 'menu', target: () => railTool('Projects', 'New project'), do: () => openRail('Projects'),
+      say: 'Adding a project. Clicking New project opens a new project window. Just give it a name and a short description, and I set up its folder, ready for you to start work.' },
+    { id: 'm.project.open', ch: 'menu', target: () => [tourCards[0], document.getElementById('panel')],
+      do: () => { openRail('Projects'); tourPanel(TOUR_DEMO.projects[0]); },
+      say: "Click a project, and the galaxy isolates its content. The panel on the right gives you information all about the project: you'll see its files and project notes. If you need to chat about a specific project, click the Chat about this project button." },
+    { id: 'm.projectchat', ch: 'menu', target: () => [railSec('Projects') && railSec('Projects').querySelector('.head-action'), workEl], do: () => showProjectChat(TOUR_DEMO.projects[0].name),
+      say: 'Project chat lets you talk to me about one project only, so I stick to its notes. Pick the project at the top. New chat starts a fresh conversation; your earlier chats are kept on the left.' },
+    { id: 'm.agents', ch: 'menu', target: () => railSec('Agents'), do: () => openRail('Agents'),
+      say: 'Agents. This is your team of AI agents, and each has a specific role. You can also just ask me to build an agent for a role or function within your business.' },
+    { id: 'm.agent.open', ch: 'menu', target: () => [agents[0] && agents[0].card, document.getElementById('panel')],
+      do: () => { openRail('Agents'); if (agents[0]) tourPanel(null, agents[0]); },
+      say: () => `Click an agent, and this shows you the notes they have worked on. If you want to chat directly with this agent, click Chat with ${(agents[0] && agents[0].name) || 'their name'}.` },
+    { id: 'm.teamchat', ch: 'menu', target: () => [railSec('Agents') && railSec('Agents').querySelector('.head-action'), workEl], do: () => showTeamChat(),
+      say: 'Team chat lets you talk to a specific agent directly. Larry is the orchestrator, and can pass and organise work with the others.' },
+    { id: 'm.notes', ch: 'menu', target: () => [railSec('Notes'), wq('.editor')], do: () => showNotes(),
+      say: "Notes is for quick thoughts. Give your note a name, or leave it blank and today's date will apply. You can dictate a note by clicking the Dictate button. Clicking Save puts the note into a Fleeting Notes folder on your PC." },
+    { id: 'm.notes.list', ch: 'menu', target: () => [wq('.fleet'), wq('.bar')], do: () => showNotes(),
+      say: 'Your fleeting notes are listed on the right, with a search. Click one to read it. The button at the top opens the Fleeting Notes folder on your PC.' },
+    { id: 'm.actions', ch: 'menu', target: () => [railSec('Actions'), workEl], do: () => showActions(),
+      say: 'Actions is your to-do list, gathered from your notes and meetings, with who owns each one and when it is due.' },
+    { id: 'm.actions.filters', ch: 'menu', target: () => wq('.bar'), do: () => showActions(),
+      say: 'Search the list here, or switch between Open, Done and All.' },
+    { id: 'm.actions.tick', ch: 'menu', target: () => wq('.row-item .check') || wq('.content'), do: () => showActions(),
+      say: "Tick the box when an action is done, and I record the date. Click the action itself to open its note; the owner, client and meeting names open too." },
+    { id: 'm.meetings', ch: 'menu', target: () => [railSec('Meetings'), workEl], do: () => showMeetings(),
+      say: 'Meetings is your meeting history, newest first. Search by title, client or date. Click a meeting for its notes and summary; a microphone means it was recorded, and its full transcript can be opened.' },
+    { id: 'm.crm', ch: 'menu', target: () => [railSec('CRM'), workEl], do: () => showCrm('organizations'),
+      say: 'CRM holds the organisations you work with: clients, suppliers and partners, with their type and status. Click one for its page.' },
+    { id: 'm.crm.people', ch: 'menu', target: () => [wq('.hdr-tools'), workEl], do: () => showCrm('people'),
+      say: 'Switch to Contacts with the buttons at the top, for the people at those organisations.' },
+    { id: 'm.inbox', ch: 'menu', target: () => railSec('Team Inbox'), do: () => openRail('Team Inbox'),
+      say: 'The Team Inbox is the place where you drop files, images and notes. Then ask me to have the team either file these away, or start working on them.' },
+    { id: 'm.inbox.tools', ch: 'menu', target: () => railSec('Team Inbox') && railSec('Team Inbox').querySelector('.tools'), do: () => openRail('Team Inbox'),
+      say: 'Add files lets you browse and pick files from your PC, or you can drag them onto the Team Inbox. Open folder shows them in the main window, and Show in galaxy lights them up. After you add files, a File them button asks the team to sort them.' },
+    { id: 'm.deliverables', ch: 'menu', target: () => railSec('Deliverables'), do: () => openRail('Deliverables'),
+      say: 'Deliverables holds finished work, such as reports, proposals and documents, in a folder per project. Click a folder to go in, and a file to open it. Open folder shows them in the main window.' },
+    { id: 'm.outlook', ch: 'menu', target: () => railSec('Outlook'), do: () => openRail('Outlook'),
+      say: "Outlook shows today's meetings and your latest email, if Outlook is connected. Click an email to read it in full, open it in Outlook, or ask me what your notes say about it. I never send an email for you. I can draft emails and put them into your Drafts folder for you, so nothing goes out unchecked." },
+    // The top bar
+    { id: 't.bar', ch: 'topbar', target: () => metricsEl,
+      say: 'Along the top are your numbers at a glance. Each one opens information about your productivity.' },
+    { id: 't.tokens', ch: 'topbar', target: () => tTokens.el,
+      say: 'Tokens shows you how many tokens your sessions have used. The drop-down menu lets you change the period.' },
+    { id: 't.meeting', ch: 'topbar', target: () => tMeeting.el,
+      say: "Next meeting shows what's coming up in your calendar. Click it to open the Outlook card." },
+    { id: 't.actions', ch: 'topbar', target: () => [tActions.el, workEl], do: () => showActions(),
+      say: "Open actions counts what's still to do, how many are overdue, and how many are due this week. Click it, and your action list opens." },
+    { id: 't.tofile', ch: 'topbar', target: () => tFile.el,
+      say: 'To file counts notes and Team Inbox items waiting to be sorted.' },
+    { id: 't.activity', ch: 'topbar', target: () => tActivity.el,
+      say: 'Vault activity shows how busy your notes have been, and opens your recent meetings.' },
+    { id: 't.crew', ch: 'topbar', target: () => [tCrew.el, crewEl], do: () => openCrew(),
+      say: "Current work opens the office environment. This gives you a visual of what work is being done by your agent team. Each member is represented by a bot: when they're working, they walk to the machine for their task, and a small bubble above the agent describes the task they're working on. Beware: if you allow them to play too much golf, they get lazy!" },
+    // Your team at work
+    { id: 'k.tray', ch: 'team', target: () => jobsEl.querySelector('.team-open') || jobsEl,
+      say: "When you hand me work, it appears here in the tray with its progress, and I tell you when it's done." },
+    { id: 'k.activity', ch: 'team', target: () => [jobsEl.querySelector('.team-open'), lastPop()], do: () => showTeamActivity(),
+      say: 'See what the team is doing opens this window: who is working on what, right now. The small arrow beside it shows a short list in the tray instead.' },
+    { id: 'k.approvals', ch: 'team', target: () => lastPop(), do: () => { if (!popups.length) showTeamActivity(); },
+      say: 'If someone needs your permission, for example to work outside your notes, it shows at the top of this window with Approve and Deny. Nothing like that goes ahead without you.' },
+    // Talking to Jarvis
+    { id: 'a.box', ch: 'talking', target: () => [$('#ask-form'), $('#mic')],
+      say: "This is where we chat. You can type here and press Enter, or you can talk to me by clicking the microphone. Clicking the microphone twice pauses the chat, so you can catch your breath. When you're ready, click the arrow to send." },
+    { id: 'a.voice', ch: 'talking', target: () => $('#voice-toggle'),
+      say: "The speaker turns my voice on or off. If you'd prefer silence, my answers are always written on screen as well." },
+    { id: 'a.attach', ch: 'talking', target: () => $('#attach'),
+      say: 'The paperclip adds files, which go into the Team Inbox. You can also paste a file, or drag and drop a file into the chat.' },
+    { id: 'a.ex.actions', ch: 'talking', target: () => [askEl],
+      example: { q: 'Show me my open actions', demo: () => showActions(),
+        after: { target: () => wq('.row-item:not(.done)'),
+          say: "There they are. Each action shows what needs doing, who owns it, the client, the meeting it came from, and when it's due. " +
+               "This one, send the logo options to Mia, belongs to Sam and is due tomorrow. When it's done, tick the box, and I record the date. " +
+               "Click the action itself to open its note." } },
+      say: "Let me demonstrate rather than tell you. I'll ask for your open actions." },
+    { id: 'a.ex.notes', ch: 'talking', target: () => [askEl],
+      example: { typed: ['Where are we up to with the Harbour Cafe rebrand?'] },
+      say: "Now a question about a project. Say you had one called the Harbour Cafe rebrand. You'd ask me like this, and I'd read its notes, answer you, and light up the notes I used in the galaxy, so you can check them." },
+    { id: 'a.ex.more', ch: 'talking', target: () => [askEl],
+      example: { typed: ['Take a note: call Sam on Friday about the proposal', 'Open the latest proposal for Acme', 'Triage my Team Inbox',
+                         'Draft an email to Sam thanking him for today', 'Every Friday at 3pm, tell me what is still open',
+                         'Have the team write a one-page summary of this project'] },
+      say: "For anything else you want me to do, just ask me like you would ask a person. I'll do my best, but I can't guarantee I'll be happy about it." },
+    { id: 'a.help', ch: 'talking', target: () => [askEl],
+      say: "Whenever you need a refresher, say: give me a tour, or: show me how Deliverables works." },
+    // Settings
+    { id: 's.voice', ch: 'settings', target: () => [document.getElementById('settings-btn'), stBox()], do: stTab('voice'),
+      say: "Settings is in the bottom left. Voice: this is where you can pick the voice I speak in, and how fast I talk. If you play around too much, I will develop an identity crisis." },
+    { id: 's.personality', ch: 'settings', target: () => stBox(), do: stTab('personality'),
+      say: "Personality sets how I talk to you, from formal to brisk, with a box for anything else you'd like me to keep in mind." },
+    { id: 's.colours', ch: 'settings', target: () => stBox(), do: stTab('colours'),
+      say: 'Colours: pick a theme, or set your own two colours.' },
+    { id: 's.model', ch: 'settings', target: () => stBox(), do: stTab('model'),
+      say: 'Model sets which AI answers you by default. The most capable is the most thorough; a faster one is quicker for simple things.' },
+    { id: 's.tools', ch: 'settings', target: () => stBox(), do: stTab('tools'),
+      say: 'Tools lists what the team and I can use, such as your notes, Outlook and Fireflies, each with a light to show it works and a Test button.' },
+    { id: 's.jobs', ch: 'settings', target: () => stBox(), do: stTab('jobs'),
+      say: 'Jobs is work that runs on a schedule, such as the daily brief or a weekly status update. Add one, run it now, pause it, or read its log. You can also just ask me to set one up.' },
+    { id: 's.tutorial', ch: 'settings', target: () => stBox(), do: stTab('tutorial'),
+      say: "Tutorial replays this tour, or one chapter of it, or just what's new." },
+    // Getting around
+    { id: 'g.index', ch: 'around', target: () => legendEl.querySelector('.title') ? legendEl : null,
+      say: 'The Index lists the kinds of notes in your galaxy. Click one to fly to it.' },
+    { id: 'g.zoom', ch: 'around', target: () => legendEl.querySelector('.zoom'),
+      say: 'Zoom in and out here. The middle button brings the whole galaxy back into view.' },
+    { id: 'g.view', ch: 'around', target: () => legendEl.querySelector('.view'),
+      say: 'View changes the shape of the galaxy: rings, a spiral, a nucleus, a logo and more. Pick whichever you like; I remember it.' },
+    { id: 'g.model', ch: 'around', target: () => document.getElementById('context'),
+      say: "This shows which models the team and I use, and how much of my memory this conversation has taken. You can change them here too." },
+    { id: 'g.update', ch: 'around',
+      say: "When there's a new version of me, a flashing Update now button appears at the top of the screen. Click it, or just say: update yourself. After an update I'll show you only what's new." },
+    { id: 'g.end', ch: 'around', target: () => jarvisEl,
+      say: "That's the tour. Ask me anything, any time, and if I'm in a good mood, I might just respond." },
+  ];
+  const tourStep = id => TOUR_STEPS.find(s => s.id === id);
+  function tourMenu() {
+    return [{ key: 'all', title: 'The full tour', sub: `All ${TOUR_CHAPTERS.length} chapters, about 12 minutes` }, ...TOUR_CHAPTERS,
+            { key: 'new', title: "What's new", sub: 'Only what changed in recent updates' }];
+  }
+
+  // Which steps a topic means: a chapter, "all", "what's new", or words matching a step.
+  function tourStepsFor(topic) {
+    const t = String(topic || 'all').toLowerCase().trim();
+    if (!t || t === 'all' || /full|whole|everything|^tour$/.test(t)) return TOUR_STEPS;
+    if (t === 'new' || /what.?s new|latest|update/.test(t)) return whatsNewSteps(SETUP.tour_seen_before || '') || [];
+    const ch = TOUR_CHAPTERS.find(c => c.key === t || c.title.toLowerCase().includes(t) || t.includes(c.key));
+    if (ch) return TOUR_STEPS.filter(s => s.ch === ch.key);
+    const words = t.replace(/[^a-z ]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !['the', 'how', 'show', 'works', 'use', 'what', 'does'].includes(w));
+    const hit = TOUR_STEPS.filter(s => {
+      const said = (typeof s.say === 'function' ? '' : s.say).toLowerCase();
+      return words.some(w => said.slice(0, 40).includes(w) || s.id.includes(w));
+    });
+    return hit.length ? hit.slice(0, 4) : TOUR_STEPS;
+  }
+  const vkey = v => String(v || '0').split('.').map(Number);
+  const vnewer = (a, b) => { const x = vkey(a), y = vkey(b); for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; };
+  // Steps from every release newer than `seen`, oldest release first, each step once.
+  function whatsNewSteps(seen) {
+    const rel = (SETUP.tour_releases || []).filter(r => !seen || vnewer(r.version, seen)).reverse();
+    const ids = [...new Set(rel.flatMap(r => r.steps))];
+    const steps = ids.map(tourStep).filter(Boolean);
+    return steps.length ? steps : null;
+  }
+
+  // The pieces on screen: shade with holes, a pointer, the card.
+  const shade = document.createElementNS(SVGNS, 'svg');
+  shade.id = 'tourShade'; shade.setAttribute('hidden', '');
+  shade.innerHTML = '<defs><mask id="tourMask"><rect x="0" y="0" width="100%" height="100%" fill="white"/><g class="holes"></g></mask></defs>' +
+    '<rect x="0" y="0" width="100%" height="100%" fill="rgba(5,8,22,0.66)" mask="url(#tourMask)"/><g class="rings"></g>';
+  const pointer = document.createElement('div');
+  pointer.id = 'tourPointer'; pointer.hidden = true;
+  pointer.innerHTML = '<svg viewBox="0 0 24 24" width="28" height="28"><path d="M3 2l7.5 19 2.6-7.9L21 10.5z" fill="#fff" stroke="#10142a" stroke-width="1.4" stroke-linejoin="round"/></svg><span class="tap"></span>';
+  const card = document.createElement('div');
+  card.id = 'tourCard'; card.hidden = true; card.setAttribute('role', 'dialog'); card.setAttribute('aria-label', 'Jarvis tutorial');
+  card.innerHTML = '<div class="tk"><span class="ch"></span><span class="n"></span></div><div class="tt"></div><div class="tq"></div>' +
+    '<div class="tb"><button type="button" class="back">Back</button><button type="button" class="again" title="Say it again">🔊</button>' +
+    '<span class="sp"></span><button type="button" class="end">End tour</button><button type="button" class="next">Next</button></div><div class="bar"><i></i></div>';
+  document.body.append(shade, pointer, card);
+
+  let tour = null;   // { steps, i, token }
+  let pointerAt = { x: innerWidth / 2, y: innerHeight / 2 };
+  const visible = el => { if (!el || !el.getBoundingClientRect) return false; const r = el.getBoundingClientRect(); return r.width > 2 && r.height > 2 && getComputedStyle(el).visibility !== 'hidden'; };
+  const targetsOf = st => { let t = st.hold ? st.hold() : st.target ? st.target() : null; t = Array.isArray(t) ? t : [t]; return t.filter(visible); };
+  function drawShade(st) {
+    const holes = shade.querySelector('.holes'), rings = shade.querySelector('.rings');
+    holes.innerHTML = ''; rings.innerHTML = '';
+    targetsOf(st).forEach(el => {
+      const r = el.getBoundingClientRect(), pad = 6;
+      const box = { x: Math.max(0, r.left - pad), y: Math.max(0, r.top - pad), width: r.width + pad * 2, height: r.height + pad * 2, rx: 12 };
+      const h = document.createElementNS(SVGNS, 'rect'); Object.entries(box).forEach(([k, v]) => h.setAttribute(k, v)); h.setAttribute('fill', 'black'); holes.appendChild(h);
+      const g = h.cloneNode(); g.setAttribute('class', 'ring'); g.removeAttribute('fill'); rings.appendChild(g);
+    });
+    placeCard(st);
+  }
+  function placeCard(st) {
+    const ts = targetsOf(st);
+    const ask = askEl.getBoundingClientRect();
+    // The card stays put at the bottom, so it never jumps about; only while the chat box itself is
+    // being shown does it sit just above the chat instead.
+    const chat = st.ch === 'talking' || ts.some(el => askEl.contains(el));
+    card.style.transform = 'translateX(-50%)'; card.style.top = 'auto';
+    card.style.bottom = chat ? Math.max(24, innerHeight - ask.top + 14) + 'px' : '12px';
+  }
+  async function movePointer(el) {
+    const r = el.getBoundingClientRect();
+    const x = Math.min(innerWidth - 20, r.left + Math.min(r.width / 2, 60)), y = r.top + Math.min(r.height / 2, 24);
+    pointer.hidden = false;
+    pointer.style.transform = `translate(${x}px, ${y}px)`;
+    pointerAt = { x, y };
+    await sleep(650);
+    pointer.classList.remove('tapping'); void pointer.offsetWidth; pointer.classList.add('tapping');
+    await sleep(180);
+  }
+  // The tour's own voice: a little slower than answers, natural pitch, and whole sentences run
+  // together (at most ~220 characters per utterance, which Chrome's online voices allow), so it
+  // flows instead of stopping at every full stop. With no choice made in Settings, a natural
+  // (neural) English voice is preferred when the browser has one. Resolves when he has finished.
+  function tourVoice() {
+    if (SETUP.voice && voice) return voice;
+    const all = synth ? synth.getVoices().filter(v => /^en([-_]|$)/i.test(v.lang)) : [];
+    const score = v => (/natural|neural/i.test(v.name) ? 20 : /online/i.test(v.name) ? 12 : /google/i.test(v.name) ? 6 : 0)
+      + (/^en[-_]GB$/i.test(v.lang) ? 4 : 0) + (MALE_VOICE.test(v.name) && !/female/i.test(v.name) ? 3 : 0);
+    return all.sort((a, b) => score(b) - score(a))[0] || voice;
+  }
+  function tourSpeak(text) {
+    return new Promise(done => {
+      if (!synth || !voiceOn || !text || !ownsVoice()) return done();
+      stopSpeaking();
+      const token = speakToken, v = tourVoice();
+      const clean = text.replace(/[`*_#>|]/g, '').replace(/\s+/g, ' ').trim()
+        .replace(/\bI can read\b/g, 'I can reed')    // said like "reed", not "red"
+        .replace(/\blive\b/gi, 'liv')              // where things live: "liv", not "lyve"
+        .replace(/\bMia\b/g, 'Mee-ah');            // the example client: "ME-a", not "MY-a"
+      const chunks = [];
+      (clean.match(/[^.!?]+[.!?]*\s*/g) || [clean]).forEach(s => {
+        if (chunks.length && (chunks[chunks.length - 1] + s).length <= 220) chunks[chunks.length - 1] += s; else chunks.push(s);
+      });
+      const fallback = setTimeout(done, clean.length * 90 + 3000);   // a voice that never reports its end
+      setTimeout(() => {
+        if (token !== speakToken) { clearTimeout(fallback); return done(); }
+        holdMics(); synth.resume();
+        chunks.forEach((chunk, i) => {
+          const u = new SpeechSynthesisUtterance(chunk.trim());
+          if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-GB';
+          u.rate = Math.min(1, Math.max(0.85, SPEECH_RATE - 0.2));
+          u.pitch = 1;
+          u.onboundary = () => { voiceKick = 1; };
+          if (i === 0) u.onstart = () => { if (token === speakToken) setStatus('speaking', 'speaking…'); };
+          if (i === chunks.length - 1) u.onend = u.onerror = () => {
+            clearTimeout(fallback);
+            if (token === speakToken) { if (statusEl.classList.contains('speaking')) setStatus(''); releaseMics(); }
+            done();
+          };
+          synth.speak(u);
+        });
+      }, 60);
+    });
+  }
+  const tourSay = text => tourSpeak(text);
+  async function typeInto(text, token) {
+    qEl.value = '';
+    for (const ch of text) { if (!tour || tour.token !== token) return false; qEl.value += ch; await sleep(28); }
+    return true;
+  }
+
+  async function showStep(dir = 1) {
+    if (!tour) return;
+    const token = ++tour.token;
+    let st = tour.steps[tour.i];
+    st.hold = null;
+    stopSpeaking();
+    tourReset();
+    const next = card.querySelector('.next'), back = card.querySelector('.back');
+    next.disabled = back.disabled = true;
+    // a step whose part of the screen isn't there (narrow window, not set up) is skipped
+    if (st.target && !st.do && !targetsOf(st).length) {
+      const j = tour.i + dir;
+      if (j >= 0 && j < tour.steps.length) { tour.i = j; return showStep(dir); }
+    }
+    const say = typeof st.say === 'function' ? st.say() : st.say;
+    const chapter = (TOUR_CHAPTERS.find(c => c.key === st.ch) || {}).title || '';
+    card.querySelector('.ch').textContent = tour.label || chapter;
+    card.querySelector('.n').textContent = `${tour.i + 1} of ${tour.steps.length}${tour.label ? ' · ' + chapter : ''}`;
+    card.querySelector('.tt').textContent = say;
+    card.querySelector('.tq').textContent = st.list ? st.list.map(x => '“' + x + '”').join('\n') : '';
+    card.querySelector('.bar i').style.width = `${Math.round((tour.i + 1) / tour.steps.length * 100)}%`;
+    next.textContent = tour.i === tour.steps.length - 1 ? 'Finish' : 'Next';
+    drawShade({ target: null });
+    const first = st.target ? targetsOf(st)[0] : null;
+    if (first && st.do) await movePointer(first);
+    else if (first) { pointer.hidden = false; pointer.style.transform = `translate(${first.getBoundingClientRect().left + 30}px, ${first.getBoundingClientRect().top + 20}px)`; }
+    else pointer.hidden = true;
+    if (!tour || tour.token !== token) return;
+    if (st.do) { try { st.do(); } catch (e) { console.warn('tour step', st.id, e); } await sleep(450); }
+    if (!tour || tour.token !== token) return;
+    drawShade(st);
+    const spoken = tourSay(say);
+    back.disabled = tour.i === 0;
+    const ex = typeof st.example === 'function' ? st.example() : st.example;
+    if (ex && ex.q) {
+      await spoken;   // let him finish his sentence before the example starts
+      if (!tour || tour.token !== token) return;
+      await sleep(500);
+      if (!await typeInto(ex.q, token)) return;
+      if (ex.demo) {
+        await sleep(700); qEl.value = '';
+        ex.demo();
+        card.querySelector('.tq').textContent = 'These are made-up examples. Yours show here once you have some.';
+        await sleep(500); drawShade(st);
+        if (ex.after) {
+          await sleep(700);
+          if (!tour || tour.token !== token) return;
+          st.hold = ex.after.target;
+          const row = targetsOf(st)[0];
+          if (row) await movePointer(row);
+          drawShade(st);
+          card.querySelector('.tt').textContent = ex.after.say;
+          await tourSay(ex.after.say);
+        }
+      }
+      if (ex.run) {
+        card.querySelector('.tq').textContent = 'Asking for real: give me a few seconds…';
+        await sleep(400);
+        try { await ask(ex.q); } catch (_) {}
+        if (!tour || tour.token !== token) return;
+        if (ex.ensure) { await sleep(600); ex.ensure(); await sleep(400); }   // the model slipped: show it anyway
+        card.querySelector('.tq').textContent = 'That was a real answer from your own notes. Click Next when you\'re ready.';
+        drawShade(st);
+      }
+    } else if (ex && ex.typed) {
+      next.disabled = false;
+      for (const q of ex.typed) {
+        card.querySelector('.tq').textContent = `“${q}”`;
+        if (!await typeInto(q, token)) return;
+        await sleep(1300);
+      }
+      if (tour && tour.token === token) { qEl.value = ''; card.querySelector('.tq').textContent = ''; }
+    }
+    if (tour && tour.token === token) next.disabled = false;
+  }
+  // Keep the holes on whatever moved or opened (panels slide in, windows resize).
+  setInterval(() => { if (tour && !card.hidden) drawShade(tour.steps[tour.i]); }, 500);
+  addEventListener('resize', () => { if (tour) drawShade(tour.steps[tour.i]); });
+
+  function startTour(topic = 'all') {
+    const steps = tourStepsFor(topic);
+    if (!steps.length) { setStatus('thinking', 'nothing new to show since your last tour', 5000); return; }
+    if (tour) endTour(true);
+    const ch = TOUR_CHAPTERS.find(c => steps.every(s => s.ch === c.key));
+    const label = topic === 'new' || /new/.test(String(topic)) ? "What's new" : steps === TOUR_STEPS ? '' : ch ? ch.title : 'Tutorial';
+    tour = { steps, i: 0, token: 0, label };
+    tourOn = true;
+    tourDemoCards(true); tourRefreshers.forEach(f => f()); refreshMetrics(); refreshMeeting();
+    offerEl.hidden = true;
+    unlockSpeech();
+    shade.removeAttribute('hidden'); card.hidden = false;
+    showStep();
+    card.querySelector('.next').focus();
+  }
+  function endTour(quiet) {
+    if (!tour) return;
+    tour = null; tourOn = false;
+    stopSpeaking();
+    shade.setAttribute('hidden', ''); card.hidden = true; pointer.hidden = true;
+    tourReset();
+    document.getElementById('panel').classList.remove('open'); document.body.classList.remove('panel-open');
+    tourDemoCards(false); tourRefreshers.forEach(f => f()); pollCrew(); refreshMetrics(); refreshMeeting();
+    if (!quiet) { setStatus('thinking', 'tour finished: Settings > Tutorial replays it', 5000); announceAfterTour(); }
+  }
+  card.querySelector('.next').onclick = () => {
+    if (!tour) return;
+    if (tour.i >= tour.steps.length - 1) return endTour();
+    tour.i++; showStep(1);
+  };
+  card.querySelector('.back').onclick = () => { if (tour && tour.i > 0) { tour.i--; showStep(-1); } };
+  card.querySelector('.again').onclick = () => { if (tour) { const st = tour.steps[tour.i]; tourSay(typeof st.say === 'function' ? st.say() : st.say); } };
+  card.querySelector('.end').onclick = () => endTour();
+  window.addEventListener('keydown', e => {
+    if (!tour) return;
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); endTour(); }
+    else if ((e.key === 'ArrowRight' || e.key === 'Enter') && !card.querySelector('.next').disabled && e.target !== qEl) { e.preventDefault(); card.querySelector('.next').click(); }
+    else if (e.key === 'ArrowLeft' && !card.querySelector('.back').disabled) { e.preventDefault(); card.querySelector('.back').click(); }
+  }, true);
+
+  // The offer: after the first-run welcome, the first time an install has a tutorial at all, and
+  // after an update that changed something on screen. Answering either way marks this version seen.
+  const offerEl = document.createElement('div');
+  offerEl.id = 'tourOffer'; offerEl.hidden = true; offerEl.setAttribute('role', 'dialog');
+  document.body.appendChild(offerEl);
+  function offerTour(topic, steps) {
+    if (tour) return;
+    const isNew = topic === 'new';
+    const n = isNew ? steps.length : 0;
+    offerEl.innerHTML = isNew
+      ? `<b>I've been updated</b>Want me to show you what's new? ${n === 1 ? 'One thing' : n + ' things'}, under a minute.`
+      : `<b>Shall I show you round?</b>What I can do for you, then a guided tour of the screen. About 12 minutes; you click Next at your own pace, and can stop any time.`;
+    offerEl.insertAdjacentHTML('beforeend', '<div class="tb"><button type="button" class="no">Not now</button><button type="button" class="go">Show me</button></div>');
+    offerEl.hidden = false;
+    const seen = () => saveSetup({ tour_seen: SETUP.version || '' });
+    offerEl.querySelector('.no').onclick = () => { offerEl.hidden = true; seen(); setStatus('thinking', 'any time: Settings > Tutorial, or say "give me a tour"', 6000); announceAfterTour(); };
+    offerEl.querySelector('.go').onclick = () => { offerEl.hidden = true; SETUP.tour_seen_before = SETUP.tour_seen || ''; seen(); startTour(topic); };
+    tourSay(isNew ? "I've been updated. Shall I show you what's new?" : 'Shall I show you round? It takes a few minutes.');
+  }
+  function whenQuiet(fn, tries = 0) {   // after Jarvis has finished speaking (at most a minute)
+    if (synth && synth.speaking && tries < 60) return setTimeout(() => whenQuiet(fn, tries + 1), 1000);
+    fn();
+  }
+  function maybeOfferTour(info) {
+    if (tour || !info || !info.version) return;
+    if (document.getElementById('onboard') || !offerEl.hidden) return;
+    if (!info.tour_seen) return offerTour('all');                   // never had the tour: offer all of it
+    if (!vnewer(info.version, info.tour_seen)) return;               // seen this version already
+    const steps = whatsNewSteps(info.tour_seen);
+    SETUP.tour_seen_before = info.tour_seen;
+    if (steps) whenQuiet(() => offerTour('new', steps));
+    else saveSetup({ tour_seen: info.version });                     // nothing on screen changed: just note it
+  }
+  window.JARVIS_TOUR = startTour;   // console: JARVIS_TOUR('menu')
 
   window.GALAXY = { Graph, nodes, select, clearSelection, focusNodes };  // handy for later features / console
 })();

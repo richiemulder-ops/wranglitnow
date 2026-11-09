@@ -331,6 +331,7 @@ Doing things:
 - Talk to one team member: ACTION: chat | <their name> | <the message to pass on, in their words, or empty just to open the chat>. Use this rather than DELEGATE whenever they want to talk to or ask one person.
 - Set up a scheduled or repeat job ("every Monday, check...", "set up a job to...", "each morning send me..."): first make sure you know three things: what it should do, when it runs, and what happens with the result (shown in their tray, said out loud, saved as a note in Team Inbox). If any is missing or vague, ask about it with no ACTION line: one short question per reply, offering a sensible default they can just say yes to ("Weekdays at 7:30, shown in your tray and saved as a note in Team Inbox?"). The team does it unless it only needs a quick read-only answer. Once you have all three, create it: ACTION: job | <a short name> | <team or quick> | <daily, weekdays, weekly <day>, or every <n> hours> | <the time as HH:MM, 24-hour, or empty for every few hours> | <tools it needs, comma-separated ids from: {tools}; empty for notes only> | <any of tray, speak, note, comma-separated> | <what to do: complete instructions in plain English, as you would brief the team, including what to look at and what to write>. Ready-made jobs ({templates}): give that name and leave what-to-do empty. Then confirm in a line that it's on and when it first runs; they can pause or change it in Settings > Jobs. To change a job (one you just set up, or any listed in Settings > Jobs), write the whole job line again with exactly the same name: it replaces that job. Never create a job they haven't asked for.
 - Update Jarvis itself ("update yourself", "check for updates", "is there a new version?"): ACTION: update. The page says whether there is a new version and offers to install it; say you're checking.
+- Show them how Jarvis works ("give me a tour", "how do I use you?", "show me how Deliverables works", "what's new?"): ACTION: tour | <one of: all, welcome, menu, top bar, team, talking, getting around, what's new, or the part of the screen they asked about>. A guided tour plays on screen; say it's starting, in a few words.
 Anything else that is real work goes to the team with DELEGATE.
 Their projects: {projects}. The team: {team}."""
 
@@ -540,6 +541,12 @@ def get_setup():
     out.update(onboarded=bool(cfg.get("onboarded")), rate=cfg.get("rate", 1.2), vault=VAULT,
                vault_name=os.path.basename(VAULT), obsidian=os.path.isdir(os.path.join(VAULT, ".obsidian")),
                logo=logo_url())
+    # The tutorial: this version, the last version whose tour or "what's new" was offered, and
+    # which tour steps each release added or changed (VERSION.json history "tour"), newest first.
+    here = update.local_version()
+    out.update(version=here.get("version"), tour_seen=cfg.get("tour_seen", ""),
+               tour_releases=[{"version": h.get("version"), "steps": h["tour"]}
+                              for h in here.get("history", []) if h.get("tour")])
     return out
 
 
@@ -595,6 +602,8 @@ def save_setup(body):
                 raise ChatError(400, "Bad speed.")
         if body.get("onboarded"):
             cfg["onboarded"] = True
+        if "tour_seen" in body:
+            cfg["tour_seen"] = re.sub(r"[^0-9.]", "", str(body.get("tour_seen") or ""))[:20]
         tmp = CONFIG_FILE + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(cfg, f, indent=2)
@@ -1064,7 +1073,10 @@ def call_claude(model, prompt, system=None, tools=None, mcp_config=None, vault=F
     return (data.get("result") or "").strip() or "No answer came back.", context_of(data)
 
 
-def answer(sid, question, project=None, history=None, on_event=None):
+TOUR_SAFE_ACTIONS = {"show", "list", "close", "deliverables", "projectnotes"}   # read-only: nothing saved or started
+
+
+def answer(sid, question, project=None, history=None, on_event=None, tour=False):
     """Answer a question. With `project`, only that project's notes are searched and the chat is
     framed around it; with `history` (a saved project chat), those turns are the memory instead
     of the in-browser session."""
@@ -1130,11 +1142,14 @@ def answer(sid, question, project=None, history=None, on_event=None):
     else:
         raw, context = call_claude(model, prompt, system, vault=True, sid=sid, on_event=on_event)
     text, spoken, cited, task, action_lines = parse_reply(raw)
+    if tour:   # a tutorial example: only actions that show things; never a note, file, email or team job
+        action_lines = [l for l in action_lines if l.partition("|")[0].strip().lower() in TOUR_SAFE_ACTIONS]
+        task = None
     actions = [run_action(line) for line in action_lines]
     action = actions[0] if actions else None
 
     job = None
-    if not task and not action_lines and TEAM_ORDER and TEAM_ORDER.search(question):
+    if not tour and not task and not action_lines and TEAM_ORDER and TEAM_ORDER.search(question):
         task = question   # "have Silas ..." / "get the team to ...": they chose who does it
         text = spoken = "Very good. That's with the team now; I'll bring you their answer when it lands."
     if task and (team_asked or not project):   # in a project chat, only when the team is named
@@ -1318,6 +1333,8 @@ def run_action(line):
             return {"type": "chat", "agent": who, "chat": agent_say(who, message)["id"]}
         if kind == "update":   # "update yourself": ask GitHub now, then the page offers the install
             return {"type": "update", "status": update_status(True)}
+        if kind == "tour":     # "give me a tour", "show me how Deliverables works": the page plays it
+            return {"type": "tour", "topic": parts[0] if parts else ""}
         if kind == "chat":
             who = team_member(parts[0] if parts else "")[0]
             message = " | ".join(parts[1:]).strip()
@@ -4533,6 +4550,7 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
             question = str(body.get("question", "")).strip()[:1000]
             project, chat = body.get("project"), body.get("chat")   # optional: a project chat
             stream = bool(body.get("stream"))
+            tour = bool(body.get("tour"))   # a tutorial example: read-only (see answer())
         except ChatError as e:
             self._json(e.status, {"error": str(e)})
             return
@@ -4562,7 +4580,7 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
             out = ReplyStream(write)
             try:
                 result = (project_chat(sid, project, question, chat, on_event=out) if project
-                          else answer(sid, question, on_event=out))
+                          else answer(sid, question, on_event=out, tour=tour))
                 out.send({"t": "done", "status": 200, "result": result})
             except ChatError as e:
                 out.send({"t": "done", "status": e.status, "result": {"error": str(e)}})
@@ -4570,7 +4588,7 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
                 out.send({"t": "done", "status": 500, "result": {"error": f"Server error: {e}"}})
             return
         try:
-            result = project_chat(sid, project, question, chat) if project else answer(sid, question)
+            result = project_chat(sid, project, question, chat) if project else answer(sid, question, tour=tour)
             status = 200
         except ChatError as e:
             result, status = {"error": str(e)}, e.status
