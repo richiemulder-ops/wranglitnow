@@ -1,7 +1,8 @@
 {
-  "version": "2026.11.10.2",
+  "version": "2026.11.10.3",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes. 'tour' lists the tutorial step ids (TOUR_STEPS in viewer/index.html) this release added or changed, for the 'what's new' tour; run check_tour.py before pushing.",
   "notes": [
+    "\"See what the team is doing\" is now a single button: click it and the team window opens in the middle of the screen. The small arrow and the short list in the tray are gone.",
     "Asking for more while Larry is working no longer starts a second Larry beside him: a correction or extra request from the main chat or any chat with Larry goes into the job he's already on, so two copies of the team can't overwrite each other's files.",
     "Messages in a job's chat with Larry always run as team work: you can type while the job is running, and anything you send afterwards carries on the same thread, shows in the team window and reports back in that chat.",
     "Jobs are announced once, as soon as they finish: Jarvis no longer waits for the galaxy to refresh, still announces a job that finished after the page reloaded, and says just who finished what (the full report is on screen).",
@@ -66,6 +67,15 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.10.3",
+      "notes": [
+        "\"See what the team is doing\" is now a single button: click it and the team window opens in the middle of the screen. The small arrow and the short list in the tray are gone."
+      ],
+      "tour": [
+        "k.activity"
+      ]
+    },
     {
       "version": "2026.11.10.2",
       "notes": [

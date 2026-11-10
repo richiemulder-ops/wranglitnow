@@ -683,21 +683,6 @@
     text-align: left; cursor: pointer; }
   .job.team-open:hover { border-color: var(--brand); }
   .job.team-open .n { margin-left: auto; color: var(--dim); font-size: 11.5px; }
-  .job.team-open.expanded { border-color: rgba(186,211,103,0.45); }
-  /* CR-006: the team button opened up, one block per agent at work. */
-  .job.crew-list { display: flex; flex-direction: column; gap: 8px; }
-  .team-open .fold { display: inline-block; padding: 2px 7px; margin: -2px -4px -2px 2px; border-radius: 6px; }
-  .team-open .fold:hover { background: rgba(255,255,255,0.12); color: var(--ink); }
-  .crew-list .cl-agent { padding: 7px 9px; border-radius: 9px; background: rgba(255,255,255,0.04);
-    border-left: 3px solid var(--accent, #bad367); cursor: pointer; }
-  .crew-list .cl-agent:hover { background: rgba(255,255,255,0.08); }
-  .crew-list .cl-name { display: flex; align-items: center; gap: 7px; font-size: 13px; }
-  .crew-list .cl-name i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent, #bad367); animation: blink 2.4s ease-in-out infinite; }
-  .crew-list .cl-name span { margin-left: auto; font-size: 11.5px; color: var(--dim); text-align: right; }
-  .crew-list .cl-task { margin-top: 3px; color: #cfd6e6; font-size: 12.5px; }
-  .crew-list .cl-now { margin-top: 2px; color: #d6e89a; font-size: 12px; }
-  .crew-list .cl-empty { color: var(--dim); font-size: 12.5px; }
-  .crew-list .tools { margin-top: 0; }
   /* Team activity window (CR-003): who is working on what, in plain words. */
   .team-act { font-size: 13px; line-height: 1.5; }
   .team-act .ta-sum { margin: 10px 0 2px; font-size: 14px; color: var(--ink); }
@@ -4891,7 +4876,7 @@ const tc = THEME.colour;
       const t = e.target.closest('.bf-row'); if (!t) return;
       if (t.dataset.doc) openDoc(t.dataset.doc);
       else if (t.dataset.ap) { const r = b.approvals[+t.dataset.ap]; showTeamChat(r.agent, r.chat); }
-      else if (t.dataset.hires) { trayOpen = true; renderJobs(); }
+      else if (t.dataset.hires) renderJobs();
       else if (t.dataset.client) openClients(t.dataset.client);
       else if (t.dataset.cal) popCalendar('today');
       else if (t.dataset.mail) openEmail(o.emails[+t.dataset.mail]);
@@ -4943,8 +4928,6 @@ const tc = THEME.colour;
   let jobsHtml = '', jobsSeen = new Set();
   // CR-006: no static "standing by" card. The team button opens up in place (▾) to show each agent
   // at work: project, task and the step they're on, refreshed with the 5-second team poll.
-  let trayOpen = false;
-  try { trayOpen = localStorage.getItem('jarvis-tray-open') === '1'; } catch (_) {}
   const crewNow = () => { try { return crew; } catch (_) { return null; } };   // crew is declared further down
   function renderJobs(now = Date.now() / 1000) {
     const box = document.createElement('div');
@@ -4952,37 +4935,13 @@ const tc = THEME.colour;
     const live = cw ? cw.workers.filter(w => !w.done) : [];
     const liveAgents = [...new Set(live.map(w => w.agent))];
     const open = document.createElement('button');
-    open.type = 'button'; open.className = 'job team-open' + (trayOpen ? ' expanded' : ''); open.dataset.key = 'open';
-    // Click opens the team window; the arrow on the right opens or folds the short list here (CR-006).
+    open.type = 'button'; open.className = 'job team-open'; open.dataset.key = 'open';
+    // One button, no list in the tray: a click opens the team window in the middle of the screen.
     open.title = 'Open the team window: who is working on what, and anything waiting for you';
     open.innerHTML = `<span>👥</span><b>See what the team is doing</b><span class="n">` +
-      `${liveAgents.length ? liveAgents.length + ' working ' : ''}<span class="fold" role="button" aria-expanded="${trayOpen}" ` +
-      `title="${trayOpen ? 'Fold the list away' : 'Show the list here'}">${trayOpen ? '▴' : '▾'}</span></span>`;
-    open.onclick = e => {
-      if (!e.target.closest('.fold')) { showTeamActivity(); return; }
-      trayOpen = !trayOpen;
-      try { localStorage.setItem('jarvis-tray-open', trayOpen ? '1' : '0'); } catch (_) {}
-      renderJobs();
-    };
+      `${liveAgents.length ? liveAgents.length + ' working' : ''}</span>`;
+    open.onclick = () => showTeamActivity();
     box.appendChild(open);
-    if (trayOpen) {
-      const crewEl = document.createElement('div');
-      crewEl.className = 'job crew-list'; crewEl.dataset.key = 'crew';
-      const esc = escapeHtml;
-      const byAgent = new Map();
-      live.forEach(w => { if (!byAgent.has(w.agent)) byAgent.set(w.agent, []); byAgent.get(w.agent).push(w); });
-      let html = !cw ? '<div class="cl-empty">Checking on the team…</div>'
-        : byAgent.size ? [...byAgent].map(([name, ws]) =>
-            `<div class="cl-agent" style="--accent:${colourOf(name)}" data-chat-with="${esc(name)}" title="Open ${esc(name)}'s chat">` +
-            `<div class="cl-name"><i></i><b>${esc(name)}</b><span>${esc(ws[0].project || 'General')}</span></div>` +
-            ws.map(w => (w.task ? `<div class="cl-task">${esc(w.task)}</div>` : '') +
-              `<div class="cl-now">● ${esc(w.activity || 'thinking it through')}</div>`).join('') + '</div>').join('')
-        : `<div class="cl-empty">Nobody is working right now.${(cw.team || []).length ? ' Ask me for any work and the team takes it.' : ''}</div>`;
-      html += '<div class="tools"><button type="button" class="link-btn" data-act="window">Full window ⤢</button>' +
-        '<button type="button" class="link-btn" data-act="office">Office view</button></div>';
-      crewEl.innerHTML = html;
-      box.appendChild(crewEl);
-    }
     hires.forEach(h => { const c = hireCard(h); c.dataset.key = 'hire:' + h.folder; box.appendChild(c); });
     const shown = [...jobs.values()].filter(j => !dismissed.has(j.id)).slice(0, 3);
     shown.forEach(j => {
@@ -5033,12 +4992,6 @@ const tc = THEME.colour;
       [...box.children].forEach(c => { keys.add(c.dataset.key); if (!jobsSeen.has(c.dataset.key)) c.classList.add('fresh'); });
       jobsSeen = keys;
       jobsEl.replaceChildren(...box.children);
-      const crewEl = jobsEl.querySelector('.crew-list');
-      if (crewEl) crewEl.onclick = e => {
-        const a = e.target.closest('[data-act]'), c = e.target.closest('[data-chat-with]');
-        if (a) { a.dataset.act === 'window' ? showTeamActivity() : openCrew(); return; }
-        if (c) chatWithBot(c.dataset.chatWith);
-      };
     }
     if (teamWinPaint) teamWinPaint();
     refreshStop();
@@ -5988,7 +5941,7 @@ const tc = THEME.colour;
       live.length ? escapeHtml(projects.join(' · ')) : 'Nobody is working',
       live.length ? live.map(w => `${w.agent}: ${w.project}${w.activity ? ' (' + w.activity + ')' : ''}`).join('\n') : 'Click to see the team');
     if (crewOpen) { assignBots(); renderCrewList(); }
-    if (trayOpen) renderJobs();   // the opened-up team tray follows the team (CR-006)
+    renderJobs();   // keeps the "N working" count on the team button current
   }
   pollCrew();
   setInterval(() => { if (!crewOpen) pollCrew(); }, 5000);
@@ -7407,7 +7360,7 @@ const tc = THEME.colour;
     { id: 'k.tray', ch: 'team', target: () => jobsEl.querySelector('.team-open') || jobsEl,
       say: "When you hand me work, it appears here in the tray with its progress, and I tell you when it's done." },
     { id: 'k.activity', ch: 'team', target: () => [jobsEl.querySelector('.team-open'), lastPop()], do: () => showTeamActivity(),
-      say: 'See what the team is doing opens this window: who is working on what, right now. The small arrow beside it shows a short list in the tray instead.' },
+      say: 'See what the team is doing opens this window: who is working on what, right now.' },
     { id: 'k.approvals', ch: 'team', target: () => lastPop(), do: () => { if (!popups.length) showTeamActivity(); },
       say: 'If someone needs your permission, for example to work outside your notes, it shows at the top of this window with Approve and Deny. Nothing like that goes ahead without you.' },
     // Talking to Jarvis
