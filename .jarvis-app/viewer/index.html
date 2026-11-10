@@ -7751,19 +7751,30 @@ const tc = THEME.colour;
   const place = () => { const s = document.getElementById('settings-btn');
     if (s && s.offsetWidth) btn.style.left = (s.getBoundingClientRect().right + 8) + 'px'; };
   window.addEventListener('resize', place); setTimeout(place, 0); setTimeout(place, 1500);
-  function setup() { try { return JSON.parse(localStorage.getItem('jarvis-setup') || '{}') || {}; } catch (_) { return {}; } }
-  function open() {
-    const s = setup(), p = new URLSearchParams();
+  // Name and version live on the Jarvis server (friends' copies: /api/setup). The browser's saved
+  // copy is a fallback; a copy with no setup (Richie's own) says so.
+  async function setup() {
+    let s = {};
+    try { s = JSON.parse(localStorage.getItem('jarvis-setup') || '{}') || {}; } catch (_) {}
+    try {
+      const r = await fetch('/api/setup', { headers: { 'X-Galaxy': '1' }, credentials: 'same-origin' });
+      if (r.ok) { const d = await r.json(); return { user_name: d.user_name || s.user_name, version: d.version || s.version }; }
+      if (r.status === 404) return { user_name: s.user_name, version: s.version || 'own copy' };
+    } catch (_) {}
+    return s;
+  }
+  async function open() {
+    win.hidden = false; btn.setAttribute('aria-expanded', 'true'); wait.hidden = false;
+    const s = await setup(), p = new URLSearchParams();
+    if (win.hidden) return;                          // closed while we asked
     if (s.user_name) p.set('user', s.user_name);
     if (s.version) p.set('version', s.version);
     p.set('app', 'jarvis');
     card.querySelector('iframe')?.remove();          // a fresh form each time
-    wait.hidden = false;
     const f = document.createElement('iframe');
     f.title = 'Jarvis feedback form'; f.src = FORM + '?' + p.toString();
     f.addEventListener('load', () => { wait.hidden = true; });
     card.insertBefore(f, card.firstChild);
-    win.hidden = false; btn.setAttribute('aria-expanded', 'true');
   }
   function close() {
     win.hidden = true; btn.setAttribute('aria-expanded', 'false');

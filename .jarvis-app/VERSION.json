@@ -1,7 +1,8 @@
 {
-  "version": "2026.11.10.5",
+  "version": "2026.11.10.6",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes. 'tour' lists the tutorial step ids (TOUR_STEPS in viewer/index.html) this release added or changed, for the 'what's new' tour; run check_tour.py before pushing.",
   "notes": [
+    "Feedback now includes your name and Jarvis version, so Richie knows who sent it and which version you're on.",
     "New Feedback button, bottom left beside Settings: tell Richie about a bug, an idea or a feature you'd like. The form opens in a small window and sends your name and Jarvis version with it.",
     "Ask a question in a job's chat with Larry (\"what is this for?\", \"has Felix finished?\") and you get an answer in a few seconds, from what the team is doing right now, even while they wait for your approval. Instructions still go to Larry, and the chat tells you if he's paused waiting on you.",
     "Approval cards now show the agent's reason, taken from what they last said, when they didn't give one.",
@@ -70,6 +71,13 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.10.6",
+      "notes": [
+        "Feedback now includes your name and Jarvis version, so Richie knows who sent it and which version you're on."
+      ],
+      "tour": []
+    },
     {
       "version": "2026.11.10.5",
       "notes": [
