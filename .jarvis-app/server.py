@@ -1992,7 +1992,7 @@ def job_chat(job):
     try:
         who, folder, _ = team_member("Larry")
         role = folder.split(" - ", 1)[1]
-    except ChatError:
+    except (ChatError, OSError, IndexError):   # no Team folder yet
         who, role = "Larry", "Orchestrator"
     chat = {"id": secrets.token_hex(6), "agent": who, "role": role, "session": job.get("session"),
             "status": "running", "activity": job.get("activity") or "", "job": job["id"],
@@ -2121,10 +2121,13 @@ def run_job(job):
         log_job(job)
         threading.Thread(target=lambda: job.update(rebuilt=rebuild_galaxy()), daemon=True).start()
         return
-    rebuilt = rebuild_galaxy() if ok else False   # finish the rebuild before reporting done
-    job.update(report=report or "No report came back.", rebuilt=rebuilt, finished=time.time(),
-               status="done" if ok else "failed")
+    # Report done the moment Larry finishes. The galaxy rebuild (30s to a few minutes on OneDrive)
+    # follows in the background; waiting for it made Jarvis announce jobs minutes late.
+    job.update(report=report or "No report came back.", finished=time.time(), status="done" if ok else "failed",
+               rebuilding=ok)
     log_job(job)
+    if ok:
+        threading.Thread(target=lambda: job.update(rebuilt=rebuild_galaxy(), rebuilding=False), daemon=True).start()
 
 
 def stop_job(job_id):
@@ -2543,7 +2546,7 @@ def track_event(job, event):
 
 
 def public_job(job):
-    out = {k: job.get(k) for k in ("id", "task", "status", "started", "finished", "report", "rebuilt",
+    out = {k: job.get(k) for k in ("id", "task", "status", "started", "finished", "report", "rebuilt", "rebuilding",
                                    "compactions", "activity", "model", "origin", "quiet")}
     out["agents"] = [dict(a) for a in job["agents"].values() if a["calls"] or a is job["agents"]["main"]]
     out["chat"] = job.get("chat")
@@ -4427,6 +4430,11 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
                 self._json(200, list_agent_chats(q.get("agent", "")))
             elif url.path == "/api/agent-chat":
                 self._json(200, public_chat(_load_chat(q.get("id", ""))))
+            elif url.path == "/api/job-chat":   # a running job's chat with Larry, made on first look
+                job = _jobs.get(q.get("id", ""))
+                if not job:
+                    raise ChatError(404, "That job has finished or gone.")
+                self._json(200, public_chat(job_chat(job)))
             elif url.path == "/api/transcript":
                 self._json(200, transcript(q.get("path", "")))
             elif url.path == "/api/update":

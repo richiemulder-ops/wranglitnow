@@ -4736,6 +4736,16 @@ const tc = THEME.colour;
     return { who, what: what.charAt(0).toLowerCase() + what.slice(1) };
   }
 
+  // With Jarvis open in two tabs, only the first to see a job finish says so.
+  function firstToAnnounce(id) {
+    try {
+      const key = 'galaxy-announced-jobs', said = JSON.parse(localStorage.getItem(key) || '[]');
+      if (said.includes(id)) return false;
+      localStorage.setItem(key, JSON.stringify([...said, id].slice(-50)));
+    } catch (_) {}
+    return true;
+  }
+
   function trackJob(job) {
     jobs.set(job.id, job);
     renderJobs();
@@ -4753,22 +4763,24 @@ const tc = THEME.colour;
       if (!before && j.status === 'running' && j.origin && j.origin !== 'user') jobs.set(j.id, j);
       if (before && before.status === 'running' && j.status !== 'running' && j.quiet) { /* scheduled, quiet: tray only */ }
       else if (before && before.status === 'running' && j.status !== 'running') {
-        // The team's answer comes back through the front desk: shown in the chat card, and spoken as
-        // who finished what, then the report's first real sentence (headings such as "Result" skipped).
+        // The team's answer comes back through the front desk: shown in the chat card, and announced
+        // once, as who finished what. The report itself is on screen: reading its first line out too
+        // ("Richie, the draft is updated…") sounded like a second announcement.
         const { who, what } = jobDoneBy(j);
-        const gist = (j.report || '').split('\n').map(l => l.trim())
-          .filter(l => l && !/^#/.test(l) && !/^[\w &/-]{1,30}:?$/.test(l.replace(/[*_`]/g, '')))
-          .join(' ').replace(/[#*`_>\[\]]/g, '').split(/(?<=[.!?])\s/).map(s => s.trim()).find(Boolean) || '';
         const has = who.includes(' and ') ? 'have' : 'has';
         if (j.status === 'done' && j.report) showAnswer(`${who} ${has} completed · ${j.task}`, j.report, []);
         if (j.status === 'done' && j.document) openDoc(j.document, false);   // a document they asked for: up on screen
-        speak(j.status === 'done'
-          ? `${who} ${has} completed: ${what}.` + (gist && gist.length <= 200 ? ' ' + gist : '')
+        if (firstToAnnounce(j.id)) speak(j.status === 'done'
+          ? `${who} ${has} completed: ${what}.`
           : `${who} couldn't finish: ${what}. ` + pick(FAIL_LINES));
       }
     });
     renderJobs(data.now);
-    if (![...jobs.values()].some(j => j.status === 'running')) { clearInterval(jobPoll); jobPoll = null; }
+    // Keep checking while a job runs (also one found after a reload, which nothing else would follow
+    // until the next question, so its finish was announced minutes late) and while a finished job's
+    // galaxy rebuild is still going, for its Reload button.
+    if ([...jobs.values()].some(j => j.status === 'running' || j.rebuilding)) { if (!jobPoll) jobPoll = setInterval(pollJobs, 5000); }
+    else { clearInterval(jobPoll); jobPoll = null; }
     loadHires();   // a finished hiring job may have staged someone
   }
 
@@ -6634,8 +6646,11 @@ const tc = THEME.colour;
   new ResizeObserver(() => { if (crewOpen) sizeCrew(); }).observe(crewCanvas);
 
   // Click a bot or a row: chat with that agent. One working in a team chat opens that same chat;
-  // one working for a job opens a new chat with its task already quoted; an idle one, a fresh chat.
-  function chatWithBot(name) {
+  // one working on a job (Larry or a specialist he briefed) opens the job's own chat with Larry,
+  // showing your request as sent and the team's progress live. It never pre-fills the box: a
+  // quoted task sitting unsent looked like the job hadn't been submitted, and sending it ran the
+  // job twice. An idle agent opens a fresh chat.
+  async function chatWithBot(name) {
     const member = team.find(a => a.name.toLowerCase() === String(name).toLowerCase());
     if (!member) { setStatus('error', `${name} is a helper, not someone you can chat with`, 3500); return; }
     const w = crew.workers.find(x => x.agent === member.name && !x.done);
@@ -6643,8 +6658,11 @@ const tc = THEME.colour;
     if (!w) { showTeamChat(member.name); return; }
     const [src, id, who] = w.key.split(':');
     if (src === 'chat' && who === 'main') { showTeamChat(member.name, id); return; }
-    const about = [w.project && w.project !== 'General' ? w.project : '', w.task || w.activity].filter(Boolean).join(': ');
-    showTeamChat(member.name, null, `About the task you're working on now (${about}): `);
+    try {
+      const chat = await api(src === 'job' ? `/api/job-chat?id=${encodeURIComponent(id)}` : `/api/agent-chat?id=${encodeURIComponent(id)}`);
+      showTeamChat(chat.agent, chat.id);
+      if (chat.agent !== member.name) setStatus('thinking', `${member.name} is helping ${chat.agent}: progress shows here`, 5000);
+    } catch (err) { showTeamChat(member.name); }
   }
   crewList.addEventListener('click', e => { const r = e.target.closest('.row[data-agent]'); if (r) chatWithBot(r.dataset.agent); });
 
