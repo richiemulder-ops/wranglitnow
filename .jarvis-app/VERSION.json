@@ -1,7 +1,9 @@
 {
-  "version": "2026.11.10.1",
+  "version": "2026.11.10.2",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes. 'tour' lists the tutorial step ids (TOUR_STEPS in viewer/index.html) this release added or changed, for the 'what's new' tour; run check_tour.py before pushing.",
   "notes": [
+    "Asking for more while Larry is working no longer starts a second Larry beside him: a correction or extra request from the main chat or any chat with Larry goes into the job he's already on, so two copies of the team can't overwrite each other's files.",
+    "Messages in a job's chat with Larry always run as team work: you can type while the job is running, and anything you send afterwards carries on the same thread, shows in the team window and reports back in that chat.",
     "Jobs are announced once, as soon as they finish: Jarvis no longer waits for the galaxy to refresh, still announces a job that finished after the page reloaded, and says just who finished what (the full report is on screen).",
     "Clicking a busy team member in the team window opens that job's chat with Larry, showing your request as sent and the progress live. It no longer opens an empty chat with the task typed in, which looked unsent and ran the job twice if sent.",
     "New tutorial: Jarvis tells you what he can do for you, then shows you round every menu, the top bar, the team and Settings, step by step with made-up example data (your own notes are never shown or changed). It starts on a new install before his greeting; replay it any time from Settings > Tutorial, or say \"give me a tour\". After each update he offers to show you just what's new.",
@@ -64,6 +66,14 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.10.2",
+      "notes": [
+        "Asking for more while Larry is working no longer starts a second Larry beside him: a correction or extra request from the main chat or any chat with Larry goes into the job he's already on, so two copies of the team can't overwrite each other's files.",
+        "Messages in a job's chat with Larry always run as team work: you can type while the job is running, and anything you send afterwards carries on the same thread, shows in the team window and reports back in that chat."
+      ],
+      "tour": []
+    },
     {
       "version": "2026.11.10.1",
       "notes": [

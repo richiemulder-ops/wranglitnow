@@ -1155,6 +1155,9 @@ def answer(sid, question, project=None, history=None, on_event=None, tour=False)
     if task and (team_asked or not project):   # in a project chat, only when the team is named
         job = start_job(task, question, project["name"] if project else None)
         cited = []
+        if job.get("joined"):   # Larry was already on a job: this went into it, not a second one
+            text = spoken = ("Larry's already working on something for you, so I've passed that to him; "
+                             "he'll fold it into the job in hand and cover it in his report.")
 
     # Only trust indexes that were actually shown to the model (this turn or earlier ones).
     allowed = set(hits) | {i for t in history for i in t["nodes"]}
@@ -2026,19 +2029,98 @@ def save_desk(session):
         json.dump({"session": session, "used": time.time()} if session else {}, f)
 
 
-def start_job(task, question, project=None, origin="user", tools=None, resume=True, quiet=False):
+FOLLOWUP_PROMPT = """{user} has added this while you're working (sent from {where}):
+
+"{question}"
+
+Jarvis's reading of it: {task}
+
+If it changes or corrects the work in hand, fold it in rather than starting over, and tell any \
+specialist you've briefed. If it's a separate request, do it as well. Don't run two copies of the \
+same work. Cover it in your final report."""
+
+
+def running_user_job():
+    """The job Larry is working on for the user right now (newest first), if any."""
+    with _jobs_lock:
+        live = [j for j in _jobs.values() if j["status"] == "running" and j.get("origin", "user") == "user"]
+    return live[-1] if live else None
+
+
+def add_to_job(job, task, question, where="the main chat"):
+    """Pass a follow-up to a running job. Larry gets it at his next step, inside the same run, so
+    a correction or a "save it in Deliverables" changes the work in hand rather than starting a
+    second copy that races it (two Larrys once wrote, overwrote and deleted each other's files).
+    If his run is just wrapping up, the follow-up waits and starts the moment it ends."""
+    user = _user_name()
+    text = FOLLOWUP_PROMPT.format(user=user, where=where, question=question, task=task)
+    chat = None
+    if job.get("chat"):
+        try:
+            chat = _load_chat(job["chat"])
+            if where != "this chat":   # the job's chat window shows everything said to it
+                chat["messages"].append({"who": "you", "text": question, "time": time.strftime("%Y-%m-%d %H:%M")})
+                _save_chat(chat)
+        except ChatError:
+            chat = None
+    with job["inbox_lock"]:
+        finished = job["status"] != "running"
+        if not finished:
+            job.setdefault("followups", []).append({"task": task, "question": question, "at": time.time()})
+            sent = False
+            if job.get("accepting") and job.get("proc"):
+                try:
+                    job["proc"].stdin.write(_user_line(text))
+                    job["proc"].stdin.flush()
+                    sent = True
+                except (OSError, ValueError):
+                    pass
+            if not sent:   # not started yet, or wrapping up: runs as soon as this run ends
+                job.setdefault("queued", []).append((task, question))
+    if finished:   # it ended a moment ago: carry on from where it got to
+        return start_job(task, question, job.get("project"), session=job.get("session"), chat=chat, where=where)
+    job["activity"] = "Larry has your follow-up; he'll pick it up at his next step"
+    return public_job(job)
+
+
+def _user_name():
+    """The user's name for agent prompts; never fails (a job thread that raised would hang as running)."""
+    try:
+        return read_config().get("user_name") or "The user"
+    except (ChatError, AttributeError):
+        return "The user"
+
+
+def _user_line(text):
+    """One user message for claude's stream-json input."""
+    return json.dumps({"type": "user", "message": {"role": "user", "content": text}}) + "\n"
+
+
+def start_job(task, question, project=None, origin="user", tools=None, resume=True, quiet=False,
+              session=None, chat=None, where="the main chat"):
     """Hand work to Larry. Scheduled runs (origin "schedule:<id>") don't resume or overwrite his
-    thread with you, and may be given fewer tools."""
+    thread with you, and may be given fewer tools. While Larry is already on a job for you, new
+    work joins that job instead of starting a second Larry beside it."""
+    if origin == "user" and resume:
+        live = running_user_job()
+        if live:
+            out = add_to_job(live, task, question, where)
+            out["joined"] = True
+            return out
     job = {"id": secrets.token_hex(4), "task": task, "question": question, "status": "running",
            "project": project or guess_project(task) or guess_project(question),
-           "origin": origin, "tools": tools, "quiet": quiet,
+           "origin": origin, "tools": tools, "quiet": quiet, "inbox_lock": threading.Lock(),
            # one thread can't run twice at once: a job started while another runs starts fresh
-           "resume": None if (not resume or any(j["status"] == "running" for j in list(_jobs.values())))
-                     else desk_session(),
+           "resume": session or (None if (not resume or any(j["status"] == "running" for j in list(_jobs.values())))
+                                 else desk_session()),
            "started": time.time(), "finished": None, "report": "", "rebuilt": False,
            "compactions": 0, "activity": "Larry is reading his brief", "model": load_model("jobs"),
            "agents": {"main": {"name": "Larry", "used": 0, "peak": 0, "window": CONTEXT_WINDOW,
                                "calls": 0, "done": False}}}
+    if chat:   # carrying on from a job's chat window: the report lands back there
+        job["chat"] = chat["id"]
+        chat.update(job=job["id"], status="running", activity=job["activity"])
+        _save_chat(chat)
     with _jobs_lock:
         _jobs[job["id"]] = job
         while len(_jobs) > 20:
@@ -2051,27 +2133,41 @@ def run_job(job):
     exe = find_claude()
     # stream-json reports every model call as it happens, tagged with the subagent that made it,
     # so the viewer can show each agent's context filling up live.
-    cmd = [exe, "-p", "--output-format", "stream-json", "--verbose", "--model", load_model("jobs"),
+    # stream-json input keeps Larry's stdin open while he works, so follow-ups (add_to_job) reach
+    # him mid-run; it closes at his first result, and anything later waits for the next run.
+    cmd = [exe, "-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
+           "--model", load_model("jobs"),
            "--permission-mode", PERMISSION_MODES[agent_permissions()],
            "--allowedTools", ",".join(job.get("tools") or JOB_TOOLS)] + run_flags(f"job:{job['id']}")
     if job.get("resume"):
         cmd += ["--resume", job["resume"]]
     env = claude_env()
-    report, ok, result = "", False, None
+    report, ok, result, replies = "", False, None, []
+    user = _user_name()
     try:
         # stderr joins stdout so a noisy error stream can never fill its pipe and stall the job.
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                 text=True, encoding="utf-8", errors="replace", cwd=VAULT, env=env,
                                 start_new_session=os.name != "nt")
-        job["proc"] = proc
         if job.get("stop"):   # stopped before it had started
             kill_tree(proc)
         timed_out = threading.Event()
         timer = threading.Timer(JOB_TIMEOUT, lambda: (timed_out.set(), kill_tree(proc)))
         timer.start()
-        proc.stdin.write(JOB_PROMPT.format(question=job["question"], task=job["task"]) +
-                         (SCHEDULED_NOTE if job.get("origin", "user") != "user" else ""))
-        proc.stdin.close()
+        first = (job.get("brief") or JOB_PROMPT.format(question=job["question"], task=job["task"]) +
+                 (SCHEDULED_NOTE if job.get("origin", "user") != "user" else ""))
+        job["brief"] = first   # a retry (Larry's old thread wouldn't resume) sends the same brief
+        with job["inbox_lock"]:
+            job["proc"] = proc
+            try:
+                proc.stdin.write(_user_line(first))
+                for t, q in job.pop("queued", []):   # follow-ups that came before he started
+                    proc.stdin.write(_user_line(FOLLOWUP_PROMPT.format(user=user, where="the main chat",
+                                                                       question=q, task=t)))
+                proc.stdin.flush()
+                job["accepting"] = True
+            except (OSError, ValueError):
+                pass
         other = []   # non-JSON lines (errors), kept for the report
         for line in proc.stdout:
             try:
@@ -2085,13 +2181,24 @@ def run_job(job):
             track_event(job, event)
             if event.get("type") == "result":
                 result = event
+                if (event.get("result") or "").strip():
+                    replies.append(event["result"].strip())
+                with job["inbox_lock"]:   # no more follow-ups into this run; claude exits once stdin ends
+                    job["accepting"] = False
+                    try:
+                        proc.stdin.close()
+                    except OSError:
+                        pass
         proc.wait()
         timer.cancel()
+        with job["inbox_lock"]:
+            job["accepting"] = False
         if job.get("stop"):
             report = "Stopped by you. Anything already written to the vault stays as it is."
         elif result:
             log_usage("larry", result)
-            report, ok = (result.get("result") or "").strip(), not result.get("is_error")
+            # a follow-up that landed as he finished gets its own answer: keep both
+            report, ok = "\n\n---\n\n".join(replies), not result.get("is_error")
             job["agents"]["main"]["window"] = context_of(result)["window"]
         elif timed_out.is_set():
             report = "Larry ran out of time (45 minutes) and was stopped."
@@ -2104,6 +2211,8 @@ def run_job(job):
 
     if job.pop("resume", None) and not result and not job.get("stop"):
         save_desk(None)        # Larry's old thread couldn't be resumed: start him fresh once
+        with job["inbox_lock"]:   # and resend the follow-ups the failed run swallowed
+            job["queued"] = [(f["task"], f["question"]) for f in job.get("followups", [])]
         return run_job(job)
     if result and job.get("session") and job.get("origin", "user") == "user":
         save_desk(job["session"])
@@ -2117,17 +2226,31 @@ def run_job(job):
         chat.update(status="idle", activity="", session=job.get("session") or chat.get("session"))
         _save_chat(chat)
     if job.get("stop"):   # report the stop at once; pick up anything written before it in the background
-        job.update(report=report, finished=time.time(), status="stopped")
+        with job["inbox_lock"]:
+            job.update(report=report, finished=time.time(), status="stopped")
+            job.pop("queued", None)
         log_job(job)
         threading.Thread(target=lambda: job.update(rebuilt=rebuild_galaxy()), daemon=True).start()
         return
     # Report done the moment Larry finishes. The galaxy rebuild (30s to a few minutes on OneDrive)
     # follows in the background; waiting for it made Jarvis announce jobs minutes late.
-    job.update(report=report or "No report came back.", finished=time.time(), status="done" if ok else "failed",
-               rebuilding=ok)
+    with job["inbox_lock"]:
+        job.update(report=report or "No report came back.", finished=time.time(), status="done" if ok else "failed",
+                   rebuilding=ok)
+        late = job.pop("queued", [])
     log_job(job)
     if ok:
         threading.Thread(target=lambda: job.update(rebuilt=rebuild_galaxy(), rebuilding=False), daemon=True).start()
+    if late:   # follow-ups that arrived as he was wrapping up: one more run on the same thread
+        chat = None
+        if job.get("chat"):
+            try:
+                chat = _load_chat(job["chat"])
+            except ChatError:
+                pass
+        task = "\n\n".join(t for t, _ in late)
+        question = "\n\n".join(q for _, q in late)
+        start_job(task, question, job.get("project"), session=job.get("session"), chat=chat)
 
 
 def stop_job(job_id):
@@ -2251,12 +2374,43 @@ def agent_say(agent, message, cid=None):
             _agent_chats[chat["id"]] = chat
     if chat["agent"] != who:
         raise ChatError(400, "That chat is with someone else.")
+    if chat.get("job"):
+        return _job_chat_say(chat, message)
     if chat["status"] == "running":
         raise ChatError(409, f"{who} is still working on your last message.")
     chat["messages"].append({"who": "you", "text": message, "time": time.strftime("%Y-%m-%d %H:%M")})
     chat.update(status="running", activity=f"{who} is reading the message")
     _save_chat(chat)
     threading.Thread(target=_run_agent_turn, args=(chat, agent_name, message), daemon=True).start()
+    return public_chat(chat)
+
+
+def _job_chat_say(chat, message):
+    """A message in a job's chat window with Larry. It always runs as team work, never as a side
+    conversation: while the job runs it joins it; afterwards it starts a new job on the same
+    thread, so it shows on Current work, can hand work to specialists, and reports back here.
+    (A side conversation once resumed Larry's thread beside the job and showed nothing working.)"""
+    chat["messages"].append({"who": "you", "text": message, "time": time.strftime("%Y-%m-%d %H:%M")})
+    _save_chat(chat)
+    with _jobs_lock:
+        job = _jobs.get(chat["job"])
+    if job and job["status"] == "running":
+        add_to_job(job, message, message, where="this chat")
+        chat["activity"] = job["activity"]
+        return public_chat(chat)
+    live = running_user_job()
+    if live:   # Larry is on another job for you: it joins that one rather than racing it
+        add_to_job(live, message, message, where=f"his chat window about \"{chat['messages'][0]['text'][:80]}\"")
+        if not live.get("chat"):
+            live["chat"] = chat["id"]
+            chat.update(job=live["id"], status="running", activity=live["activity"])
+        else:
+            chat["messages"].append({"who": "agent", "time": time.strftime("%Y-%m-%d %H:%M"), "error": False,
+                                     "text": "I'm in the middle of another job for you, so I've added this to it. "
+                                             "My answer will come with that job's report in the tray."})
+        _save_chat(chat)
+        return public_chat(chat)
+    start_job(message, message, guess_project(message), session=chat.get("session"), chat=chat, where="this chat")
     return public_chat(chat)
 
 
@@ -2580,8 +2734,9 @@ def current_work():
             add("job", j["id"], j["agents"], j["status"], j["task"], j.get("project"), j.get("activity"))
     with _agent_lock:
         chats = list(_agent_chats.values())
-    for c in chats:
-        if c.get("status") == "running" and not c.get("job") and c.get("work"):
+    running_jobs = {j["id"] for j in jobs if j["status"] == "running"}
+    for c in chats:   # a chat turn shows unless its job is already on screen
+        if c.get("status") == "running" and c.get("job") not in running_jobs and c.get("work"):
             add("chat", c["id"], c["work"]["agents"], "running", "", None, c.get("activity"))
     return {"now": now, "team": ["Larry"] + [t for t in TEAM if t != "Larry"],
             "projects": sorted(PROJECTS), "workers": rows,

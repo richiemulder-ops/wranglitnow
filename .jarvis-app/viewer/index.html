@@ -2964,6 +2964,7 @@ const tc = THEME.colour;
       kicker: `Team chat · ${member.role}`, title: member.name, accent: colour,
       render: async (bar, content) => {
         let current = chatId, busy = false, poll = null, listening = false, rec = null, seen = 0;
+        let jobChat = false;   // a job's chat: you can keep talking to Larry while the job runs
         const pick = document.createElement('select'); pick.className = 'project-pick'; pick.setAttribute('aria-label', 'Team member');
         team.forEach(a => { const o = document.createElement('option'); o.value = a.name; o.textContent = `${a.name} · ${a.role}`; pick.appendChild(o); });
         pick.value = member.name;
@@ -2997,6 +2998,7 @@ const tc = THEME.colour;
         };
         let workingEl = null, approvalsEl = null, approvalsKey = '';
         function paint(chat) {
+          jobChat = !!chat.job;
           (chat.messages || []).slice(seen).forEach(addMsg);
           seen = (chat.messages || []).length;
           if (workingEl) { workingEl.remove(); workingEl = null; }
@@ -3054,7 +3056,7 @@ const tc = THEME.colour;
         function setBusy(on) {
           busy = on;
           sendBtn.innerHTML = on ? STOP_ICON : ICON.send;
-          sendBtn.title = on ? `Stop ${member.name} now` : 'Send (Enter)';
+          sendBtn.title = on ? `Stop ${member.name} now` + (jobChat ? ' (type a message to add it to the job instead)' : '') : 'Send (Enter)';
           sendBtn.classList.toggle('stopper', on);
         }
         async function stopAgent() {
@@ -3067,7 +3069,7 @@ const tc = THEME.colour;
 
         async function send() {
           const text = input.value.trim();
-          if (!text || busy) return;
+          if (!text || (busy && !jobChat)) return;   // mid-job, a message joins the job in hand
           setBusy(true); input.value = ''; input.style.height = 'auto';
           stopSpeaking();
           try {
@@ -3083,7 +3085,7 @@ const tc = THEME.colour;
           }
         }
         let micOff = () => {};
-        sendBtn.onclick = () => busy ? stopAgent() : (micOff(), send());
+        sendBtn.onclick = () => busy && !(jobChat && input.value.trim()) ? stopAgent() : (micOff(), send());
         input.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); micOff(); send(); } };
         input.oninput = () => { input.style.height = 'auto'; input.style.height = Math.min(160, input.scrollHeight) + 'px'; };
 
