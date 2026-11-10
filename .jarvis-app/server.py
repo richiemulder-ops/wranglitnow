@@ -1919,6 +1919,9 @@ def request_approval(run_key, token, tool, inp, use_id):
     if chat is None:
         chat = job_chat(job)
     what, why = ("", "") if question else _describe(str(tool), inp)
+    if not why.strip() and kind == "job":   # no reason given: use what the asker last said
+        said = [a.get("said") for a in job["agents"].values() if a.get("name") == asker and a.get("said")]
+        why = said[-1][:300] if said else ""
     ticket = secrets.token_hex(6)
     with _approval_lock:
         _approvals[ticket] = {"ticket": ticket, "run": run_key, "chat": chat["id"], "agent": chat["agent"],
@@ -2385,6 +2388,41 @@ def agent_say(agent, message, cid=None):
     return public_chat(chat)
 
 
+QUESTION = re.compile(r"\?\s*$|^\W*(what|why|how|where|when|who|which|is|are|was|were|did|does|do|can|could|"
+                      r"should|will|would|has|have|any|status|update|progress)\b", re.I)
+QUICK_SYSTEM = """You answer {user}'s question about a team job that is running right now, on Larry's behalf, while Larry and the specialists keep working. You get the job's live state: the request, each agent's brief and latest words, and anything waiting for {user}'s approval. Answer from that state only: plainly, briefly (two to five sentences, or a few bullets), in Australian English, no jargon or shell syntax. For a request waiting for approval, say what it does, why the agent wants it (from their brief and latest words), and what happens if {user} approves or denies; give your view if one is clearly safer. Never invent facts. If the state doesn't answer the question, or it's an instruction rather than a question, say Larry will answer when he's free, and end with the line [[LARRY]]."""
+
+
+def _job_state(job, chat_id):
+    agents = [{k: a.get(k) for k in ("name", "task", "activity", "brief", "said", "done") if a.get(k)}
+              for a in job["agents"].values() if a.get("calls") or a.get("task")]
+    asks = [{k: r.get(k) for k in ("asker", "what", "why", "plain", "questions")} for r in pending_approvals(chat_id)]
+    return json.dumps({"request": job.get("question"), "jarvis_reading": job.get("task"),
+                       "running_minutes": round((time.time() - job["started"]) / 60, 1),
+                       "earlier_follow_ups": [f["question"] for f in job.get("followups", [])][-5:],
+                       "agents": agents, "waiting_for_your_approval": asks}, ensure_ascii=False)[:14000]
+
+
+def quick_answer(job, chat, question):
+    """Answer a question about the running job at once, from its live state, in its chat. Larry
+    only gets it when that can't answer (his next step may be minutes away, or blocked behind an
+    approval). Returns False when it's one for Larry."""
+    user = _user_name()
+    try:
+        state = _job_state(job, chat["id"])
+        text, _ = call_claude(FAST_MODEL, f"<job_state>\n{state}\n</job_state>\n\n{user}'s question: {question}",
+                              QUICK_SYSTEM.format(user=user))
+    except ChatError:
+        return False
+    for_larry = "[[LARRY]]" in text
+    text = text.replace("[[LARRY]]", "").strip()
+    if text:
+        chat["messages"].append({"who": "agent", "text": text, "time": time.strftime("%Y-%m-%d %H:%M"),
+                                 "error": False, "quick": True})
+        _save_chat(chat)
+    return not for_larry
+
+
 def _job_chat_say(chat, message):
     """A message in a job's chat window with Larry. It always runs as team work, never as a side
     conversation: while the job runs it joins it; afterwards it starts a new job on the same
@@ -2395,7 +2433,21 @@ def _job_chat_say(chat, message):
     with _jobs_lock:
         job = _jobs.get(chat["job"])
     if job and job["status"] == "running":
-        add_to_job(job, message, message, where="this chat")
+        if QUESTION.search(message):
+            # A question gets answered now, from what the job is doing; Larry only if that can't.
+            def answer_then_maybe_larry():
+                if not quick_answer(job, chat, message):
+                    add_to_job(job, message, message, where="this chat")
+            threading.Thread(target=answer_then_maybe_larry, daemon=True).start()
+            return public_chat(chat)
+        add_to_job(job, message, message, where="this chat")   # an instruction: Larry's to act on
+        waiting = pending_approvals(chat["id"])
+        note = (f"Passed to Larry. The team is paused until you answer {waiting[0]['asker']}'s request above, "
+                "so he'll pick this up straight after." if waiting else
+                "Passed to Larry. He'll fold it in at his next step.")
+        chat["messages"].append({"who": "agent", "text": note, "time": time.strftime("%Y-%m-%d %H:%M"),
+                                 "error": False, "quick": True})
+        _save_chat(chat)
         chat["activity"] = job["activity"]
         return public_chat(chat)
     live = running_user_job()
@@ -2674,6 +2726,8 @@ def track_event(job, event):
         used = context_of(msg["usage"])["used"]
         agent.update(used=used, peak=max(agent["peak"], used), calls=agent["calls"] + 1)
     for block in msg.get("content") or []:
+        if isinstance(block, dict) and block.get("type") == "text" and block.get("text", "").strip():
+            agent["said"] = block["text"].strip()[-600:]   # their latest words: the reason behind a request
         if not isinstance(block, dict) or block.get("type") != "tool_use":
             continue
         name, args = block.get("name", ""), block.get("input") or {}
@@ -2684,7 +2738,8 @@ def track_event(job, event):
                                        "task": str(args.get("description") or "")[:120],
                                        "project": guess_project(args.get("description")) or guess_project(args.get("prompt"))
                                                   or agent.get("project") or job.get("project"),
-                                       "activity": "reading the brief"}
+                                       "activity": "reading the brief",
+                                       "brief": str(args.get("prompt") or "")[:2000]}
             job["activity"] = f"{agent['name']} handed work to {who[:1].upper() + who[1:]}"
             agent["activity"] = f"briefing {who[:1].upper() + who[1:]}"
         else:

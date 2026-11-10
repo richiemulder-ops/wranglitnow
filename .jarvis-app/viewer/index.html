@@ -7713,5 +7713,67 @@ const tc = THEME.colour;
   fit();
 })();
 </script>
+<!-- Feedback: a button beside Settings opens the Jarvis Feedback form (a Fillout Zite app) in a window.
+     The form link carries the friend's name and Jarvis version so feedback says who and which build. -->
+<style>
+  #fb-btn { position: fixed; left: 130px; bottom: 18px; z-index: 6; display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: 999px; font: inherit; font-size: 12px; color: var(--ink); cursor: pointer;
+    background: rgba(13, 16, 40, 0.62); border: 1px solid var(--edge); backdrop-filter: blur(8px); transition: opacity 0.8s 0.3s; }
+  #fb-btn:hover, #fb-btn[aria-expanded=true] { border-color: #bad367; color: #bad367; }
+  body.waking #fb-btn { opacity: 0; pointer-events: none; }
+  #fb-win { position: fixed; left: 18px; bottom: 62px; z-index: 55; }
+  #fb-win[hidden] { display: none; }
+  #fb-win .fb-card { position: relative; width: min(440px, calc(100vw - 36px)); height: min(560px, calc(100vh - 100px));
+    border-radius: 16px; overflow: hidden; background: #161933; border: 1px solid var(--edge); box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
+  #fb-win iframe { width: 100%; height: 100%; border: 0; display: block; }
+  #fb-win .fb-close { position: absolute; top: 8px; right: 10px; z-index: 1; width: 30px; height: 30px; border-radius: 50%;
+    font-size: 18px; line-height: 1; color: var(--ink); cursor: pointer; background: rgba(13, 16, 40, 0.8); border: 1px solid var(--edge); }
+  #fb-win .fb-close:hover { color: #bad367; border-color: #bad367; }
+  #fb-win .fb-wait { position: absolute; inset: 0; display: grid; place-items: center; color: var(--dim); font-size: 13px; pointer-events: none; }
+  #fb-win .fb-wait[hidden] { display: none; }
+</style>
+<button type="button" id="fb-btn" aria-haspopup="dialog" aria-expanded="false" title="Send Richie feedback, a bug or an idea">
+  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+  <span>Feedback</span>
+</button>
+<div id="fb-win" role="dialog" aria-label="Send feedback" hidden>
+  <div class="fb-card">
+    <div class="fb-wait">Loading the feedback form…</div>
+    <button type="button" class="fb-close" aria-label="Close feedback">&times;</button>
+  </div>
+</div>
+<script>
+(() => {
+  const FORM = 'https://4dxsleunnk.zite.so/feedback';
+  const btn = document.getElementById('fb-btn'), win = document.getElementById('fb-win');
+  const card = win.querySelector('.fb-card'), wait = win.querySelector('.fb-wait');
+  // Sit just right of the Settings button, whatever its width.
+  const place = () => { const s = document.getElementById('settings-btn');
+    if (s && s.offsetWidth) btn.style.left = (s.getBoundingClientRect().right + 8) + 'px'; };
+  window.addEventListener('resize', place); setTimeout(place, 0); setTimeout(place, 1500);
+  function setup() { try { return JSON.parse(localStorage.getItem('jarvis-setup') || '{}') || {}; } catch (_) { return {}; } }
+  function open() {
+    const s = setup(), p = new URLSearchParams();
+    if (s.user_name) p.set('user', s.user_name);
+    if (s.version) p.set('version', s.version);
+    p.set('app', 'jarvis');
+    card.querySelector('iframe')?.remove();          // a fresh form each time
+    wait.hidden = false;
+    const f = document.createElement('iframe');
+    f.title = 'Jarvis feedback form'; f.src = FORM + '?' + p.toString();
+    f.addEventListener('load', () => { wait.hidden = true; });
+    card.insertBefore(f, card.firstChild);
+    win.hidden = false; btn.setAttribute('aria-expanded', 'true');
+  }
+  function close() {
+    win.hidden = true; btn.setAttribute('aria-expanded', 'false');
+    card.querySelector('iframe')?.remove();
+  }
+  btn.addEventListener('click', () => win.hidden ? open() : close());
+  win.querySelector('.fb-close').addEventListener('click', close);
+  document.addEventListener('mousedown', e => { if (!win.hidden && !win.contains(e.target) && !btn.contains(e.target)) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !win.hidden) { e.stopPropagation(); close(); } }, true);
+})();
+</script>
 </body>
 </html>

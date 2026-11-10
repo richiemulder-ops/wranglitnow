@@ -1,7 +1,10 @@
 {
-  "version": "2026.11.10.3",
+  "version": "2026.11.10.5",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes. 'tour' lists the tutorial step ids (TOUR_STEPS in viewer/index.html) this release added or changed, for the 'what's new' tour; run check_tour.py before pushing.",
   "notes": [
+    "New Feedback button, bottom left beside Settings: tell Richie about a bug, an idea or a feature you'd like. The form opens in a small window and sends your name and Jarvis version with it.",
+    "Ask a question in a job's chat with Larry (\"what is this for?\", \"has Felix finished?\") and you get an answer in a few seconds, from what the team is doing right now, even while they wait for your approval. Instructions still go to Larry, and the chat tells you if he's paused waiting on you.",
+    "Approval cards now show the agent's reason, taken from what they last said, when they didn't give one.",
     "\"See what the team is doing\" is now a single button: click it and the team window opens in the middle of the screen. The small arrow and the short list in the tray are gone.",
     "Asking for more while Larry is working no longer starts a second Larry beside him: a correction or extra request from the main chat or any chat with Larry goes into the job he's already on, so two copies of the team can't overwrite each other's files.",
     "Messages in a job's chat with Larry always run as team work: you can type while the job is running, and anything you send afterwards carries on the same thread, shows in the team window and reports back in that chat.",
@@ -67,6 +70,21 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.10.5",
+      "notes": [
+        "New Feedback button, bottom left beside Settings: tell Richie about a bug, an idea or a feature you'd like. The form opens in a small window and sends your name and Jarvis version with it."
+      ],
+      "tour": []
+    },
+    {
+      "version": "2026.11.10.4",
+      "notes": [
+        "Ask a question in a job's chat with Larry (\"what is this for?\", \"has Felix finished?\") and you get an answer in a few seconds, from what the team is doing right now, even while they wait for your approval. Instructions still go to Larry, and the chat tells you if he's paused waiting on you.",
+        "Approval cards now show the agent's reason, taken from what they last said, when they didn't give one."
+      ],
+      "tour": []
+    },
     {
       "version": "2026.11.10.3",
       "notes": [
