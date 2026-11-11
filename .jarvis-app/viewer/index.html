@@ -370,6 +370,8 @@
   .jobdot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--dot); box-shadow: 0 0 8px var(--dot); vertical-align: middle; }
   .row-item.jobrow .when { width: 18px; padding-top: 5px; }
   .row-item.jobrow.off .t { color: var(--dim); }
+  #work .jobsnote { margin: 0; padding: 8px 20px 12px; font-size: 11.5px; color: var(--dim); border-top: 1px solid var(--edge); }
+  #work.min .jobsnote { display: none; }
   .jobpage .about { font-size: 13.5px; line-height: 1.5; color: var(--ink); margin: 12px 0 4px; }
   .jobpage dl { display: grid; grid-template-columns: 130px 1fr; gap: 7px 14px; margin: 14px 0 6px; font-size: 13px; }
   .jobpage dt { color: var(--dim); }
@@ -953,7 +955,7 @@ const tc = THEME.colour;
 </button>
 <div id="settings" role="dialog" aria-label="Settings" hidden>
   <div class="st-head"><b>Settings</b><button type="button" class="st-close" aria-label="Close settings">&times;</button></div>
-  <nav class="st-tabs"><button type="button" data-tab="voice">Voice</button><button type="button" data-tab="personality">Personality</button><button type="button" data-tab="colours">Colours</button><button type="button" data-tab="model">Model</button><button type="button" data-tab="tools">Tools</button><button type="button" data-tab="jobs">Jobs</button><button type="button" data-tab="tutorial">Tutorial</button></nav>
+  <nav class="st-tabs"><button type="button" data-tab="voice">Voice</button><button type="button" data-tab="personality">Personality</button><button type="button" data-tab="colours">Colours</button><button type="button" data-tab="model">Model</button><button type="button" data-tab="tools">Tools</button><button type="button" data-tab="tutorial">Tutorial</button></nav>
   <div class="st-body"></div>
 </div>
 
@@ -3515,6 +3517,9 @@ const tc = THEME.colour;
           }
           view.repaint = paint;
           paint();
+          const note = document.createElement('p'); note.className = 'jobsnote';
+          note.textContent = `Jobs run while this computer is on. One missed while it was off runs once when Jarvis next starts (if it's recent), otherwise it shows as missed in your brief. At most ${data.cap} scheduled runs a day.`;
+          content.after(note);
         } };
       openView(view, false);
     };
@@ -4293,7 +4298,7 @@ const tc = THEME.colour;
   // Voice, personality, colours and the default model, in one small window. Everything saves on
   // the server (config.json), so it survives a cleared browser or a different one. Colours are
   // drawn once as the page builds, so a colour change saves and reloads straight back in.
-  let openSettingsTab = () => {};   // set by the settings panel (the brief opens its Jobs tab)
+  let openSettingsTab = () => {};   // set by the settings panel
   (function settingsPanel() {
     const btn = document.getElementById('settings-btn'), box = document.getElementById('settings');
     const body = box.querySelector('.st-body');
@@ -4329,7 +4334,7 @@ const tc = THEME.colour;
     function render() {
       box.querySelectorAll('.st-tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
       ({ voice: renderVoice, personality: renderPersonality, colours: renderColours, model: renderModel,
-         tools: renderTools, jobs: renderJobs, tutorial: renderTutorial })[tab]();
+         tools: renderTools, tutorial: renderTutorial })[tab]();
     }
 
     function renderVoice() {
@@ -4528,60 +4533,7 @@ const tc = THEME.colour;
         <div class="st-tour">${tourMenu().map(c => `<button type="button" data-ch="${esc(c.key)}"><b>${esc(c.title)}</b><small>${esc(c.sub)}</small></button>`).join('')}</div>`;
       body.querySelectorAll('[data-ch]').forEach(b => b.onclick = () => { close(); startTour(b.dataset.ch); });
     }
-    function renderJobs() {
-      body.innerHTML = '<p class="st-note">Loading…</p>';
-      api('/api/schedules').then(paintJobs).catch(err => { body.innerHTML = `<p class="st-err">${esc(err.message)}</p>`; });
-    }
-    const STATUS = { done: '✓ done', failed: '✗ failed', skipped: 'skipped', missed: 'missed (PC was off)', interrupted: 'interrupted', running: 'running…' };
-    // The job's light: pulsing green while it's on, amber while it runs, red if it's on but its last
-    // run failed, grey when paused.
-    function jobDot(s) {
-      const bad = ['failed', 'skipped', 'missed'].includes(s.last_status);
-      const [cls, tip] = s.running ? ['run', 'Running now'] : !s.enabled ? ['', 'Paused'] :
-        bad ? ['bad live', `On, but the last run ${{ failed: 'failed', skipped: 'was skipped', missed: 'was missed (PC off)' }[s.last_status]}`] : ['ok live', 'On'];
-      return `<i class="st-dot ${cls}" title="${esc(tip)}"></i>`;
-    }
-    function paintJobs(d) {
-      if (tab !== 'jobs') return;
-      jobsData = d;
-      body.innerHTML = `<div class="st-list">${d.schedules.map(s => `
-        <div class="st-tool st-job${s.enabled ? '' : ' off'}" data-id="${esc(s.id)}">
-          ${jobDot(s)}
-          <div class="st-main"><b>${esc(s.name)}</b> <span class="st-kind">${s.runner === 'brief' ? 'Built in' : s.runner === 'quick' ? 'Quick' : 'Team'}</span>
-            <small>${esc(s.label)}${s.enabled ? ' · next ' + esc(s.next_label) : ' · paused'}</small>
-            ${s.last_status ? `<small class="st-stat" title="${esc(s.last_result || '')}">Last: ${esc(STATUS[s.last_status] || s.last_status)}${s.last_label ? ' · ' + esc(s.last_label) : ''}</small>` : ''}</div>
-          <div class="st-acts"><button type="button" class="st-link" data-op="run">${s.runner === 'brief' ? 'Preview' : 'Run now'}</button>
-            <button type="button" class="st-link" data-op="${s.enabled ? 'pause' : 'resume'}">${s.enabled ? 'Pause' : 'Resume'}</button>
-            <button type="button" class="st-link" data-op="edit">Edit</button>
-            ${s.builtin ? '' : '<button type="button" class="st-link" data-op="log">Log</button><button type="button" class="st-link" data-op="remove">Remove</button>'}</div>
-        </div>`).join('')}</div>
-        <div class="st-row"><button type="button" class="st-btn" id="st-job-add">Add a job</button><span class="st-msg"></span></div>
-        <p class="st-note">Jobs run while this computer is on. One missed while it was off runs once when Jarvis next starts (if it's recent), otherwise it shows as missed in your brief. At most ${d.cap} scheduled runs a day.</p>`;
-      body.querySelectorAll('.st-job [data-op]').forEach(b => b.onclick = async () => {
-        const id = b.closest('.st-job').dataset.id, op = b.dataset.op, s = d.schedules.find(x => x.id === id);
-        if (op === 'edit') return editJob(s);
-        if (op === 'log') return jobLog(s);
-        if (op === 'run' && s.runner === 'brief') return openBrief();
-        if (op === 'remove' && !confirm(`Remove "${s.name}"?`)) return;
-        b.disabled = true;
-        try { const r = await api('/api/schedules', { op, id }); paintJobs(r); jobsChanged(r); flash(op === 'run' ? 'Started: it shows in the tray' : 'Saved'); }
-        catch (err) { flash(err.message, true); b.disabled = false; }
-      });
-      body.querySelector('#st-job-add').onclick = () => editJob(null);
-    }
     let jobsData = null;
-    function jobLog(s) {
-      popup({ kicker: 'Job log', title: s.name, render: async (bar, content) => {
-        content.innerHTML = '<div class="loading">Loading…</div>';
-        try {
-          const { log } = await api(`/api/schedule-log?id=${encodeURIComponent(s.id)}`);
-          content.innerHTML = log.length ? log.map(r => `<div class="row-item"><div class="t">${esc(STATUS[r.status] || r.status)} · ` +
-            `${esc(new Date(r.at * 1000).toLocaleString())} · ${esc(r.trigger)}${r.secs ? ' · ' + r.secs + ' s' : ''}</div>` +
-            `<div class="s" style="color:var(--dim);font-size:12px;white-space:pre-line">${esc(r.result_head || '')}</div></div>`).join('')
-            : '<div class="empty">Not run yet.</div>';
-        } catch (err) { content.innerHTML = `<div class="loading error">${esc(err.message)}</div>`; }
-      } });
-    }
     function editJob(s) {
       const d = jobsData || { tools: [] };
       const brief = s && s.runner === 'brief';
@@ -4647,7 +4599,6 @@ const tc = THEME.colour;
             try {
               const r = await api('/api/schedules', { op: s ? 'update' : 'add', id: s ? s.id : '', job });
               content.closest('.popwin').close();
-              if (!box.hidden && tab === 'jobs') paintJobs(r);
               jobsChanged(r);
             } catch (err) { msg.textContent = err.message; }
           };
@@ -5055,7 +5006,7 @@ const tc = THEME.colour;
       ...mails,
       ...b.jobs.map((j, i) => row(`data-job="${i}"`, `${esc((j.agents || [])[0] || 'The team')} ${j.status === 'done' ? 'finished' : j.status === 'stopped' ? 'stopped' : "couldn't finish"}: ${esc((j.task || '').slice(0, 90))}`,
         String(j.origin || '').startsWith('schedule:') ? 'Scheduled job' : '', j.status === 'done' ? '' : 'warn')),
-      ...b.schedule_events.map(e => row('data-jobs="1"', `${esc(e.name)}: ${esc(e.status)}`, esc(e.result_head || ''), 'warn')),
+      ...b.schedule_events.map(e => row(`data-jobs="${esc(e.name)}"`, `${esc(e.name)}: ${esc(e.status)}`, esc(e.result_head || ''), 'warn')),
       ...b.inbox.map(f => row('data-inbox="1"', esc(f.name), 'New in Team Inbox')),
       ...(b.vault.count ? [row('data-vault="1"', `${b.vault.count} note${b.vault.count === 1 ? '' : 's'} changed`,
         esc(b.vault.by_folder.map(([f, n]) => `${f} ${n}`).join(' · ')))] : []),
@@ -5075,7 +5026,7 @@ const tc = THEME.colour;
       else if (t.dataset.cal) popCalendar('today');
       else if (t.dataset.mail) openEmail(o.emails[+t.dataset.mail]);
       else if (t.dataset.job) { const j = b.jobs[+t.dataset.job]; showAnswer(`The team's report · ${j.task}`, j.report || '', []); }
-      else if (t.dataset.jobs) openSettingsTab('jobs');
+      else if (t.dataset.jobs) showJobNamed(t.dataset.jobs);
       else if (t.dataset.inbox) showFolder('inbox', 'Team Inbox');
       else if (t.dataset.vault) showMeetings();
       else if (t.dataset.tofile) showNotes();
@@ -7484,7 +7435,7 @@ const tc = THEME.colour;
     { key: 'topbar', title: 'The top bar', sub: 'Your numbers at a glance, and the Current work office' },
     { key: 'team', title: 'Your team at work', sub: 'The tray, "See what the team is doing", approvals' },
     { key: 'talking', title: 'Talking to Jarvis', sub: 'Typing, speaking, files, with live examples' },
-    { key: 'settings', title: 'Settings', sub: 'Voice, personality, colours, model, tools, jobs, tutorial' },
+    { key: 'settings', title: 'Settings', sub: 'Voice, personality, colours, model, tools, tutorial' },
     { key: 'around', title: 'Getting around', sub: 'Index, zoom, views, models and updates' },
   ];
   const wq = s => workEl.querySelector(s);
@@ -7620,8 +7571,6 @@ const tc = THEME.colour;
       say: 'Model sets which AI answers you by default. The most capable is the most thorough; a faster one is quicker for simple things.' },
     { id: 's.tools', ch: 'settings', target: () => stBox(), do: stTab('tools'),
       say: 'Tools lists what the team and I can use, such as your notes, Outlook and Fireflies, each with a light to show it works and a Test button.' },
-    { id: 's.jobs', ch: 'settings', target: () => stBox(), do: stTab('jobs'),
-      say: 'Jobs here is the same list as the Jobs card on the left, in a compact form. Add one, run it now, pause it, or read its log. You can also just ask me to set one up.' },
     { id: 's.tutorial', ch: 'settings', target: () => stBox(), do: stTab('tutorial'),
       say: "Tutorial replays this tour, or one chapter of it, or just what's new." },
     // Getting around

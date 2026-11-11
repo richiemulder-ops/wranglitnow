@@ -1,7 +1,8 @@
 {
-  "version": "2026.11.11.1",
+  "version": "2026.11.11.2",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes. 'tour' lists the tutorial step ids (TOUR_STEPS in viewer/index.html) this release added or changed, for the 'what's new' tour; run check_tour.py before pushing.",
   "notes": [
+    "Settings no longer has a Jobs tab: everything it did is on the Jobs card on the left. Jobs in your daily brief open that job's page.",
     "Jarvis now remembers. Your conversations with him are kept (across windows, days and restarts), he recalls older chats that match what you ask, he knows what the team has finished lately, and he keeps a list of facts to remember for good. Say \"remember that...\" or just correct him, and he notes it; when something changes, the newest wins.",
     "New Jobs card on the left: click it and all your scheduled jobs open in the main window, with when each runs next, who does it and how the last run went. Click a job to see what it does and edit its instructions right there; the next run follows them.",
     "Feedback now includes your name and Jarvis version, so Richie knows who sent it and which version you're on.",
@@ -74,6 +75,13 @@
   ],
   "history": [
     {
+      "version": "2026.11.11.2",
+      "notes": [
+        "Settings no longer has a Jobs tab: everything it did is on the Jobs card on the left. Jobs in your daily brief open that job's page."
+      ],
+      "tour": []
+    },
+    {
       "version": "2026.11.11.1",
       "notes": [
         "Jarvis now remembers. Your conversations with him are kept (across windows, days and restarts), he recalls older chats that match what you ask, he knows what the team has finished lately, and he keeps a list of facts to remember for good. Say \"remember that...\" or just correct him, and he notes it; when something changes, the newest wins.",
@@ -82,7 +90,6 @@
       "tour": [
         "m.jobs",
         "m.jobs.open",
-        "s.jobs",
         "c.jobs"
       ]
     },

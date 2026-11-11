@@ -4077,7 +4077,7 @@ def _sched_ts_label(ts):
     return f"{day} {d.strftime('%I:%M %p').lstrip('0').lower()}"
 
 
-# Ready-made jobs offered in Settings > Jobs > Add a job ("Start from a template"). Nothing runs until
+# Ready-made jobs offered in the Jobs card > Add a job ("Start from a template"). Nothing runs until
 # a job is saved from one.
 WEEKLY_STATUS_PROMPT = """This is the scheduled weekly status job. Run it yourself; no delegation. Read only, except for the one note below.
 
