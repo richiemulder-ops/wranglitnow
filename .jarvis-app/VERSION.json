@@ -1,7 +1,9 @@
 {
-  "version": "2026.11.10.6",
+  "version": "2026.11.11.1",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes. 'tour' lists the tutorial step ids (TOUR_STEPS in viewer/index.html) this release added or changed, for the 'what's new' tour; run check_tour.py before pushing.",
   "notes": [
+    "Jarvis now remembers. Your conversations with him are kept (across windows, days and restarts), he recalls older chats that match what you ask, he knows what the team has finished lately, and he keeps a list of facts to remember for good. Say \"remember that...\" or just correct him, and he notes it; when something changes, the newest wins.",
+    "New Jobs card on the left: click it and all your scheduled jobs open in the main window, with when each runs next, who does it and how the last run went. Click a job to see what it does and edit its instructions right there; the next run follows them.",
     "Feedback now includes your name and Jarvis version, so Richie knows who sent it and which version you're on.",
     "New Feedback button, bottom left beside Settings: tell Richie about a bug, an idea or a feature you'd like. The form opens in a small window and sends your name and Jarvis version with it.",
     "Ask a question in a job's chat with Larry (\"what is this for?\", \"has Felix finished?\") and you get an answer in a few seconds, from what the team is doing right now, even while they wait for your approval. Instructions still go to Larry, and the chat tells you if he's paused waiting on you.",
@@ -71,6 +73,19 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.11.1",
+      "notes": [
+        "Jarvis now remembers. Your conversations with him are kept (across windows, days and restarts), he recalls older chats that match what you ask, he knows what the team has finished lately, and he keeps a list of facts to remember for good. Say \"remember that...\" or just correct him, and he notes it; when something changes, the newest wins.",
+        "New Jobs card on the left: click it and all your scheduled jobs open in the main window, with when each runs next, who does it and how the last run went. Click a job to see what it does and edit its instructions right there; the next run follows them."
+      ],
+      "tour": [
+        "m.jobs",
+        "m.jobs.open",
+        "s.jobs",
+        "c.jobs"
+      ]
+    },
     {
       "version": "2026.11.10.6",
       "notes": [
