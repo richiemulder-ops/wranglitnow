@@ -12,6 +12,7 @@ Run from the vault's hidden `.jarvis-app` folder. It:
   2. writes app/config.json with the vault path (--vault; by default the folder above this script) and no keys
   3. lets an embedded (portable) Python find the app's own files
   4. builds the note index and the galaxy from the vault
+     (and installs the meaning-search add-on, fastembed, when it can)
   5. records the user's first name in the vault (PKM/.user.yaml) when --name is given
   6. puts a "Jarvis" shortcut on the desktop and in the Start menu
   7. starts Jarvis and opens it in the browser (unless --no-start)
@@ -32,7 +33,7 @@ VAULT = os.path.dirname(SRC)                              # main() may point the
 INSTALL = os.path.dirname(VAULT)
 APP = os.path.join(INSTALL, "app")
 WHERE = "install.json"   # in <vault>/.jarvis-app: the Jarvis folder this vault was set up with
-APP_FILES = ["server.py", "build.py", "approval_mcp.py", "launch.py", "setup.py", "update.py", "VERSION.json",
+APP_FILES = ["server.py", "build.py", "semantic.py", "approval_mcp.py", "launch.py", "setup.py", "update.py", "VERSION.json",
              os.path.join("viewer", "index.html"),
              os.path.join("viewer", "jarvis.ico")]
 DEFAULT_CONFIG = {"model": "claude-sonnet-5-5", "job_model": "claude-opus-5-5", "agent_permissions": "auto"}
@@ -114,6 +115,19 @@ def build_index():
     subprocess.run([sys.executable, os.path.join(APP, "build.py"), VAULT], cwd=APP, check=True)
 
 
+def meaning_search():
+    """Install the add-on behind meaning search (fastembed). Jarvis also does this itself in the
+    background if it is missing, so a failure here never stops the install."""
+    say("Adding meaning search, so Jarvis finds notes even in different words (a minute or two)...")
+    try:
+        sys.path.insert(0, APP)
+        import semantic
+        ok = semantic.ensure_installed(log=lambda m: None)
+    except Exception:
+        ok = False
+    say("Meaning search ready." if ok else "Meaning search will finish setting itself up when Jarvis starts.")
+
+
 def record_name(name):
     """The vault's own first-run steps look for PKM/.user.yaml; Larry fills in {{USER_NAME}}."""
     name = " ".join(name.split())[:60]
@@ -173,6 +187,7 @@ def main():
     write_config()
     fix_embedded_python()
     build_index()
+    meaning_search()
     record_name(a.name)
     if not a.no_shortcuts:
         make_shortcuts()

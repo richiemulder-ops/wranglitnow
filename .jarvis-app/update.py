@@ -20,7 +20,7 @@ REPO = "richiemulder-ops/wranglitnow"
 BRANCH = "main"
 RAW_VERSION = f"https://raw.githubusercontent.com/{REPO}/{BRANCH}/.jarvis-app/VERSION.json"
 ZIP_URL = f"https://github.com/{REPO}/archive/refs/heads/{BRANCH}.zip"
-APP_FILES = ["server.py", "build.py", "approval_mcp.py", "launch.py", "setup.py", "update.py",
+APP_FILES = ["server.py", "build.py", "semantic.py", "approval_mcp.py", "launch.py", "setup.py", "update.py",
              "VERSION.json", os.path.join("viewer", "index.html"),
              os.path.join("viewer", "jarvis.ico")]
 CHECK_EVERY = 24 * 3600   # GitHub is asked when Jarvis starts, then once a day; "update yourself" asks at once

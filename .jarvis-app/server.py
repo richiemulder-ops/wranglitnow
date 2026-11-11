@@ -221,6 +221,10 @@ MAX_SESSIONS = 200
 SESSION_TTL = 2 * 60 * 60
 MAX_BODY = 512 * 1024      # notes can be long; questions are capped separately
 TITLE_WEIGHT = 3.0
+RRF_K = 20                   # rank fusion of keyword and meaning matches (higher = flatter blend)
+SURE_EACH = 2                # top keyword and top meaning matches always kept
+FUSE_DEPTH = 50              # how far down each list counts toward the blend
+PASSAGE_CHARS = 1200         # a meaning match's passage (semantic.CHUNK_CHARS)
 
 SYSTEM_PROMPT = """\
 You are Jarvis, the user's butler: British, impeccably polite, bone-dry, with a razor wit. \
@@ -286,7 +290,7 @@ write SOURCES: none."""
 VAULT_PROMPT = """
 
 You can read the vault itself (read only) with Read, Glob and Grep; it is at {vault}. The notes \
-supplied with the question come from a quick keyword search and are cut short, so they are only a \
+supplied with the question come from a quick search (keywords plus meaning) and are cut short, so they are only a \
 starting point. Before you state a specific fact (what was said, agreed or decided, who owns what, a \
 date, an amount, which meeting was latest), open the full file and check it. Never say something \
 isn't in the vault until you have looked. Where things live, as Larry's team files them:
@@ -394,6 +398,27 @@ def terms(text):
     return [t for t in TOKEN.findall(text.lower()) if t not in STOPWORDS and len(t) > 1]
 
 
+# ---- meaning search (optional) ------------------------------------------------------------
+def _load_semantic():
+    """Meaning search lives in semantic.py. An update from an older Jarvis copies only the files
+    that version knew about, so fetch semantic.py from the knowledge folder's copy when it's missing."""
+    mine = os.path.join(HERE, "semantic.py")
+    spare = os.path.join(VAULT, ".jarvis-app", "semantic.py")
+    if not os.path.exists(mine) and os.path.exists(spare):
+        try:
+            shutil.copy2(spare, mine)
+        except OSError:
+            pass
+    try:
+        import semantic as mod
+        return mod
+    except Exception:   # never let it stop Jarvis starting: keyword search still works
+        return None
+
+
+semantic = _load_semantic()
+
+
 # ---- note index & scoring -------------------------------------------------------------
 class NoteIndex:
     def __init__(self, path):
@@ -407,9 +432,46 @@ class NoteIndex:
             df.update(set(tf) | tt)
         n = len(self.notes)
         self.idf = {t: math.log(1 + n / c) for t, c in df.items()}
+        self.vectors = semantic.Vectors(self.notes) if semantic else None
+
+    def hits(self, question, k=TOP_K, allowed=None):
+        """[(note index, passage offset)] for a question: keyword and meaning matches blended by
+        reciprocal rank, so an exact name still wins and a note in other words still turns up.
+        The offset says where the best-matching passage starts (0 = the top of the note)."""
+        words = self.search(question, FUSE_DEPTH, allowed)
+        try:
+            meaning = self.vectors.search(question, FUSE_DEPTH, allowed) if self.vectors else []
+        except Exception:   # a model hiccup must never cost an answer
+            meaning = []
+        if not meaning:
+            return [(i, 0) for i in words[:k]]
+        score, offset = Counter(), {}
+        for r, i in enumerate(words):
+            score[i] += 1 / (RRF_K + r)
+        for r, (i, off, _) in enumerate(meaning):
+            score[i] += 1 / (RRF_K + r)
+            offset[i] = off
+        # Each list's own best matches always get a place: a note that is the clear top hit on
+        # one side shouldn't lose its slot to notes that are middling on both.
+        picked = list(dict.fromkeys(words[:SURE_EACH] + [i for i, _, _ in meaning[:SURE_EACH]]))[:k]
+        for i, _ in score.most_common():
+            if len(picked) >= k:
+                break
+            if i not in picked:
+                picked.append(i)
+        picked.sort(key=lambda i: -score[i])
+        return [(i, offset.get(i, 0)) for i in picked]
+
+    def excerpt(self, i, offset=0, size=NOTE_CHARS_FOR_MODEL):
+        """The note's opening, plus the matching passage when it sits further down."""
+        text = self.notes[i]["text"]
+        if offset + PASSAGE_CHARS <= size:
+            return text[:size]
+        head = size - PASSAGE_CHARS - 200
+        return text[:head] + "\n[...]\n" + text[offset:offset + PASSAGE_CHARS + 200]
 
     def search(self, question, k=TOP_K, allowed=None):
-        """Top-k notes for a question; `allowed` limits the search to a set of note indexes."""
+        """Top-k notes for a question by keywords; `allowed` limits the search to a set of note indexes."""
         q = set(terms(question))
         if not q:
             return []
@@ -430,6 +492,41 @@ class NoteIndex:
                 scored.append((s, i))
         scored.sort(reverse=True)
         return [i for _, i in scored[:k]]
+
+
+_meaning = {"busy": False, "again": False}
+_meaning_lock = threading.Lock()
+
+
+def refresh_meaning():
+    """Bring meaning search up to date with the note index, in the background: install its add-on
+    the first time if needed, load the model, embed new or changed passages, then switch it on.
+    Keyword search answers on its own until then."""
+    if not semantic:
+        return
+    with _meaning_lock:
+        if _meaning["busy"]:
+            _meaning["again"] = True   # a rebuild landed mid-way: go round once more
+            return
+        _meaning["busy"] = True
+
+    def work():
+        while True:
+            try:
+                if semantic.ensure_installed(log=lambda m: print(m, flush=True)):
+                    semantic.model()
+                    idx = INDEX
+                    if semantic.build(idx.notes, log=lambda m: print(m, flush=True)):
+                        idx.vectors = semantic.Vectors(idx.notes)
+            except Exception as e:   # keyword search carries on
+                print(f"meaning search: {e.__class__.__name__}: {e}", flush=True)
+            with _meaning_lock:
+                if not _meaning["again"]:
+                    _meaning["busy"] = False
+                    return
+                _meaning["again"] = False
+
+    threading.Thread(target=work, daemon=True, name="meaning").start()
 
 
 INDEX = NoteIndex(INDEX_FILE)
@@ -1263,12 +1360,13 @@ def answer(sid, question, project=None, history=None, on_event=None, tour=False)
     fast = (not project and not team_asked and not chat_choice().startswith("openai:")
             and (CHITCHAT.match(question) or (SCREEN_COMMAND.match(question) and len(question.split()) <= 10)))
     scope = set(project["nodes"]) if project else None
-    hits = [] if fast else INDEX.search(question, allowed=scope)
+    found = [] if fast else INDEX.hits(question, allowed=scope)
+    hits = [i for i, _ in found]
     if hits:
         context = "\n\n".join(
             f'<note index="{i}" title="{INDEX.notes[i]["label"]}" folder="{INDEX.notes[i]["folder"]}">\n'
-            f'{INDEX.notes[i]["text"][:NOTE_CHARS_FOR_MODEL]}\n</note>'
-            for i in hits
+            f'{INDEX.excerpt(i, off)}\n</note>'
+            for i, off in found
         )
     else:
         context = "(Not needed for this.)" if fast else "(No notes matched this question.)"
@@ -2834,6 +2932,7 @@ def rebuild_galaxy():
             subprocess.run([sys.executable, os.path.join(HERE, "build.py"), VAULT], cwd=HERE, timeout=600,
                            capture_output=True, check=True, env={**os.environ, "PYTHONIOENCODING": "utf-8"})
             INDEX = NoteIndex(INDEX_FILE)
+            refresh_meaning()
             load_projects()
             return True
         except (subprocess.SubprocessError, OSError, ValueError):
@@ -5059,6 +5158,7 @@ def _restart():
 
 
 if __name__ == "__main__":
+    refresh_meaning()
     handler = functools.partial(GalaxyHandler, directory=ROOT)
     threading.Thread(target=watch_vault, daemon=True).start()
     threading.Thread(target=ensure_icon, daemon=True).start()
