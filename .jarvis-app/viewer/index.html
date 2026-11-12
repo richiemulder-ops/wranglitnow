@@ -7819,6 +7819,14 @@ const tc = THEME.colour;
     { key: 'around', title: 'Getting around', sub: 'Index, zoom, views, models and updates' },
   ];
   const wq = s => workEl.querySelector(s);
+  // A made-up formatted note for the Notes steps (shown only, never saved).
+  function tourDemoNote(tries = 0) {
+    const el = wq('.note-rich');
+    if (!el) { if (tries < 20) setTimeout(() => tourDemoNote(tries + 1), 50); return; }
+    el.innerHTML = htmlFromMd('## Call with the bakery\n\nThey want the new menu by **Friday**.\n\n- Price list\n- Photos of the cakes\n\n- [ ] Send the draft menu\n- [x] Book the photographer');
+    el.classList.remove('blank');
+    const title = wq('.note-title'); if (title) title.value = 'bakery-call';
+  }
   const railTool = (title, label) => { const s = railSec(title); return s && [...s.querySelectorAll('.tools button, .tools .link-btn')].find(b => b.textContent.includes(label)); };
   const stTab = t => () => openSettingsTab(t);
   const stBox = () => document.getElementById('settings');
@@ -7868,6 +7876,10 @@ const tc = THEME.colour;
       say: 'Team chat lets you talk to a specific agent directly. Larry is the orchestrator, and can pass and organise work with the others.' },
     { id: 'm.notes', ch: 'menu', target: () => [railSec('Notes'), wq('.editor')], do: () => showNotes(),
       say: "Notes is for quick thoughts. Give your note a name, or leave it blank and today's date will apply. You can dictate a note by clicking the Dictate button. Clicking Save puts the note into a Fleeting Notes folder on your PC." },
+    { id: 'm.notes.format', ch: 'menu', target: () => [wq('.fmt-bar'), wq('.note-rich')], do: () => { showNotes(); tourDemoNote(); },
+      say: 'Notes look the way they will read. Use these buttons for a heading, bullets, a numbered list, a tick-box task, bold or italic. Or type a hash and a space for a heading, a dash and a space for bullets, or one, full stop, space for numbers.' },
+    { id: 'm.notes.dictate', ch: 'menu', target: () => [wq('.editor .tools')], do: () => { showNotes(); tourDemoNote(); },
+      say: 'Press Dictate and just talk. Say "new heading", "bullet point", "number point", "new task" or "new paragraph" and the note shapes itself as you go. When you stop, Tidy up lets me sort a rambling note into headings, bullets and paragraphs without changing your words. Leave "Tidy after dictating" ticked and I do it every time. Control Z undoes it.' },
     { id: 'm.notes.list', ch: 'menu', target: () => [wq('.fleet'), wq('.bar')], do: () => showNotes(),
       say: 'Your fleeting notes are listed on the right, with a search. Click one to read it. The button at the top opens the Fleeting Notes folder on your PC.' },
     { id: 'm.actions', ch: 'menu', target: () => [railSec('Actions'), workEl], do: () => showActions(),
@@ -8035,6 +8047,11 @@ const tc = THEME.colour;
     const chat = st.ch === 'talking' || ts.some(el => askEl.contains(el));
     card.style.transform = 'translateX(-50%)'; card.style.top = 'auto';
     card.style.bottom = chat ? Math.max(24, innerHeight - ask.top + 14) + 'px' : '12px';
+    // ...unless it would cover what the step points at (the note's Dictate and Tidy buttons, say): then the top.
+    const c = card.getBoundingClientRect();
+    if (!chat && ts.some(el => { const r = el.getBoundingClientRect(); return r.width && r.height < innerHeight * 0.4 && r.top < c.bottom && r.bottom > c.top && r.left < c.right && r.right > c.left; })) {
+      card.style.bottom = 'auto'; card.style.top = '12px';
+    }
   }
   async function movePointer(el) {
     const r = el.getBoundingClientRect();

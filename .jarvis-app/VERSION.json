@@ -1,7 +1,8 @@
 {
-  "version": "2026.11.12.4",
+  "version": "2026.11.12.5",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes. 'tour' lists the tutorial step ids (TOUR_STEPS in viewer/index.html) this release added or changed, for the 'what's new' tour; run check_tour.py before pushing.",
   "notes": [
+    "The tutorial now shows how to format notes and how to dictate one: say \"new heading\", \"bullet point\" or \"new task\" as you talk, then Tidy up to sort it. Tutorial cards also move out of the way when they would cover the button they're pointing at.",
     "Notes now look formatted while you write: bold shows as bold, headings as headings, and bullets, numbered lists and tick-box tasks as real lists. Use the buttons, or type \"## \", \"- \", \"1. \" or \"[] \" at the start of a line. You can also rename a saved note: change its name and press Save.",
     "Notes can now have headings, bullets, numbered lists and tick-box tasks. Use the new formatting bar, or say \"new paragraph\", \"bullet point\", \"number point\", \"new heading\" or \"new task\" while dictating. Preview shows the note formatted. Tidy up (or \"Tidy after dictating\") lets Jarvis add the structure for you without changing your words. Dictation no longer wipes what you type while it listens.",
     "Jarvis keeps running if whatever started him closes, for example the Claude Code window used to install or update him. Before, closing that window too soon could take Jarvis down with it (\"site can't be reached\").",
@@ -78,6 +79,13 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.12.5",
+      "notes": [
+        "The tutorial now shows how to format notes and how to dictate one: say \"new heading\", \"bullet point\" or \"new task\" as you talk, then Tidy up to sort it. Tutorial cards also move out of the way when they would cover the button they're pointing at."
+      ],
+      "tour": ["m.notes.format", "m.notes.dictate"]
+    },
     {
       "version": "2026.11.12.4",
       "notes": [
