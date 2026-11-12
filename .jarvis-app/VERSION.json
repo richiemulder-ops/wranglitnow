@@ -1,7 +1,8 @@
 {
-  "version": "2026.11.12.6",
+  "version": "2026.11.12.7",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes. 'tour' lists the tutorial step ids (TOUR_STEPS in viewer/index.html) this release added or changed, for the 'what's new' tour; run check_tour.py before pushing.",
   "notes": [
+    "Jarvis is now Halo (H.A.L.O.). The ring on the right is replaced by the Carbonhalo mark: it draws itself, fills and sends out soft pulses while waiting, goes pale and ripples while listening, spins with a chasing petal while thinking, and spins while he talks. New icon on the desktop shortcut too. He still answers if you call him Jarvis, and your settings, chats and shortcut keep working as before.",
     "Settings > Tutorial > What's new always shows something now: what changed since your last tour, or the latest update's steps if you've seen them all.",
     "The tutorial now shows how to format notes and how to dictate one: say \"new heading\", \"bullet point\" or \"new task\" as you talk, then Tidy up to sort it. Tutorial cards also move out of the way when they would cover the button they're pointing at.",
     "Notes now look formatted while you write: bold shows as bold, headings as headings, and bullets, numbered lists and tick-box tasks as real lists. Use the buttons, or type \"## \", \"- \", \"1. \" or \"[] \" at the start of a line. You can also rename a saved note: change its name and press Save.",
@@ -80,6 +81,15 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.12.7",
+      "notes": [
+        "Jarvis is now Halo (H.A.L.O.). The ring on the right is replaced by the Carbonhalo mark: it draws itself, fills and sends out soft pulses while waiting, goes pale and ripples while listening, spins with a chasing petal while thinking, and spins while he talks. New icon on the desktop shortcut too. He still answers if you call him Jarvis, and your settings, chats and shortcut keep working as before."
+      ],
+      "tour": [
+        "w.hello"
+      ]
+    },
     {
       "version": "2026.11.12.6",
       "notes": [

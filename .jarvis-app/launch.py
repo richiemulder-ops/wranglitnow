@@ -1,4 +1,4 @@
-"""Start Jarvis (if it isn't already running) and open it in the browser. The desktop shortcut runs this.
+"""Start Halo (if it isn't already running) and open it in the browser. The desktop shortcut runs this.
 
     launch.py          start if needed, then open the page
     launch.py --stop   stop the running server
@@ -35,7 +35,7 @@ def python_exe():
 def spawn():
     """launch.py --spawn: start the server, record its process id, and exit straight away.
 
-    The server must outlive whatever started Jarvis: the desktop shortcut, the updater, or a Claude
+    The server must outlive whatever started Halo: the desktop shortcut, the updater, or a Claude
     Code session running the install, whose processes are cleaned up (the whole tree under its
     shell) when the session closes. Started from this short-lived helper, the server has no living
     parent within moments, so a clean-up of the caller's tree can't reach it, even while the server
@@ -97,14 +97,14 @@ def stop():
     try:
         pid = int(open(PID_FILE).read().strip())
     except (OSError, ValueError):
-        print("Jarvis isn't running (no record of it).")
+        print("Halo isn't running (no record of it).")
         return
     if os.name == "nt":
         subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
     else:
         os.kill(pid, 15)
     os.remove(PID_FILE)
-    print("Jarvis stopped.")
+    print("Halo stopped.")
 
 
 def main():
@@ -120,11 +120,11 @@ def main():
         start()
         return
     if not running() and not start():
-        msg = "Jarvis didn't start. Details are in " + os.path.join(HERE, "data", "server.log")
+        msg = "Halo didn't start. Details are in " + os.path.join(HERE, "data", "server.log")
         print(msg)
         if os.name == "nt":
             import ctypes
-            ctypes.windll.user32.MessageBoxW(0, msg, "Jarvis", 0x10)
+            ctypes.windll.user32.MessageBoxW(0, msg, "Halo", 0x10)
         sys.exit(1)
     webbrowser.open(URL)
 

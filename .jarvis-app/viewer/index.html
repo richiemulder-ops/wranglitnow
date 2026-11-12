@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Jarvis</title>
+<title>Halo</title>
 <link rel="icon" href="jarvis.ico">
 <script src="user-theme.js"></script>
 <style>
@@ -17,7 +17,7 @@
     --orange: #ff9f43;
     --left-rail: 300px;                 /* project cards column */
     --right-rail: 0px;                  /* side panel, when open */
-    --jarvis-size: 210px;               /* the J.A.R.V.I.S. emblem on the right */
+    --jarvis-size: 210px;               /* the H.A.L.O. emblem on the right */
     --jarvis-rail: 250px;               /* room kept clear for it */
     --jarvis-top: 50%;                  /* set from the Index height in JS */
   }
@@ -125,7 +125,7 @@
   .tree .item .tw { display: inline-block; width: 10px; overflow: visible; flex: none; color: var(--dim); font-style: normal; font-size: 10px; }
   .tree .kids[hidden] { display: none; }
   .tree-root { font-size: 11.5px; color: var(--dim); margin: 0 0 6px; word-break: break-all; }
-  /* Pop-ups: small windows for a list you asked Jarvis for. Several can be open at once. */
+  /* Pop-ups: small windows for a list you asked Halo for. Several can be open at once. */
   .popwin { position: fixed; z-index: 8; width: min(440px, calc(100vw - 24px)); height: min(520px, calc(100vh - 140px));
     display: flex; flex-direction: column; border-radius: 14px; background: rgba(14, 17, 44, 0.96); backdrop-filter: blur(16px);
     border: 1px solid var(--edge); border-top: 2px solid var(--accent); box-shadow: 0 18px 50px rgba(0,0,0,0.55);
@@ -167,13 +167,13 @@
   .scene-tooltip { font-family: inherit !important; font-size: 13px !important;
     background: var(--glass) !important; border: 1px solid var(--edge); border-radius: 6px; padding: 4px 9px !important; }
 
-  /* J.A.R.V.I.S. emblem: right-hand side, under the Index, left of the panel when it's open. */
+  /* H.A.L.O. emblem (the Carbonhalo mark): right-hand side, under the Index, left of the panel when it's open. */
   #jarvis { position: fixed; top: var(--jarvis-top); right: calc(var(--right-rail) + 22px);
     width: var(--jarvis-size); height: var(--jarvis-size); padding: 0; border: 0; border-radius: 50%;
     background: none; cursor: pointer; -webkit-tap-highlight-color: transparent;
     transition: right 0.6s cubic-bezier(.2,.8,.2,1), top 0.4s ease;
     filter: drop-shadow(0 0 calc(6px + var(--energy, 0) * 14px) rgba(186, 211, 103, calc(0.35 + var(--energy, 0) * 0.45))); }
-  /* Wake screen: browsers won't let a page speak until it's clicked, so Jarvis starts centre stage
+  /* Wake screen: browsers won't let a page speak until it's clicked, so Halo starts centre stage
      and glides to his corner once woken, announcing himself on the way. */
   .ob-tools { display: grid; gap: 6px; margin: 6px 0 10px; }
   .ob-tools label, #onboard .ob-tools label { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center;
@@ -314,12 +314,7 @@
   #metrics { transition: opacity 0.8s 0.3s, right 0.6s cubic-bezier(.2,.8,.2,1); }
   #jarvis svg { display: block; width: 100%; height: 100%; overflow: visible; }
   #jarvis:focus-visible { outline: 1px solid rgba(186, 211, 103, 0.6); outline-offset: 6px; }
-  #jarvis .tick { stroke: #c8e07f; stroke-width: 1; }
-  #jarvis .tick.major { stroke-width: 1.8; }
-  #jarvis .band { fill: #9fc85a; }
-  #jarvis .gold { stroke: #ff9f43; fill: none; stroke-linecap: round; }
-  #jarvis .ring { fill: none; stroke: #bad367; }
-  #jarvis text { font: 600 15px "Segoe UI", system-ui, sans-serif; letter-spacing: 0.06em; fill: #f4fbe6; }
+  #jarvis text { font: 600 14px "Segoe UI", system-ui, sans-serif; letter-spacing: 0.12em; fill: #f4fbe6; }
 
   /* Workspace: the big main-window view for documents, Actions, Meetings and the CRM. */
   #work { position: fixed; z-index: 6; top: 80px; bottom: 104px; display: none; flex-direction: column;
@@ -618,7 +613,7 @@
   @keyframes updflash { 0%, 100% { box-shadow: 0 0 0 0 rgba(159, 211, 255, 0.85); border-color: #9fd3ff; }
     50% { box-shadow: 0 0 0 10px rgba(159, 211, 255, 0); border-color: #ffffff; background: #1b3a63; } }
   body.waking #updateBar { opacity: 0; }
-  /* Tutorial: the screen dims except what Jarvis is explaining; a pointer glides over and clicks;
+  /* Tutorial: the screen dims except what Halo is explaining; a pointer glides over and clicks;
      a card carries the words, with Back / Next. It sits above everything, pop-ups included. */
   #tourShade { position: fixed; inset: 0; z-index: 80; width: 100vw; height: 100vh; pointer-events: all; }
   #tourShade .ring { fill: none; stroke: var(--brand, #bad367); stroke-width: 2.5; filter: drop-shadow(0 0 6px var(--brand, #bad367)); }
@@ -798,7 +793,7 @@
   #send svg, .icon-btn.send svg { width: 18px; height: 18px; display: block; margin: auto; fill: none; stroke: currentColor;
     stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; filter: none; }
   #ask.busy #send { animation: pulse 1.1s ease-in-out infinite; }
-  /* Stop: shown while Jarvis is answering or Larry's team is working; ends it at once. */
+  /* Stop: shown while Halo is answering or Larry's team is working; ends it at once. */
   #stop { width: 38px; height: 38px; flex: none; border-radius: 50%; cursor: pointer; font-size: 14px; line-height: 1;
     color: #fff; background: #e5484d; border: 0; box-shadow: 0 0 14px -2px rgba(229,72,77,0.8); }
   #stop:hover { background: #f2555a; }
@@ -842,7 +837,7 @@
   #status.error { color: #ffcf8a; }
   #status.error .dot { color: #ffb347; animation: none; }
   #status.paused .dot { color: #8a93a8; animation: none; }
-  #mic.held, .icon-btn.mic.held { animation: none; opacity: 0.55; }   /* held while Jarvis speaks */
+  #mic.held, .icon-btn.mic.held { animation: none; opacity: 0.55; }   /* held while Halo speaks */
   @keyframes blink { 50% { opacity: 0.25; } }
   @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   @keyframes pulse { 50% { box-shadow: 0 0 0 8px rgba(186,211,103,0.15); } }
@@ -954,11 +949,11 @@ const tc = THEME.colour;
 </script>
 </head>
 <body class="waking">
-<div id="wake" aria-label="Wake Jarvis"><p>Click anywhere to wake Jarvis</p></div>
+<div id="wake" aria-label="Wake Halo"><p>Click anywhere to wake Halo</p></div>
 <div id="galaxy"></div>
 
 <div id="hud">
-  <svg id="logo" viewBox="0 0 420 90.8" role="img" aria-label="Jarvis"><text x="0" y="74" font-size="84" font-weight="600" letter-spacing="14" font-family="system-ui, Segoe UI, sans-serif">JARVIS</text></svg>
+  <svg id="logo" viewBox="0 0 420 90.8" role="img" aria-label="Halo"><text x="0" y="74" font-size="84" font-weight="600" letter-spacing="14" font-family="system-ui, Segoe UI, sans-serif">HALO</text></svg>
   <p id="stats"></p>
 </div>
 <div id="legend"></div>
@@ -974,24 +969,17 @@ const tc = THEME.colour;
   <div class="st-body"></div>
 </div>
 
-<button id="jarvis" type="button" title="J.A.R.V.I.S. (click to talk)" aria-label="Talk to Jarvis">
+<button id="jarvis" type="button" title="H.A.L.O. (click to talk)" aria-label="Talk to Halo">
   <svg viewBox="-120 -120 240 240" aria-hidden="true">
     <defs>
-      <radialGradient id="j-core">
-        <stop offset="0" stop-color="#232a5c" stop-opacity="0.95"/>
-        <stop offset="1" stop-color="#0e1030" stop-opacity="0.85"/>
+      <radialGradient id="j-glow">
+        <stop offset="0" stop-color="#bad367" stop-opacity="0.5"/>
+        <stop offset="1" stop-color="#bad367" stop-opacity="0"/>
       </radialGradient>
     </defs>
     <circle r="116" fill="rgba(12, 14, 36, 0.72)"/>
-    <circle r="113" class="ring" stroke-width="0.6" opacity="0.35"/>
-    <g id="j-ticks"></g>
-    <g id="j-band"></g>
-    <g id="j-gold"></g>
-    <circle r="66" class="ring" stroke-width="1.6"/>
-    <circle r="61" fill="url(#j-core)" class="ring" stroke-width="0.8" opacity="0.95"/>
-    <g id="j-inner"><circle r="52" class="ring" stroke-width="0.8" stroke-dasharray="2 5" opacity="0.6"/>
-      <circle r="45" class="ring" stroke-width="0.5" stroke-dasharray="14 6" opacity="0.4"/></g>
-    <text text-anchor="middle" dominant-baseline="central">J.A.R.V.I.S.</text>
+    <g id="j-scale" transform="scale(1.95)"></g>
+    <text text-anchor="middle" dominant-baseline="central">H.A.L.O.</text>
   </svg>
 </button>
 
@@ -1030,7 +1018,7 @@ const tc = THEME.colour;
     <button id="attach" class="icon-btn" type="button" title="Add a file to the Team Inbox (or paste one with Ctrl+V, or drop it here)" aria-label="Attach a file"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 11.5l-8.3 8.3a5 5 0 0 1-7.1-7.1l8.6-8.6a3.4 3.4 0 0 1 4.8 4.8l-8.6 8.6a1.8 1.8 0 0 1-2.5-2.5l7.9-7.9"/></svg></button>
     <button id="voice-toggle" class="icon-btn" type="button" title="Read answers aloud (on)" aria-pressed="true"></button>
     <button id="mic" class="icon-btn" type="button" title="Ask by voice" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></button>
-    <button id="stop" type="button" title="Stop Jarvis and any work under way" aria-label="Stop" hidden><svg class="stop-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></svg></button>
+    <button id="stop" type="button" title="Stop Halo and any work under way" aria-label="Stop" hidden><svg class="stop-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></svg></button>
     <button id="send" type="submit" title="Ask" aria-label="Ask"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5"/></svg></button>
   </form>
 </div>
@@ -1044,7 +1032,7 @@ const tc = THEME.colour;
 <script src="graph-data.js"></script>
 <script>
 // Galaxy views (CR-007): inline here because the updater only installs index.html.
-// CR-007 Galaxy layouts for the Jarvis viewer (viewer/index.html).
+// CR-007 Galaxy layouts for the Halo viewer (viewer/index.html).
 //
 // Every layout is a pure function  (nodes, links, ctx) => Map<node.id, {x, y, z}>
 // and returns a position for EVERY node in `nodes` (notes and hubs).
@@ -1674,7 +1662,7 @@ const tc = THEME.colour;
 
   // ---- graph ---------------------------------------------------------------------------
   let selected = null;
-  let linksLive = false;   // brighter resting web while Jarvis speaks
+  let linksLive = false;   // brighter resting web while Halo speaks
   const highlight = new Set();
 
   const Graph = ForceGraph3D({ controlType: 'orbit' })(document.getElementById('galaxy'))
@@ -1740,7 +1728,7 @@ const tc = THEME.colour;
     overlayGeo.setDrawRange(0, overlayPairs.length * 2);
   }
 
-  // ---- data stream: light packets travelling along the connections while Jarvis speaks ----
+  // ---- data stream: light packets travelling along the connections while Halo speaks ----
   // Runs along whatever is in focus (the overlay), or along the resting web when nothing is.
   const STREAM_MAX = 1800;
   const streamGeo = new THREE.BufferGeometry();
@@ -1845,7 +1833,7 @@ const tc = THEME.colour;
     sparkGeo.attributes.color.needsUpdate = true;
   }
 
-  // Lit notes swell in rolling waves while Jarvis speaks.
+  // Lit notes swell in rolling waves while Halo speaks.
   let nodesPulsing = false;
   function pulseNodes(t, level) {
     if (level <= 0.002) {
@@ -2066,7 +2054,7 @@ const tc = THEME.colour;
     body.parentElement.insertBefore(b, body);
   }
   const projectsBody = addSection({ icon: ICON.projects, title: 'Projects', sub: plural(projects.length, 'project'), color: tc('#bad367') });
-  headButton(projectsBody, 'Project chat', 'Talk to Jarvis about one project', () => showProjectChat());
+  headButton(projectsBody, 'Project chat', 'Talk to Halo about one project', () => showProjectChat());
   { const t = document.createElement('div'); t.className = 'tools'; projectsBody.appendChild(t);
     linkButton(t, '＋ New project', () => showNewProject()); }
   projects.forEach(p => {
@@ -2367,7 +2355,7 @@ const tc = THEME.colour;
     }, start);
   }
 
-  // Pop-ups: a small window of its own for a list you asked Jarvis for (a client's actions or
+  // Pop-ups: a small window of its own for a list you asked Halo for (a client's actions or
   // meetings, a project's files). Several can be open; drag one by its title bar, ✕ or Esc closes it.
   const popups = [];
   function popup({ kicker, title, accent, render, kind = '', big = false }) {
@@ -2442,7 +2430,7 @@ const tc = THEME.colour;
     });
   }
 
-  // Due-date filters Jarvis can put on an action list ("what's overdue", "due this week").
+  // Due-date filters Halo can put on an action list ("what's overdue", "due this week").
   const isoDay = d => new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
   const weekOf = (k = 0) => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7) + 7 * k); const e = new Date(d); e.setDate(d.getDate() + 6); return [isoDay(d), isoDay(e)]; };
   const DUE_TESTS = {
@@ -2452,7 +2440,7 @@ const tc = THEME.colour;
     nextweek: due => { const [a, b] = weekOf(1); return !!due && due.slice(0, 10) >= a && due.slice(0, 10) <= b; }
   };
   const DUE_SAY = { overdue: 'overdue', today: 'today', thisweek: 'this week', nextweek: 'next week' };
-  // The calendar over any span Jarvis was asked for: today, Friday, next week.
+  // The calendar over any span Halo was asked for: today, Friday, next week.
   function popCalendar(span = 'today') {
     popup({
       kicker: 'Calendar', title: span.replace(/^\w/, c => c.toUpperCase()), accent: tc('#f7853b'), kind: 'calendar', big: true,
@@ -2608,9 +2596,9 @@ const tc = THEME.colour;
         const heardEl = content.querySelector('.heard'), fmtBar = content.querySelector('.fmt-bar');
         const dictBtn = linkButton(tools, '🎙 Dictate', () => dictating ? stopDictation(true) : startDictation());
         const saveBtn = linkButton(tools, 'Save', save); saveBtn.classList.add('primary');
-        const tidyBtn = linkButton(tools, '✨ Tidy up', () => tidy(), 'Let Jarvis add headings, bullets, numbers and paragraphs. Your words stay the same; Ctrl+Z undoes it.');
+        const tidyBtn = linkButton(tools, '✨ Tidy up', () => tidy(), 'Let Halo add headings, bullets, numbers and paragraphs. Your words stay the same; Ctrl+Z undoes it.');
         const autoLbl = document.createElement('label'); autoLbl.className = 'auto-tidy';
-        autoLbl.title = 'When you stop dictating, Jarvis tidies the note into headings, bullets and paragraphs';
+        autoLbl.title = 'When you stop dictating, Halo tidies the note into headings, bullets and paragraphs';
         autoLbl.innerHTML = '<input type="checkbox"> Tidy after dictating';
         const autoChk = autoLbl.querySelector('input'); tools.appendChild(autoLbl);
         try { autoChk.checked = localStorage.getItem('galaxy-note-autotidy') !== '0'; } catch (_) { autoChk.checked = true; }
@@ -2867,7 +2855,7 @@ const tc = THEME.colour;
           else run('insertText', text);
         };
 
-        // AI tidy: Jarvis adds structure without changing the words. Ctrl+Z puts the old text back.
+        // AI tidy: Halo adds structure without changing the words. Ctrl+Z puts the old text back.
         let tidying = false;
         async function tidy(auto = false) {
           if (tidying) return;
@@ -3008,7 +2996,7 @@ const tc = THEME.colour;
   }
   launcher({ icon: ICON.notes, title: 'Notes', sub: 'New note · Fleeting Notes', color: tc('#d9ec8f'), open: () => showNotes() });
 
-  // Project chat: pick a project and talk to Jarvis about it alone. Each conversation is saved as
+  // Project chat: pick a project and talk to Halo about it alone. Each conversation is saved as
   // a markdown file in copilot/projects/<Project>/jarvis-chats/ and remembered when reopened.
   let lastChatProject = null;
   const chatDrafts = {};   // unsent words per project, kept when you switch projects (CR-016)
@@ -3151,7 +3139,7 @@ const tc = THEME.colour;
         input.oninput = () => { input.style.height = 'auto'; input.style.height = Math.min(160, input.scrollHeight) + 'px'; };
 
         // Talk: tap the mic to talk, tap again to pause (the words stay in the box); only the arrow
-        // or Enter sends (CR-005). Held while Jarvis speaks, so it never types his words (CR-002).
+        // or Enter sends (CR-005). Held while Halo speaks, so it never types his words (CR-002).
         let base = '', held = false;
         const micHold = {
           hold() { if (!listening) return; held = true; micBtn.classList.add('held'); try { rec.abort(); } catch (_) {} },
@@ -3183,7 +3171,7 @@ const tc = THEME.colour;
           rec.onresult = e => { if (!listening || held) return; let t = ''; for (const r of e.results) t += r[0].transcript; input.value = (base ? base + ' ' : '') + t.trim(); };
           rec.onerror = e => { if (FATAL_REC_ERRORS.has(e.error)) { listening = false; micHolds.delete(micHold); setStatus('error', REC_ERRORS[e.error] || e.error, 4000); } };
           rec.onend = () => {
-            if (listening && held) { base = input.value.trim(); return; }   // Jarvis is talking: resume() restarts it
+            if (listening && held) { base = input.value.trim(); return; }   // Halo is talking: resume() restarts it
             if (listening) { base = input.value.trim(); setTimeout(() => { if (listening && !held) try { rec.start(); } catch (_) {} }, 150); return; }
             micBtn.classList.remove('on', 'held');
             if (statusEl.classList.contains('listening')) setStatus(input.value.trim() ? 'paused' : '', PAUSED_TEXT);
@@ -3321,7 +3309,7 @@ const tc = THEME.colour;
       if (fresh) {
         if (viewingChat !== fresh.chat) showTeamChat(fresh.agent, fresh.chat);
         else workEl.classList.remove('min');   // minimised: bring it back up to show the request
-        // With Jarvis open in more than one tab, only the first to see a request says it out loud.
+        // With Halo open in more than one tab, only the first to see a request says it out loud.
         let first = true;
         try {
           const key = 'jarvis-said-' + fresh.ticket;
@@ -3477,7 +3465,7 @@ const tc = THEME.colour;
         input.oninput = () => { input.style.height = 'auto'; input.style.height = Math.min(160, input.scrollHeight) + 'px'; };
 
         // Talk: tap the mic to talk, tap again to pause (the words stay in the box); only the arrow
-        // or Enter sends (CR-005). Held while Jarvis speaks, so it never types his words (CR-002).
+        // or Enter sends (CR-005). Held while Halo speaks, so it never types his words (CR-002).
         let base = '', held = false;
         const micHold = {
           hold() { if (!listening) return; held = true; micBtn.classList.add('held'); try { rec.abort(); } catch (_) {} },
@@ -3509,7 +3497,7 @@ const tc = THEME.colour;
           rec.onresult = e => { if (!listening || held) return; let t = ''; for (const r of e.results) t += r[0].transcript; input.value = (base ? base + ' ' : '') + t.trim(); };
           rec.onerror = e => { if (FATAL_REC_ERRORS.has(e.error)) { listening = false; micHolds.delete(micHold); setStatus('error', REC_ERRORS[e.error] || e.error, 4000); } };
           rec.onend = () => {
-            if (listening && held) { base = input.value.trim(); return; }   // Jarvis is talking: resume() restarts it
+            if (listening && held) { base = input.value.trim(); return; }   // Halo is talking: resume() restarts it
             if (listening) { base = input.value.trim(); setTimeout(() => { if (listening && !held) try { rec.start(); } catch (_) {} }, 150); return; }
             micBtn.classList.remove('on', 'held');
             if (statusEl.classList.contains('listening')) setStatus(input.value.trim() ? 'paused' : '', PAUSED_TEXT);
@@ -3785,7 +3773,7 @@ const tc = THEME.colour;
   folderSection('deliverables', ICON.deliverables, 'Deliverables', tc('#ffc46b'));
 
   // Outlook (Office 365): today's meetings and latest email, through the Microsoft 365 connector.
-  // Click one to ask Jarvis what the notes say about it.
+  // Click one to ask Halo what the notes say about it.
   (() => {
     let loaded = false;
     const body = addSection({ icon: ICON.outlook, title: 'Outlook', sub: "Today's calendar and email", color: tc('#f7853b'),
@@ -3813,13 +3801,13 @@ const tc = THEME.colour;
       data.events.forEach(ev => itemButton(b, {
         name: String(ev.title || '(no title)'), color: tc('#f7853b'),
         sub: [ev.start && ev.end ? `${ev.start} – ${ev.end}` : ev.start, ev.location].filter(Boolean).join(' · '),
-        title: 'Ask Jarvis what your notes say about this', onClick: () => ask(`What do my notes say about ${ev.title}?`)
+        title: 'Ask Halo what your notes say about this', onClick: () => ask(`What do my notes say about ${ev.title}?`)
       }));
       h('Latest email');
       data.emails.forEach(m => itemButton(b, {
         name: String(m.subject || '(no subject)'), color: tc('#f7853b'), cls: m.unread ? 'unread' : '',
         sub: [m.from, m.received].filter(Boolean).join(' · '),
-        title: m.key ? 'Open this email' : 'Ask Jarvis what your notes say about this',
+        title: m.key ? 'Open this email' : 'Ask Halo what your notes say about this',
         onClick: () => m.key ? openEmail(m) : ask(`What do my notes say about ${m.subject}?`)
       }));
     }
@@ -3834,7 +3822,7 @@ const tc = THEME.colour;
   (() => {
     let data = null;
     const accent = tc('#7fd6c2');
-    const RUNNER = { larry: "Larry's team", quick: 'Jarvis (a quick read-only answer)', brief: 'Jarvis (built in)' };
+    const RUNNER = { larry: "Larry's team", quick: 'Halo (a quick read-only answer)', brief: 'Halo (built in)' };
     const SAY = { done: '✓ Done', failed: '✗ Failed', skipped: 'Skipped', missed: 'Missed (PC was off)', interrupted: 'Interrupted', running: 'Running now…' };
     const OUT = { tray: 'shown in the tray', speak: 'said out loud', note: 'saved as a note', card: 'shown as a card' };
     const body = addSection({ icon: ICON.jobs, title: 'Jobs', sub: 'Scheduled work', color: accent,
@@ -3898,7 +3886,7 @@ const tc = THEME.colour;
           view.repaint = paint;
           paint();
           const note = document.createElement('p'); note.className = 'jobsnote';
-          note.textContent = `Jobs run while this computer is on. One missed while it was off runs once when Jarvis next starts (if it's recent), otherwise it shows as missed in your brief. At most ${data.cap} scheduled runs a day.`;
+          note.textContent = `Jobs run while this computer is on. One missed while it was off runs once when Halo next starts (if it's recent), otherwise it shows as missed in your brief. At most ${data.cap} scheduled runs a day.`;
           content.after(note);
         } };
       openView(view, false);
@@ -4005,7 +3993,7 @@ const tc = THEME.colour;
       kicker: `Email · ${m.from || 'Outlook'}`, title: String(m.subject || '(no subject)'), accent: tc('#f7853b'),
       render: async (bar, content) => {
         if (m.link) linkButton(bar, 'Open in Outlook', () => window.open(m.link, '_blank', 'noopener'));
-        linkButton(bar, 'Ask Jarvis about this', () => ask(`What do my notes say about ${m.subject}?`));
+        linkButton(bar, 'Ask Halo about this', () => ask(`What do my notes say about ${m.subject}?`));
         loadingInto(content, 'Opening the email from Outlook… about 15 seconds the first time.');
         try {
           const e = await api(`/api/email?key=${encodeURIComponent(m.key)}`);
@@ -4179,7 +4167,7 @@ const tc = THEME.colour;
   const sendEl = document.getElementById('send');
   const stopEl = document.getElementById('stop');
 
-  // Stop: ends Jarvis's answer in flight and every job Larry's team is running, straight away.
+  // Stop: ends Halo's answer in flight and every job Larry's team is running, straight away.
   function refreshStop() {
     stopEl.hidden = !(askEl.classList.contains('busy') || [...jobs.values()].some(j => j.status === 'running'));
   }
@@ -4201,7 +4189,7 @@ const tc = THEME.colour;
   });
 
   // CR-017: attach (📎), paste (Ctrl+V) or drop a file on the chat box and it goes straight into
-  // Team Inbox. Chips above the box name what arrived; the next question tells Jarvis about them.
+  // Team Inbox. Chips above the box name what arrived; the next question tells Halo about them.
   const attachPick = document.getElementById('attach-file'), attachedEl = document.getElementById('attached');
   let chatAttached = [];
   document.getElementById('attach').onclick = () => attachPick.click();
@@ -4261,7 +4249,7 @@ const tc = THEME.colour;
     attachToInbox(files.map((f, i) => new File([f], pastedName(f, i), { type: f.type })));
   });
 
-  // What Jarvis was asked to do, beyond answering: the server has already saved the note or
+  // What Halo was asked to do, beyond answering: the server has already saved the note or
   // opened the file; the page shows the result.
   function handleAction(a) {
     if (a.type === 'note' && a.listen) { showNotes(null, true); setStatus('listening', 'take your note: Dictate is on', 5000); }
@@ -4293,7 +4281,7 @@ const tc = THEME.colour;
   }
   const actionsOf = data => data.actions || (data.action ? [data.action] : []);
 
-  // "Close that", "close everything": the windows Jarvis can open, by the key the server sends.
+  // "Close that", "close everything": the windows Halo can open, by the key the server sends.
   function closeWindows(what = 'all') {
     const all = what === 'all';
     popups.slice().forEach(p => { if (all || p.dataset.kind === what || (what === 'projectnotes' && p.dataset.kind === 'deliverables')) p.close(); });
@@ -4449,7 +4437,7 @@ const tc = THEME.colour;
   let voiceOn = true;
   try { voiceOn = localStorage.getItem('galaxy-voice') !== 'off'; } catch (_) {}
 
-  // Jarvis is a gentleman: a male British voice first, then any male English voice, and only
+  // Halo is a gentleman: a male British voice first, then any male English voice, and only
   // then a female one (pitched down). Browsers don't report gender, so go by the voice name.
   const MALE_VOICE = /\b(male|george|ryan|thomas|alfie|elliot|ethan|noah|oliver|arthur|daniel|james|william|harry|david|mark|guy|andrew|brian|christopher|eric|roger|steffan|davis|tony|jason|liam|connor|rishi|fred|ralph|aaron|gordon|lee)\b/i;
   const FEMALE_VOICE = /\b(female|hazel|susan|sonia|libby|maisie|abbi|bella|hollie|olivia|kate|serena|stephanie|martha|zira|aria|jenny|michelle|emma|ava|samantha|karen|moira|tessa|fiona|catherine|natasha|clara|sara|nancy|jane|elizabeth|ella|amelia|heather|linda|eva|catalina|victoria|allison|susie|kathy|neerja)\b/i;
@@ -4473,7 +4461,7 @@ const tc = THEME.colour;
 
   // Chrome only lets speech play after a user gesture: speak a silent utterance on the
   // first click/keypress so later answers (which arrive after an await) are allowed to play.
-  // The page opens on the wake screen, so that first gesture is the click that wakes Jarvis,
+  // The page opens on the wake screen, so that first gesture is the click that wakes Halo,
   // and it also speaks the boot greeting.
   function unlockSpeech(e) {
     if (speechUnlocked || !synth) return;
@@ -4638,7 +4626,7 @@ const tc = THEME.colour;
   const bootDay = new Date().getDay();
   const dayLine = hour >= 21 || hour < 5 ? pickFresh(LATE_QUIPS, 'late')
                 : DAY_QUIPS[bootDay] && Math.random() < 0.6 ? pickFresh(DAY_QUIPS[bootDay], 'day' + bootDay) : '';
-  const GREETING = `Good ${partOfDay}${SETUP.address ? ', ' + SETUP.address : SETUP.user_name ? ', ' + SETUP.user_name : ''}. J.A.R.V.I.S. at your service. ` +
+  const GREETING = `Good ${partOfDay}${SETUP.address ? ', ' + SETUP.address : SETUP.user_name ? ', ' + SETUP.user_name : ''}. H.A.L.O. at your service. ` +
                    (dayLine ? dayLine + ' ' : '') +
                    `${NOTE_COUNT.toLocaleString()} notes indexed, all present and accounted for, ` +
                    `${pickFresh(NOTE_QUIPS, 'notes')}. ${pickFresh(TEAM_QUIPS, 'team')}`;
@@ -4649,21 +4637,21 @@ const tc = THEME.colour;
   // daily brief, waits until the tour ends or is turned down, so neither cuts the other off.
   let greetHeld = false;
   const setupAtBoot = api('/api/setup').catch(() => null);
-  // Live Jarvis has no /api/setup; "What's new" still needs the release list.
+  // Live Halo has no /api/setup; "What's new" still needs the release list.
   setupAtBoot.then(s => { if (!s || !s.tour_releases) api('/api/tour-releases').then(r => { if (r && r.tour_releases) SETUP.tour_releases = r.tour_releases; }).catch(() => {}); });
   async function announceOrHold() {
     const s = await setupAtBoot;
     if (s && s.version && !s.tour_seen) { greetHeld = true; return; }
-    if (!briefGreeting()) speak(GREETING.replace('J.A.R.V.I.S.', 'Jarvis'), 8);
+    if (!briefGreeting()) speak(GREETING.replace('H.A.L.O.', 'Halo'), 8);
   }
   function announceAfterTour() {
     if (!greetHeld) return;
     greetHeld = false;
-    setTimeout(() => { if (!briefGreeting()) speak(GREETING.replace('J.A.R.V.I.S.', 'Jarvis'), 8); }, 800);
+    setTimeout(() => { if (!briefGreeting()) speak(GREETING.replace('H.A.L.O.', 'Halo'), 8); }, 800);
   }
   if (!skipWake) showAnswer('', GREETING, []);
 
-  // Wake screen: any click or key wakes Jarvis (unlockSpeech above has already started the greeting).
+  // Wake screen: any click or key wakes Halo (unlockSpeech above has already started the greeting).
   let waking = true;
   let onboardStarted = false;   // declared before wakeUp: a skip-wake reload calls maybeOnboard straight away
   function wakeUp() {
@@ -4726,7 +4714,7 @@ const tc = THEME.colour;
       const opt = v => `<option value="${esc(v.name)}"${v.name === (S.voice || '') ? ' selected' : ''}>${esc(v.name)} (${esc(v.lang)})</option>`;
       const rate = Number(S.rate) || 1.2;
       body.innerHTML = `
-        <label class="st-label" for="st-voice">Voice Jarvis speaks in</label>
+        <label class="st-label" for="st-voice">Voice Halo speaks in</label>
         <select id="st-voice"><option value=""${S.voice ? '' : ' selected'}>Automatic (a British male voice if there is one)</option>
           ${english.length ? `<optgroup label="English">${english.map(opt).join('')}</optgroup>` : ''}
           ${other.length ? `<optgroup label="Other languages">${other.map(opt).join('')}</optgroup>` : ''}</select>
@@ -4754,7 +4742,7 @@ const tc = THEME.colour;
 
     function renderPersonality() {
       body.innerHTML = `
-        <div class="st-label">How Jarvis talks to you</div>
+        <div class="st-label">How Halo talks to you</div>
         <div class="st-choices">${S.personalities.map(p => `
           <label class="st-choice${p.id === S.personality ? ' on' : ''}"><input type="radio" name="st-pers" value="${p.id}"${p.id === S.personality ? ' checked' : ''}>
             <b>${esc(p.name)}</b><small>${esc(p.note)}</small></label>`).join('')}</div>
@@ -4783,7 +4771,7 @@ const tc = THEME.colour;
           <label title="Accent colour: every orange on the page"><input type="color" data-k="orange" value="${cur.orange}"><input type="text" data-k="orange" maxlength="7" spellcheck="false" value="${cur.orange}" aria-label="Accent colour, as a hex value"></label>
         </div>
         <div class="st-row"><button type="button" class="st-btn" id="st-col-save">Save colours</button><button type="button" class="st-link" id="st-col-reset">Reset to default</button><span class="st-msg"></span></div>
-        <p class="st-note">Jarvis reloads to apply new colours. They're saved on this computer for every browser.</p>`;
+        <p class="st-note">Halo reloads to apply new colours. They're saved on this computer for every browser.</p>`;
       const apply = async next => {
         flash('Saving…');
         try { await saveSettings({ theme: next }); }
@@ -4813,7 +4801,7 @@ const tc = THEME.colour;
     function renderModel() {
       const opt = m => `<option value="${esc(m.id)}"${m.id === S.chat ? ' selected' : ''}>${esc(m.name)}${m.note && m.note !== 'ChatGPT' ? ' · ' + esc(m.note) : ''}</option>`;
       body.innerHTML = `
-        <label class="st-label" for="st-model">Jarvis's default model</label>
+        <label class="st-label" for="st-model">Halo's default model</label>
         <select id="st-model">
           <optgroup label="Claude">${S.models.map(opt).join('')}</optgroup>
           ${S.openai.length ? `<optgroup label="ChatGPT">${S.openai.map(opt).join('')}</optgroup>`
@@ -4827,9 +4815,9 @@ const tc = THEME.colour;
           : `<input type="password" id="st-key" placeholder="OpenAI API key (sk-…)" autocomplete="off" spellcheck="false">
              <div class="st-row"><button type="button" class="st-btn" id="st-key-save">Save key</button><span class="st-msg st-keymsg"></span></div>
              <p class="st-note">ChatGPT needs your own key from platform.openai.com, billed by OpenAI. Your ChatGPT Plus subscription doesn't include one.</p>`}
-        <p class="st-note">With ChatGPT, Jarvis answers from your notes but can't open files or Outlook, so calendar and email questions still go to Claude. The team and agents always run on Claude.</p>`;
+        <p class="st-note">With ChatGPT, Halo answers from your notes but can't open files or Outlook, so calendar and email questions still go to Claude. The team and agents always run on Claude.</p>`;
       body.querySelector('#st-model').onchange = async e => {
-        try { await saveSettings({ chat: e.target.value }); flash('Saved: Jarvis now answers with ' + e.target.selectedOptions[0].textContent); loadModels(); }
+        try { await saveSettings({ chat: e.target.value }); flash('Saved: Halo now answers with ' + e.target.selectedOptions[0].textContent); loadModels(); }
         catch (err) { flash(err.message, true); }
       };
       const save = body.querySelector('#st-key-save');
@@ -4846,7 +4834,7 @@ const tc = THEME.colour;
       };
     }
 
-    // ---- Tools (CR-010): what Jarvis and the team can use, and whether it's working -------------
+    // ---- Tools (CR-010): what Halo and the team can use, and whether it's working -------------
     // CR-011 order: a CLI first, then an MCP server or claude.ai connector, an API last.
     const KIND = { builtin: 'Built in', cli: 'CLI', mcp: 'MCP', connector: 'Connector', api: 'API' };
     function renderTools() {
@@ -4923,8 +4911,8 @@ const tc = THEME.colour;
       popup({ kicker: brief ? 'Daily brief' : 'Scheduled job', title: s ? s.name : 'New job', big: !brief, accent: tc('#bad367'), kind: 'jobedit',
         render: (bar, content) => {
           content.innerHTML = `<form class="jobform">${brief ? `
-            <p>Shows the first time you open Jarvis each day (from 4am), as a card plus a short spoken summary.
-            Jarvis gets your calendar and email ready ahead of time, from:</p>
+            <p>Shows the first time you open Halo each day (from 4am), as a card plus a short spoken summary.
+            Halo gets your calendar and email ready ahead of time, from:</p>
             <label>Ready from <input type="time" name="at" value="${esc(sc.at || '06:30')}"></label>` : `
             ${!s && (d.templates || []).length ? `<label>Start from a template <select name="tpl"><option value="">Blank job</option>
               ${d.templates.map(t => `<option value="${esc(t.id)}">${esc(t.name)}: ${esc(t.about || '')}</option>`).join('')}</select></label>` : ''}
@@ -5005,7 +4993,7 @@ const tc = THEME.colour;
     renderVoiceToggle();
   };
 
-  // Jarvis mustn't hear himself (CR-002): while he speaks, any mic that's on is held (stopped, the
+  // Halo mustn't hear himself (CR-002): while he speaks, any mic that's on is held (stopped, the
   // words so far kept in the box) and picks up again a moment after he finishes. Each mic adds a
   // { hold, resume } pair to micHolds while it's on. (var, not const: safe if called early.)
   var micHolds = new Set(), micsHeld = false, releaseTimer = null;
@@ -5033,7 +5021,7 @@ const tc = THEME.colour;
   }
 
   var SPEECH_RATE = Number(SETUP.rate) || 1.2;   // 1 is the voice's natural pace, which sounds ponderous for a butler
-  // One voice at a time: with Jarvis open in several tabs or windows, only the one you last
+  // One voice at a time: with Halo open in several tabs or windows, only the one you last
   // clicked or typed in speaks; the others stay quiet (they still show everything).
   const TAB_ID = Math.random().toString(36).slice(2);
   const claimVoice = () => { try { localStorage.setItem('jarvis-voice-owner', TAB_ID); } catch (_) {} };
@@ -5045,7 +5033,7 @@ const tc = THEME.colour;
   let lastSaid = { text: '', at: 0 };
   function speak(text, maxSentences = MAX_SPOKEN_SENTENCES) {
     if (!synth || !voiceOn || !text || !ownsVoice()) return;
-    // Two triggers for one event (or two Jarvis tabs) would say the same line twice: skip a repeat
+    // Two triggers for one event (or two Halo tabs) would say the same line twice: skip a repeat
     // within ten seconds.
     const now = Date.now();
     try { const o = JSON.parse(localStorage.getItem('jarvis-last-said') || 'null'); if (o) lastSaid = o; } catch (_) {}
@@ -5084,7 +5072,7 @@ const tc = THEME.colour;
   // Tap the mic to talk; tap it again to pause: what you said stays in the box and nothing is sent.
   // Tap again to carry on adding to it. Only the arrow (or Enter) sends (CR-005). While it's on, the
   // mic keeps listening through pauses: Chrome still ends a session now and then, so it quietly starts
-  // a new one. While Jarvis speaks it is held, so it never types his own words (CR-002).
+  // a new one. While Halo speaks it is held, so it never types his own words (CR-002).
   let rec = null, listening = false, wantOn = false, kept = '', session = '', recError = null, heldForSpeech = false;
   // Each tap-on is one listening stretch. A tap-off can land while Chrome is between sessions (a
   // restart already queued): the turn counter stops that late session switching the mic back on.
@@ -5115,7 +5103,7 @@ const tc = THEME.colour;
       micEl.setAttribute('aria-pressed', on ? 'true' : 'false');
       micEl.title = on ? 'Pause (the arrow sends)' : 'Ask by voice';
     };
-    // Held while Jarvis speaks: stop listening, keep the words; resume picks up from the box.
+    // Held while Halo speaks: stop listening, keep the words; resume picks up from the box.
     const mainHold = {
       hold() { if (!wantOn) return; heldForSpeech = true; micEl.classList.add('held'); try { rec.abort(); } catch (_) {} },
       resume() {
@@ -5133,7 +5121,7 @@ const tc = THEME.colour;
       setStatus('listening', 'listening… tap the mic to pause, the arrow to send');
     };
     rec.onresult = e => {
-      if (sentTurn === turn || heldForSpeech) return;   // sent or paused, or Jarvis is talking: ignore stragglers
+      if (sentTurn === turn || heldForSpeech) return;   // sent or paused, or Halo is talking: ignore stragglers
       let text = '';
       for (const r of e.results) text += r[0].transcript;
       session = text;
@@ -5250,7 +5238,7 @@ const tc = THEME.colour;
     return { who, what: what.charAt(0).toLowerCase() + what.slice(1) };
   }
 
-  // With Jarvis open in two tabs, only the first to see a job finish says so.
+  // With Halo open in two tabs, only the first to see a job finish says so.
   function firstToAnnounce(id) {
     try {
       const key = 'galaxy-announced-jobs', said = JSON.parse(localStorage.getItem(key) || '[]');
@@ -5319,7 +5307,7 @@ const tc = THEME.colour;
     briefStarted = true;
     let c = { claimed: false };
     try { c = await api('/api/brief', { op: 'seen' }); } catch (_) {}
-    if (!c.claimed) { if (greetIfNotMine) speak(GREETING.replace('J.A.R.V.I.S.', 'Jarvis'), 8); return; }
+    if (!c.claimed) { if (greetIfNotMine) speak(GREETING.replace('H.A.L.O.', 'Halo'), 8); return; }
     const win = showBrief(info);
     let d = info;
     for (let i = 0; i < 3 && String(d.outlook).startsWith('loading'); i++) {   // up to 6 s for Outlook
@@ -5615,7 +5603,7 @@ const tc = THEME.colour;
   }
 
   // ---- context gauge ------------------------------------------------------------------
-  // Jarvis starts every question with a fresh, capped context (6 notes + the last 4 turns), so his
+  // Halo starts every question with a fresh, capped context (6 notes + the last 4 turns), so his
   // row shows the last answer. A job shows one row per agent: Larry plus each specialist he briefs,
   // each with its own window. Claude Code compacts an agent's conversation itself before it fills.
   const contextEl = document.getElementById('context');
@@ -5639,9 +5627,9 @@ const tc = THEME.colour;
     let shown = [...jobs.values()].filter(j => j.status === 'running' && j.agents);
     if (!shown.length) shown = [...jobs.values()].filter(j => !dismissed.has(j.id) && j.agents).slice(0, 1);
     let html = `<div class="title"><span>Context</span><span>${fmtTokens((jarvisContext || {}).window || 1e6)} window</span></div>`;
-    html += jarvisContext ? contextRow('Jarvis', jarvisContext) :
-      '<div class="row"><b>Jarvis</b><div class="bar" style="--c:' + tc('#bad367') + '"><i style="width:0"></i></div><span class="num">idle</span></div>';
-    let foot = 'Jarvis starts fresh each question, capped at 6 notes and 4 turns.', warn = false;
+    html += jarvisContext ? contextRow('Halo', jarvisContext) :
+      '<div class="row"><b>Halo</b><div class="bar" style="--c:' + tc('#bad367') + '"><i style="width:0"></i></div><span class="num">idle</span></div>';
+    let foot = 'Halo starts fresh each question, capped at 6 notes and 4 turns.', warn = false;
     shown.forEach((job, n) => {
       if (shown.length > 1) html += `<div class="foot">Job ${n + 1}: ${escapeHtml(job.task.slice(0, 48))}…</div>`;
       job.agents.forEach(a => { html += contextRow(a.name, a, job.status !== 'running' || a.done); });
@@ -5661,14 +5649,14 @@ const tc = THEME.colour;
   }
 
   // ---- model switcher -------------------------------------------------------------------
-  // Jarvis (answers, Outlook, transcripts) and Larry's team (background jobs) each have their own
+  // Halo (answers, Outlook, transcripts) and Larry's team (background jobs) each have their own
   // model, saved in config.json on the server. A change applies from the next question or job.
   const modelsEl = contextEl.querySelector('.models');
   async function loadModels() {
     let m;
     try { m = await api('/api/models'); } catch (_) { return; }
     modelsEl.innerHTML = '';
-    [['chat', 'Jarvis', 'Model for answers, Outlook and transcripts'],
+    [['chat', 'Halo', 'Model for answers, Outlook and transcripts'],
      ['jobs', 'Team', 'Model for the team on background jobs']].forEach(([role, label, tip]) => {
       const b = document.createElement('b'); b.textContent = label; b.title = tip;
       const sel = document.createElement('select'); sel.title = tip; sel.setAttribute('aria-label', tip);
@@ -5716,40 +5704,100 @@ const tc = THEME.colour;
   pollJobs();   // pick up anything still running from before a reload
   setInterval(loadHires, 60000);   // hires can also be staged from Team chat or Claude Code
 
-  // ---- J.A.R.V.I.S. emblem -----------------------------------------------------------
+  // ---- H.A.L.O. emblem: the Carbonhalo mark --------------------------------------------
+  // Five petals from the brand logo. Idle: the outline draws itself petal by petal, fills, then
+  // sends out sonar rings while solid. Listening: pale and ripples. Thinking: fast even spin with a
+  // bright petal chasing round. Speaking: steady spin, petals open and close with the words.
   const jarvisEl = document.getElementById('jarvis');
-  const SVGNS = 'http://www.w3.org/2000/svg';
-  const pt = (r, deg) => { const a = deg * Math.PI / 180; return `${(r * Math.sin(a)).toFixed(2)} ${(-r * Math.cos(a)).toFixed(2)}`; };
-  const arc = (r, a0, a1) => `M${pt(r, a0)} A${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${pt(r, a1)}`;
-  const sector = (r1, r2, a0, a1) => `M${pt(r2, a0)} A${r2} ${r2} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${pt(r2, a1)} ` +
-                                     `L${pt(r1, a1)} A${r1} ${r1} 0 ${a1 - a0 > 180 ? 1 : 0} 0 ${pt(r1, a0)}Z`;
-  function svgEl(parent, tag, attrs) {
-    const e = document.createElementNS(SVGNS, tag);
-    Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
-    parent.appendChild(e);
-    return e;
-  }
-  const J = { ticks: document.getElementById('j-ticks'), band: document.getElementById('j-band'),
-              gold: document.getElementById('j-gold'), inner: document.getElementById('j-inner') };
-  // Outer tick ring.
-  for (let i = 0; i < 120; i++) {
-    const major = i % 10 === 0, a = i * 3;
-    if (!major && i % 2) continue;
-    const [x1, y1] = pt(major ? 97 : 101, a).split(' '), [x2, y2] = pt(108, a).split(' ');
-    svgEl(J.ticks, 'line', { x1, y1, x2, y2, class: major ? 'tick major' : 'tick', opacity: major ? 0.95 : 0.55 });
-  }
-  svgEl(J.ticks, 'path', { d: arc(104, 200, 330), class: 'ring', 'stroke-width': 0.8, opacity: 0.6 });
-  // Thick blue band: segmented, about three quarters of the way round.
-  for (let a = -150; a < 112; a += 7) {
-    svgEl(J.band, 'path', { d: sector(74, 92, a, a + 5.8), class: 'band', opacity: (0.45 + 0.4 * Math.abs(Math.sin(a / 23))).toFixed(2) });
-  }
-  svgEl(J.band, 'path', { d: arc(95, -150, 112), class: 'ring', 'stroke-width': 0.9, opacity: 0.7 });
-  // Gold line and markers riding over the band, turning the other way.
-  svgEl(J.gold, 'path', { d: arc(70, 205, 262), class: 'gold', 'stroke-width': 2.6 });
-  svgEl(J.gold, 'path', { d: arc(70, 268, 274), class: 'gold', 'stroke-width': 2.6 });
-  [-24, -12, 0, 12, 24].forEach(a => svgEl(J.gold, 'circle', { cx: pt(83, a).split(' ')[0], cy: pt(83, a).split(' ')[1], r: 2.3, fill: tc('#ff9f43') }));
+  const SVGNS = 'http://www.w3.org/2000/svg';   // also used by the tutorial's spotlight
+  const halo = (() => {
+    const NS = 'http://www.w3.org/2000/svg';
+    const add = (parent, tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; };
+    const PETALS = [
+      'M44.3513.0012A45.2618,45.2618,0,0,1,71.3378,8.9134c12.0207,8.9112,9.4169,22.413-.3761,22.413a22.5864,22.5864,0,0,1-21.5-15.597C46.91,7.8744,44.3513.0012,44.3513.0012Z',
+      'M87.4668,31.3264a45.2624,45.2624,0,0,1-.1368,28.42c-4.76,14.186-18.4061,15.8819-21.4323,6.5683a22.5864,22.5864,0,0,1,8.19-25.2675Z',
+      'M70.9982,82.0116a45.2628,45.2628,0,0,1-27.0711,8.6521C28.9644,90.52,23.1347,78.0662,31.0574,72.31a22.5864,22.5864,0,0,1,26.5616-.0192Z',
+      'M17.7045,82.0116A45.2631,45.2631,0,0,1,1.1105,58.9392C-3.3766,44.6643,6.6662,35.2716,14.5889,41.0277a22.5867,22.5867,0,0,1,8.2262,25.2557C20.2628,74.1384,17.7045,82.0116,17.7045,82.0116Z',
+      'M1.2359,31.3264A45.2622,45.2622,0,0,1,18.0513,8.4147c12.1895-8.6786,24.226-2.03,21.2,7.2838a22.5866,22.5866,0,0,1-21.4775,15.628Z'
+    ];
+    // True centre: the circle through the five petal tips (not the bounding-box middle), so it spins evenly.
+    const CX = 44.3513, CY = 45.335, S = 0.98, TAU = Math.PI * 2;
+    const mix = (a, b, t) => a + (b - a) * t;
+    const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+    const ease = x => (x = clamp(x), x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2);
+    const hex = h => { const m = /^#?([0-9a-f]{6})$/i.exec(String(h).trim()); return m ? [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16)) : [186, 211, 103]; };
+    const GREEN = tc('#bad367'), PALE = tc('#f2f9e9');
+    const G = hex(GREEN), W = hex(PALE);
+    const colour = t => `rgb(${G.map((v, i) => Math.round(mix(v, W[i], t))).join(',')})`;
+    document.querySelectorAll('#j-glow stop').forEach(s => s.setAttribute('stop-color', GREEN));
 
-  const jAngle = { ticks: 0, band: 0, gold: 0, inner: 0 };
+    const root = document.getElementById('j-scale');
+    const glow = add(root, 'circle', { r: 58, fill: 'url(#j-glow)', opacity: 0.15 });
+    const rings = [0, 1, 2].map(() => add(root, 'circle', { r: 46, fill: 'none', stroke: GREEN, 'stroke-width': 0.8, opacity: 0 }));
+    const spinG = add(root, 'g', {});
+    const C0 = [18.6 * S, -29.6 * S];   // first petal's middle, from the centre; the rest are 72 degree turns of it
+    const petals = PETALS.map((d, i) => {
+      const a = i * TAU / 5, c = [C0[0] * Math.cos(a) - C0[1] * Math.sin(a), C0[0] * Math.sin(a) + C0[1] * Math.cos(a)];
+      const g = add(spinG, 'g', {});
+      const p = add(g, 'path', { d, transform: `scale(${S}) translate(${-CX} ${-CY})`, fill: GREEN, stroke: GREEN, 'stroke-width': 1.1, 'stroke-linejoin': 'round' });
+      let len = 0; try { len = p.getTotalLength(); } catch (_) {}
+      return { g, p, c, ang: Math.atan2(c[1], c[0]), len: len || 120 };
+    });
+    const P = () => petals.map(() => ({ x: 0, y: 0, s: 1, a: 1, fill: 1, dash: null }));
+    const bloom = b => petals.map(pt => ({ x: Math.cos(pt.ang) * b, y: Math.sin(pt.ang) * b, s: 1, a: 1, fill: 1, dash: null }));
+
+    let rot = 0, spin = 0, idleT = 0, lastMode = '', cur = P(), g = { glow: 0.15, pale: 0 };
+    function target(mode, t, dt, energy) {
+      if (mode === 'idle') {
+        idleT += dt;
+        const u = idleT % 10, END = 8.6;
+        const env = clamp((u - 3.4) / 0.6) * (1 - clamp((u - (END - 0.6)) / 0.6));
+        const beat = env * (0.5 + 0.5 * Math.cos(Math.max(0, u - 3.4) * 0.55 * TAU * 3));
+        return { spin: 0, beat, glow: u > 3 && u < END ? 0.22 + beat * 0.15 : 0.08,
+          ripple: [0, 1, 2].map(j => { const fr = (Math.max(0, u - 3.4) * 0.55 + j / 3) % 1; return { r: 46 + fr * 13, a: env * 0.6 * (1 - fr) * Math.min(1, fr * 6) }; }),
+          p: petals.map((_, i) => {
+            const dash = u < END ? clamp((u - i * 0.4) / 0.8) : 1;
+            const fill = u < 2.8 ? 0 : u < END ? ease((u - 2.8 - i * 0.08) / 0.5) : 1 - ease((u - END) / 0.9);
+            return { x: 0, y: 0, s: 1 + beat * 0.02, a: u < END ? 1 : mix(1, 0.15, ease((u - END) / 0.9)), fill, dash };
+          }) };
+      }
+      if (mode === 'listening') {
+        const mic = Math.max(0, Math.sin(t * 7.3) * Math.sin(t * 2.1) + 0.25 * Math.sin(t * 17));
+        return { spin: 1.5, pale: 1, glow: 0.2 + mic * 0.35,
+          ripple: [0, 1, 2].map(j => { const fr = (t * (0.6 + mic * 0.6) + j / 3) % 1; return { r: 46 + fr * 12, a: (0.3 + mic * 0.5) * (1 - fr) }; }),
+          p: bloom(1 + mic * 4) };
+      }
+      if (mode === 'thinking') {
+        const head = (t * 2.2) % 5;
+        return { spin: 200, glow: 0.35, p: P().map((q, i) => { const d = (i - head + 5) % 5; q.a = 0.3 + 0.7 * Math.max(0, 1 - d / 2.2); return q; }) };
+      }
+      // speaking: energy already follows the voice (word-boundary kicks over a speech-like flutter)
+      return { spin: 160, glow: 0.25 + energy * 0.45, p: bloom(energy * 4) };
+    }
+    return function frame(now, dt, mode, energy) {
+      if (mode !== lastMode) { if (mode === 'idle' && lastMode) idleT = 3.4; lastMode = mode; }   // back to idle: stay solid, no redraw
+      const f = target(mode, now / 1000, dt, energy), k = Math.min(1, dt * 9), k2 = Math.min(1, dt * 5);
+      spin = mix(spin, f.spin, Math.min(1, dt * 3));
+      rot = (rot + spin * dt) % 360;
+      g.glow = mix(g.glow, f.glow || 0, k2); g.pale = mix(g.pale, f.pale || 0, k2);
+      cur = cur.map((q, i) => { const w = f.p[i]; return { x: mix(q.x, w.x, k), y: mix(q.y, w.y, k), s: mix(q.s, w.s, k), a: mix(q.a, w.a, k), fill: mix(q.fill, w.fill, k), dash: w.dash }; });
+      spinG.setAttribute('transform', `rotate(${rot.toFixed(2)})`);
+      glow.setAttribute('opacity', g.glow.toFixed(3));
+      rings.forEach((c, j) => { const r = f.ripple && f.ripple[j]; c.setAttribute('opacity', r ? r.a.toFixed(3) : 0); if (r) c.setAttribute('r', r.r.toFixed(2)); });
+      const col = colour(g.pale);
+      petals.forEach((pt, i) => {
+        const q = cur[i], [cx, cy] = pt.c;
+        pt.g.setAttribute('transform', `translate(${(q.x + cx).toFixed(2)} ${(q.y + cy).toFixed(2)}) scale(${q.s.toFixed(3)}) translate(${(-cx).toFixed(2)} ${(-cy).toFixed(2)})`);
+        pt.p.setAttribute('fill', col); pt.p.setAttribute('stroke', col);
+        pt.p.setAttribute('fill-opacity', clamp(q.fill).toFixed(3));
+        pt.p.setAttribute('opacity', clamp(q.a).toFixed(3));
+        if (q.dash == null) pt.p.removeAttribute('stroke-dasharray');
+        else pt.p.setAttribute('stroke-dasharray', `${(pt.len * clamp(q.dash)).toFixed(1)} ${pt.len.toFixed(1)}`);
+      });
+      return f.beat || 0;
+    };
+  })();
+
   let energy = 0, streamLevel = 0, lastFrame = performance.now();
   function animateJarvis(now) {
     const dt = Math.min(0.05, (now - lastFrame) / 1000);
@@ -5761,16 +5809,10 @@ const tc = THEME.colour;
     const flutter = 0.45 + 0.55 * Math.abs(Math.sin(now / 95) * Math.sin(now / 247));
     const goal = speaking ? Math.max(flutter, voiceKick) : mode === 'thinking' ? 0.45 : mode === 'listening' ? 0.3 : 0;
     energy += (goal - energy) * Math.min(1, dt * 8);
-    const spin = 1 + energy * 6 + (mode === 'thinking' ? 3 : 0);
-    jAngle.ticks += dt * 5 * spin;
-    jAngle.band += dt * 16 * spin;
-    jAngle.gold -= dt * 34 * spin;
-    jAngle.inner -= dt * 12 * spin;
-    Object.keys(J).forEach(k => J[k].setAttribute('transform', `rotate(${(jAngle[k] % 360).toFixed(2)})`));
-    J.band.setAttribute('opacity', (0.7 + 0.3 * energy).toFixed(2));
-    jarvisEl.style.setProperty('--energy', energy.toFixed(3));
+    const beat = halo(now, dt, mode, energy);
+    jarvisEl.style.setProperty('--energy', Math.max(energy, beat * 0.5).toFixed(3));
 
-    // The galaxy joins in while Jarvis speaks: packets stream along the links, lit notes pulse.
+    // The galaxy joins in while Halo speaks: packets stream along the links, lit notes pulse.
     streamLevel += ((speaking ? 1 : 0) - streamLevel) * Math.min(1, dt * (speaking ? 3 : 1.5));
     if (streamLevel < 0.005) streamLevel = 0;
     if (linksLive !== streamLevel > 0.2) { linksLive = !linksLive; Graph.linkColor(linkColor); }
@@ -5931,10 +5973,10 @@ const tc = THEME.colour;
     const span = PERIOD_LABEL[m.period];
     const t = m.tokens;
     const partial = t.since && (Date.now() - Date.parse(t.since)) / 864e5 < m.period - 1;
-    tTokens.set(fmtTokens(t.fresh), `${fmtTokens(t.cached)} cached reads · Jarvis ${fmtTokens(t.jarvis)}`,
+    tTokens.set(fmtTokens(t.fresh), `${fmtTokens(t.cached)} cached reads · Halo ${fmtTokens(t.jarvis)}`,
       `New tokens (input, cache writes and output) across Claude Code on this PC over ${span}: ${t.fresh.toLocaleString()}.\n` +
-      `Cached re-reads: ${t.cached.toLocaleString()}. Output: ${t.output.toLocaleString()}. Jarvis and Larry from this page: ${t.jarvis.toLocaleString()}.` +
-      (partial ? `\nHistory starts ${t.since}: Claude Code keeps about 30 days of sessions, and Jarvis keeps daily totals from now on.` : ''));
+      `Cached re-reads: ${t.cached.toLocaleString()}. Output: ${t.output.toLocaleString()}. Halo and Larry from this page: ${t.jarvis.toLocaleString()}.` +
+      (partial ? `\nHistory starts ${t.since}: Claude Code keeps about 30 days of sessions, and Halo keeps daily totals from now on.` : ''));
     const a = m.actions;
     tActions.set(String(a.open), [a.overdue && `<b>${a.overdue} overdue</b>`, `${a.due_week} due this week`].filter(Boolean).join(' · '),
       'Open actions in Actions/. Click to tick them off.');
@@ -6030,7 +6072,7 @@ const tc = THEME.colour;
       <div class="ob-tools">${TOOL_CHOICES.map(c => `<label><input type="checkbox" data-tool="${c.key}"${have.has(c.key) ? ' checked' : ''}>
         <span><b>${esc(c.label)}</b><small>${esc(c.note)}</small></span><i class="ob-dot" data-dot="${c.key}"></i></label>`).join('')}</div>
       <label for="ob-other">Anything else? <small>(optional)</small></label><input type="text" id="ob-other" maxlength="60" placeholder="e.g. HubSpot">
-      <label class="ob-brief"><input type="checkbox" id="ob-brief"${briefOn ? ' checked' : ''}> Daily brief when I first open Jarvis each day</label>
+      <label class="ob-brief"><input type="checkbox" id="ob-brief"${briefOn ? ' checked' : ''}> Daily brief when I first open Halo each day</label>
       <div class="row" style="justify-content:flex-start"><button type="button" id="ob-check">Check them</button></div>
       <p class="note" id="ob-tools-out">To connect one: open the <strong>Claude</strong> app, go to <strong>Settings → Connectors</strong>,
         click <strong>Connect</strong> and sign in. Then press <em>Check them</em>. You can change all of this later in Settings → Tools.</p>`;
@@ -6092,7 +6134,7 @@ const tc = THEME.colour;
     let st;
     try { const t = await api('/api/tools'); if (t.asked) return; st = await toolsChooserState(); } catch (_) { return; }
     const esc = escapeHtml;
-    popup({ kicker: 'New in Jarvis', title: 'Which tools do you use?', accent: tc('#bad367'), kind: 'tools-ask',
+    popup({ kicker: 'New in Halo', title: 'Which tools do you use?', accent: tc('#bad367'), kind: 'tools-ask',
       render: (bar, content) => {
         content.innerHTML = `<div class="ob-card">${toolsChooserHtml(esc, st.have, st.brief)}
           <div class="row"><button type="button" class="link-btn" id="ob-later">Not now</button>
@@ -6120,8 +6162,8 @@ const tc = THEME.colour;
 
     const steps = [
       {
-        title: 'Welcome. I am Jarvis.',
-        say: "Good day. I am Jarvis, and I look after your notes and your team. First things first: what should I call you?",
+        title: 'Welcome. I am Halo.',
+        say: "Good day. I am Halo, and I look after your notes and your team. First things first: what should I call you?",
         body: () => `<p>I look after your notes, answer questions out loud and pass real work to your AI team.
           A minute of setup and we are done. You can skip anything.</p>
           <label for="ob-name">Your first name</label><input type="text" id="ob-name" maxlength="60" value="${esc(SETUP.user_name)}" autocomplete="given-name">
@@ -6133,7 +6175,7 @@ const tc = THEME.colour;
       {
         title: 'Your logo (optional)',
         say: 'If you have a logo, I can put it in the top left corner in place of my name.',
-        body: () => `<p>Pick your logo, or any image you like. It replaces <strong>JARVIS</strong> in the top left
+        body: () => `<p>Pick your logo, or any image you like. It replaces <strong>HALO</strong> in the top left
           corner. A wide image with a transparent background looks best.</p>
           <input type="file" id="ob-logo" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml">
           <div class="logo-prev"><img id="ob-logo-prev" alt="Your logo"${SETUP.logo ? ` src="${esc(SETUP.logo)}"` : ' hidden'}></div>
@@ -6272,9 +6314,9 @@ const tc = THEME.colour;
   }
 
   // ---- updates ------------------------------------------------------------------------------
-  // A flashing pill, top centre, that shows only when GitHub has a newer Jarvis. Click Update now to
-  // install: Jarvis copies in the new app files (your notes and settings stay as they are), restarts
-  // and reloads this page. The server asks GitHub when Jarvis starts and then once a day; the page
+  // A flashing pill, top centre, that shows only when GitHub has a newer Halo. Click Update now to
+  // install: Halo copies in the new app files (your notes and settings stay as they are), restarts
+  // and reloads this page. The server asks GitHub when Halo starts and then once a day; the page
   // only asks the server (on load, every 15 minutes, on coming back to the tab), never GitHub.
   // "Update yourself" in chat (ACTION: update) asks GitHub at once and offers the install.
   const updateBar = document.createElement('div');
@@ -6295,8 +6337,8 @@ const tc = THEME.colour;
     try { updateInfo = await api('/api/update'); } catch (_) { return; }
     updateBar.hidden = !updateInfo.available;
     if (updateInfo.available) {
-      updateBar.querySelector('.txt').textContent = `New Jarvis ready (${updateInfo.latest})`;
-      updateBar.title = `Jarvis ${updateInfo.latest} is ready (you have ${updateInfo.current}).\n` +
+      updateBar.querySelector('.txt').textContent = `New Halo ready (${updateInfo.latest})`;
+      updateBar.title = `Halo ${updateInfo.latest} is ready (you have ${updateInfo.current}).\n` +
         (updateInfo.notes || []).map(n => '• ' + n).join('\n');
     }
   }
@@ -6310,20 +6352,20 @@ const tc = THEME.colour;
     if (s.available) {
       updateInfo = s;
       updateBar.hidden = false;
-      updateBar.querySelector('.txt').textContent = `New Jarvis ready (${s.latest})`;
-      setStatus('thinking', `Jarvis ${s.latest} is ready`, 4000);
-      setTimeout(installUpdate, 400);   // the same "Update Jarvis to ...?" question as the button
+      updateBar.querySelector('.txt').textContent = `New Halo ready (${s.latest})`;
+      setStatus('thinking', `Halo ${s.latest} is ready`, 4000);
+      setTimeout(installUpdate, 400);   // the same "Update Halo to ...?" question as the button
     } else if (s.problem) {
       setStatus('thinking', `couldn't check for updates: ${s.problem}`, 6000);
     } else {
-      setStatus('thinking', `Jarvis is up to date (${s.current})`, 5000);
+      setStatus('thinking', `Halo is up to date (${s.current})`, 5000);
     }
   }
   async function installUpdate() {
     if (updating || !updateInfo || !updateInfo.available) return;
     const notes = (updateInfo.notes || []).map(n => '• ' + n).join('\n');
-    if (!confirm(`Update Jarvis to ${updateInfo.latest}?\n\n${notes ? "What's new:\n" + notes + '\n\n' : ''}` +
-                 'Your notes and settings stay as they are. Jarvis restarts, which takes about 20 seconds.')) return;
+    if (!confirm(`Update Halo to ${updateInfo.latest}?\n\n${notes ? "What's new:\n" + notes + '\n\n' : ''}` +
+                 'Your notes and settings stay as they are. Halo restarts, which takes about 20 seconds.')) return;
     updating = true;
     updateBar.classList.add('busy');
     tUpdate.set('<small>Updating…</small>', 'Downloading');
@@ -6341,13 +6383,13 @@ const tc = THEME.colour;
         }
       } catch (_) {}
       if (Date.now() - started < 90000) setTimeout(wait, 2000);
-      else tUpdate.set('<small>Restart Jarvis</small>', 'Use the desktop shortcut', 'The update installed but Jarvis did not come back on its own. Start it from the desktop shortcut.');
+      else tUpdate.set('<small>Restart Halo</small>', 'Use the desktop shortcut', 'The update installed but Halo did not come back on its own. Start it from the desktop shortcut.');
     };
     setTimeout(wait, 3000);
   }
 
   // ---- Claude Code sign-in ------------------------------------------------------------------
-  // Jarvis runs on Claude Code, which has its own sign-in: being signed in to the Claude desktop
+  // Halo runs on Claude Code, which has its own sign-in: being signed in to the Claude desktop
   // app doesn't count. When it isn't signed in, a card says so, and Sign in opens the browser,
   // where one click on Authorize does it. The card goes once Claude Code is signed in.
   const authCard = document.createElement('div');
@@ -6357,7 +6399,7 @@ const tc = THEME.colour;
     'background:#141b2d;border:1px solid #ffb347;border-radius:14px;padding:16px 18px;color:#e8ecf4;font:14px/1.45 inherit;box-shadow:0 8px 30px rgba(0,0,0,.45)';
   authCard.innerHTML = `
     <div style="font-weight:600;margin-bottom:6px">Sign in to Claude Code</div>
-    <div class="msg" style="opacity:.85">Jarvis runs on Claude Code, which needs its own one-time sign-in. Being signed in to the Claude desktop app doesn't cover it.</div>
+    <div class="msg" style="opacity:.85">Halo runs on Claude Code, which needs its own one-time sign-in. Being signed in to the Claude desktop app doesn't cover it.</div>
     <div class="code" hidden style="margin-top:10px">
       <div style="opacity:.85;margin-bottom:6px">If your browser shows a code, paste it here:</div>
       <input type="text" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #3a4560;background:#0d1322;color:inherit">
@@ -7636,10 +7678,10 @@ const tc = THEME.colour;
     crewFrame = requestAnimationFrame(drawCrew);
   }
 
-  // ---- tutorial: Jarvis shows you round ----------------------------------------------------
+  // ---- tutorial: Halo shows you round ----------------------------------------------------
   // One list of steps (TOUR_STEPS) drives the full tour, a chapter on its own, and "what's new"
   // after an update (VERSION.json history entries list the step ids they added or changed under
-  // "tour"). Each step: the part of the screen to point at, what to open, and what Jarvis says.
+  // "tour"). Each step: the part of the screen to point at, what to open, and what Halo says.
   // Click Next to move on. Nothing is changed while it plays: api() refuses writes, and the example
   // questions go to /chat with tour: true, which only lets through actions that show things.
   // When a menu item or feature changes, change its step here and list the step id in VERSION.json.
@@ -7811,12 +7853,12 @@ const tc = THEME.colour;
   }
 
   const TOUR_CHAPTERS = [
-    { key: 'welcome', title: 'Welcome', sub: 'Who Jarvis is and how this tour works' },
+    { key: 'welcome', title: 'Welcome', sub: 'Who Halo is and how this tour works' },
     { key: 'can', title: 'What I can do for you', sub: 'The things you can ask for, before we look at the screen' },
     { key: 'menu', title: 'The left menu', sub: 'Every menu item and what is inside it' },
     { key: 'topbar', title: 'The top bar', sub: 'Your numbers at a glance, and the Current work office' },
     { key: 'team', title: 'Your team at work', sub: 'The tray, "See what the team is doing", approvals' },
-    { key: 'talking', title: 'Talking to Jarvis', sub: 'Typing, speaking, files, with live examples' },
+    { key: 'talking', title: 'Talking to Halo', sub: 'Typing, speaking, files, with live examples' },
     { key: 'settings', title: 'Settings', sub: 'Voice, personality, colours, model, tools, tutorial' },
     { key: 'around', title: 'Getting around', sub: 'Index, zoom, views, models and updates' },
   ];
@@ -7835,7 +7877,7 @@ const tc = THEME.colour;
   const TOUR_STEPS = [
     // Welcome
     { id: 'w.hello', ch: 'welcome', target: () => jarvisEl,
-      say: () => `Welcome${SETUP.user_name ? ' ' + SETUP.user_name : ''}, I'm Jarvis. I'll show you what I can do for you, and then show you round the screen. Click Next whenever you're ready to move on, or End tour to stop. I won't change anything while I show you.` },
+      say: () => `Welcome${SETUP.user_name ? ' ' + SETUP.user_name : ''}, I'm Halo. I'll show you what I can do for you, and then show you round the screen. Click Next whenever you're ready to move on, or End tour to stop. I won't change anything while I show you.` },
     { id: 'w.galaxy', ch: 'welcome', do: () => flyToSubject(''),
       say: 'Behind everything is your galaxy. This represents all of your knowledge, and how it all links together. Each dot is a note, and you can click any dot to read it.' },
     // What I can do for you
@@ -7930,7 +7972,7 @@ const tc = THEME.colour;
       say: 'See what the team is doing opens this window: who is working on what, right now.' },
     { id: 'k.approvals', ch: 'team', target: () => lastPop(), do: () => { if (!popups.length) showTeamActivity(); },
       say: 'If someone needs your permission, for example to work outside your notes, it shows at the top of this window with Approve and Deny. Nothing like that goes ahead without you.' },
-    // Talking to Jarvis
+    // Talking to Halo
     { id: 'a.box', ch: 'talking', target: () => [$('#ask-form'), $('#mic')],
       say: "This is where we chat. You can type here and press Enter, or you can talk to me by clicking the microphone. Clicking the microphone twice pauses the chat, so you can catch your breath. When you're ready, click the arrow to send." },
     { id: 'a.voice', ch: 'talking', target: () => $('#voice-toggle'),
@@ -8026,7 +8068,7 @@ const tc = THEME.colour;
   pointer.id = 'tourPointer'; pointer.hidden = true;
   pointer.innerHTML = '<svg viewBox="0 0 24 24" width="28" height="28"><path d="M3 2l7.5 19 2.6-7.9L21 10.5z" fill="#fff" stroke="#10142a" stroke-width="1.4" stroke-linejoin="round"/></svg><span class="tap"></span>';
   const card = document.createElement('div');
-  card.id = 'tourCard'; card.hidden = true; card.setAttribute('role', 'dialog'); card.setAttribute('aria-label', 'Jarvis tutorial');
+  card.id = 'tourCard'; card.hidden = true; card.setAttribute('role', 'dialog'); card.setAttribute('aria-label', 'Halo tutorial');
   card.innerHTML = '<div class="tk"><span class="ch"></span><span class="n"></span></div><div class="tt"></div><div class="tq"></div>' +
     '<div class="tb"><button type="button" class="back">Back</button><button type="button" class="again" title="Say it again">🔊</button>' +
     '<span class="sp"></span><button type="button" class="end">End tour</button><button type="button" class="next">Next</button></div><div class="bar"><i></i></div>';
@@ -8261,7 +8303,7 @@ const tc = THEME.colour;
     offerEl.querySelector('.go').onclick = () => { offerEl.hidden = true; SETUP.tour_seen_before = SETUP.tour_seen || ''; seen(); startTour(topic); };
     tourSay(isNew ? "I've been updated. Shall I show you what's new?" : 'Shall I show you round? It takes a few minutes.');
   }
-  function whenQuiet(fn, tries = 0) {   // after Jarvis has finished speaking (at most a minute)
+  function whenQuiet(fn, tries = 0) {   // after Halo has finished speaking (at most a minute)
     if (synth && synth.speaking && tries < 60) return setTimeout(() => whenQuiet(fn, tries + 1), 1000);
     fn();
   }
@@ -8289,8 +8331,8 @@ const tc = THEME.colour;
   fit();
 })();
 </script>
-<!-- Feedback: a button beside Settings opens the Jarvis Feedback form (a Fillout Zite app) in a window.
-     The form link carries the friend's name and Jarvis version so feedback says who and which build. -->
+<!-- Feedback: a button beside Settings opens the Halo Feedback form (a Fillout Zite app) in a window.
+     The form link carries the friend's name and Halo version so feedback says who and which build. -->
 <style>
   #fb-btn { position: fixed; left: 130px; bottom: 18px; z-index: 6; display: flex; align-items: center; gap: 8px;
     padding: 8px 14px; border-radius: 999px; font: inherit; font-size: 12px; color: var(--ink); cursor: pointer;
@@ -8327,7 +8369,7 @@ const tc = THEME.colour;
   const place = () => { const s = document.getElementById('settings-btn');
     if (s && s.offsetWidth) btn.style.left = (s.getBoundingClientRect().right + 8) + 'px'; };
   window.addEventListener('resize', place); setTimeout(place, 0); setTimeout(place, 1500);
-  // Name and version live on the Jarvis server (friends' copies: /api/setup). The browser's saved
+  // Name and version live on the Halo server (friends' copies: /api/setup). The browser's saved
   // copy is a fallback; a copy with no setup (Richie's own) says so.
   async function setup() {
     let s = {};
@@ -8348,7 +8390,7 @@ const tc = THEME.colour;
     p.set('app', 'jarvis');
     card.querySelector('iframe')?.remove();          // a fresh form each time
     const f = document.createElement('iframe');
-    f.title = 'Jarvis feedback form'; f.src = FORM + '?' + p.toString();
+    f.title = 'Halo feedback form'; f.src = FORM + '?' + p.toString();
     f.addEventListener('load', () => { wait.hidden = true; });
     card.insertBefore(f, card.firstChild);
   }

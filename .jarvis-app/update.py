@@ -1,4 +1,4 @@
-"""Jarvis updates from GitHub. Standard library only.
+"""Halo updates from GitHub. Standard library only.
 
 check()  compares this install's VERSION.json with the one on GitHub (cached for a few hours).
 apply()  downloads the repository, takes only its .jarvis-app folder, and copies the app files
@@ -23,7 +23,7 @@ ZIP_URL = f"https://github.com/{REPO}/archive/refs/heads/{BRANCH}.zip"
 APP_FILES = ["server.py", "build.py", "semantic.py", "approval_mcp.py", "launch.py", "setup.py", "update.py",
              "VERSION.json", os.path.join("viewer", "index.html"),
              os.path.join("viewer", "jarvis.ico")]
-CHECK_EVERY = 24 * 3600   # GitHub is asked when Jarvis starts, then once a day; "update yourself" asks at once
+CHECK_EVERY = 24 * 3600   # GitHub is asked when Halo starts, then once a day; "update yourself" asks at once
 RETRY_AFTER = 10 * 60     # a failed check (offline at start-up) tries again soon, not a day later
 _cache = {"at": 0, "remote": None, "problem": None}
 

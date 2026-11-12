@@ -1,9 +1,9 @@
-"""Approval helper for agents run by Jarvis (an MCP server on stdio, standard library only).
+"""Approval helper for agents run by Halo (an MCP server on stdio, standard library only).
 
 Claude Code runs unattended for Larry's jobs and Team chat, so it can't show its own approval
 prompt. With --permission-prompt-tool mcp__jarvis__approve, every tool call that would ask the
 user (a Bash command on the vault's "ask" list, or one on no list at all) comes here instead.
-This asks the Jarvis server, which shows the request in that agent's chat window, and waits for
+This asks the Halo server, which shows the request in that agent's chat window, and waits for
 your Approve or Deny. Rules that deny outright still deny; rules that allow still allow. The
 agent's questions (AskUserQuestion) come the same way and go back with your answers.
 """
@@ -30,11 +30,11 @@ def call(path, body=None):
 
 
 def decide(tool_name, tool_input, tool_use_id):
-    """Ask Jarvis, then wait for the user's answer."""
+    """Ask Halo, then wait for the user's answer."""
     try:
         ticket = call("/api/approval", {"run": RUN, "tool": tool_name, "input": tool_input, "id": tool_use_id})
     except (OSError, ValueError, urllib.error.URLError) as e:
-        return {"behavior": "deny", "message": f"Couldn't reach Jarvis to ask for approval ({e})."}
+        return {"behavior": "deny", "message": f"Couldn't reach Halo to ask for approval ({e})."}
     if ticket.get("decision") == "approve":   # file work inside the vault: allowed without asking
         return {"behavior": "allow", "updatedInput": tool_input}
     if ticket.get("decision") == "deny":      # never allowed (sending email, for one): no need to ask
