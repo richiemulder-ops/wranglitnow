@@ -159,18 +159,23 @@ def make_shortcuts():
     ps = r"""
 $s = New-Object -ComObject WScript.Shell
 foreach ($dir in @([Environment]::GetFolderPath('Desktop'), (Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'))) {
-  $l = $s.CreateShortcut((Join-Path $dir 'Jarvis.lnk'))
+  # Halo was called Jarvis: a re-run replaces this install's old shortcut instead of adding a second.
+  $old = Join-Path $dir 'Jarvis.lnk'
+  if (Test-Path $old) {
+    if ($s.CreateShortcut($old).Arguments -like ('*' + $env:J_LAUNCH + '*')) { Remove-Item -LiteralPath $old }
+  }
+  $l = $s.CreateShortcut((Join-Path $dir 'Halo.lnk'))
   $l.TargetPath = $env:J_PY
   $l.Arguments = '"' + $env:J_LAUNCH + '"'
   $l.WorkingDirectory = $env:J_APP
-  $l.Description = 'Start Jarvis'
+  $l.Description = 'Start Halo'
   $l.IconLocation = $env:J_ICON + ',0'
   $l.Save()
 }
 """
     env = dict(os.environ, J_PY=pythonw(), J_LAUNCH=os.path.join(APP, "launch.py"), J_APP=APP, J_ICON=os.path.join(APP, "viewer", "jarvis.ico"))
     subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps], env=env, check=True)
-    say("Shortcut 'Jarvis' added to the desktop and the Start menu.")
+    say("Shortcut 'Halo' added to the desktop and the Start menu.")
 
 
 def main():

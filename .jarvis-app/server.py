@@ -1103,17 +1103,28 @@ ICON_FILE = os.path.join(HERE, "viewer", "jarvis.ico")
 SHORTCUT_ICON_PS = r"""
 $s = New-Object -ComObject WScript.Shell
 $dirs = @([Environment]::GetFolderPath('Desktop'), (Join-Path ([Environment]::GetFolderPath('StartMenu')) 'Programs'))
+$renamed = $false
 foreach ($d in $dirs) {
-  $p = Join-Path $d 'Jarvis.lnk'
+  $p = Join-Path $d 'Halo.lnk'
+  # Jarvis became Halo: rename this install's old shortcut once (only one that starts this install).
+  $old = Join-Path $d 'Jarvis.lnk'
+  if ((Test-Path $old) -and -not (Test-Path $p)) {
+    $o = $s.CreateShortcut($old)
+    if ($o.Arguments -like ('*' + $env:J_LAUNCH + '*')) {
+      $o.Description = 'Start Halo'; $o.Save()
+      Rename-Item -LiteralPath $old -NewName 'Halo.lnk'
+      $renamed = $true
+    }
+  }
   if (-not (Test-Path $p)) { continue }
   $l = $s.CreateShortcut($p)
   if ($l.Arguments -notlike ('*' + $env:J_LAUNCH + '*')) { continue }
-  if ($env:J_FORCE -ne '1' -and $l.IconLocation -like ($env:J_ICON + '*')) { continue }
+  if ($env:J_FORCE -ne '1' -and -not $renamed -and $l.IconLocation -like ($env:J_ICON + '*')) { continue }
   $l.IconLocation = $env:J_ICON + ',0'
   $l.Save()
 }
 # A new picture in the same .ico file: Windows keeps showing its cached copy until told to refresh.
-if ($env:J_FORCE -eq '1') { & (Join-Path $env:SystemRoot 'System32\ie4uinit.exe') -show }"""
+if ($env:J_FORCE -eq '1' -or $renamed) { & (Join-Path $env:SystemRoot 'System32\ie4uinit.exe') -show }"""
 
 
 def ensure_icon():

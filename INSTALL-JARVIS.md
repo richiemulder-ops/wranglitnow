@@ -182,7 +182,7 @@ That's it. Don't list what you did unless they ask. Don't mention Obsidian unles
 - **Stop Jarvis:** run `& "<PY>" "<ROOT>\app\launch.py" --stop`, or restart the PC.
 - **Move the knowledge folder:** stop Jarvis, move the folder, then run setup from its new place, pointing at the same Jarvis folder: `& "<PY>" "<NEW KNOWLEDGE>\.jarvis-app\setup.py" --install "<ROOT>"`. It updates `config.json`, rebuilds the index and restarts Jarvis. Settings and chat history stay.
 - **Rerun the welcome:** in the browser console, run `JARVIS_ONBOARD()`.
-- **Uninstall:** stop Jarvis, then delete the `<ROOT>` folder and the two Jarvis shortcuts. That removes the program, including the private Python copy. The knowledge folder is theirs: leave it unless they ask you to delete it too.
+- **Uninstall:** stop Jarvis, then delete the `<ROOT>` folder and the two Halo shortcuts (called Jarvis on installs not yet updated to 2026.11.12.8). That removes the program, including the private Python copy. The knowledge folder is theirs: leave it unless they ask you to delete it too.
 
 ---
 
@@ -190,7 +190,7 @@ That's it. Don't list what you did unless they ask. Don't mention Obsidian unles
 
 For someone who already has Jarvis. Their notes and settings must not change: only the program files are replaced.
 
-1. Find the two folders. The desktop **Jarvis** shortcut points at `<ROOT>\app\launch.py`, and its target is the Python to use (`PY`; if it's `pythonw.exe`, use `python.exe` from the same folder). The `vault` entry in `<ROOT>\app\config.json` is the knowledge folder (`KNOWLEDGE`). Older installs put it at `<ROOT>\My Vault`.
+1. Find the two folders. The desktop **Halo** shortcut (**Jarvis** on installs older than 2026.11.12.8) points at `<ROOT>\app\launch.py`, and its target is the Python to use (`PY`; if it's `pythonw.exe`, use `python.exe` from the same folder). The `vault` entry in `<ROOT>\app\config.json` is the knowledge folder (`KNOWLEDGE`). Older installs put it at `<ROOT>\My Vault`.
 2. Stop Jarvis: `& "<PY>" "<ROOT>\app\launch.py" --stop` (fine if it says it isn't running).
 3. Download the latest program into a temporary folder and copy only its `.jarvis-app` over the old one:
 
