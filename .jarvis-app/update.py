@@ -22,7 +22,7 @@ RAW_VERSION = f"https://raw.githubusercontent.com/{REPO}/{BRANCH}/.jarvis-app/VE
 ZIP_URL = f"https://github.com/{REPO}/archive/refs/heads/{BRANCH}.zip"
 APP_FILES = ["server.py", "build.py", "semantic.py", "approval_mcp.py", "launch.py", "setup.py", "update.py",
              "VERSION.json", os.path.join("viewer", "index.html"),
-             os.path.join("viewer", "jarvis.ico")]
+             os.path.join("viewer", "jarvis.ico"), os.path.join("viewer", "halo.ico")]
 CHECK_EVERY = 24 * 3600   # GitHub is asked when Halo starts, then once a day; "update yourself" asks at once
 RETRY_AFTER = 10 * 60     # a failed check (offline at start-up) tries again soon, not a day later
 _cache = {"at": 0, "remote": None, "problem": None}

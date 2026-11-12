@@ -1099,7 +1099,10 @@ def write_theme_file(theme):
 
 # ---- The Halo icon --------------------------------------------------------------------------
 # The desktop and Start menu shortcuts start pythonw, so without this they'd show Python's icon.
-ICON_FILE = os.path.join(HERE, "viewer", "jarvis.ico")
+ICON_FILE = os.path.join(HERE, "viewer", "halo.ico")
+# Windows caches a shortcut's picture by file name, so the Halo mark in the old jarvis.ico kept showing
+# the Jarvis ring. halo.ico is made from jarvis.ico (which updaters already copy) under a new name.
+ICON_SOURCE = os.path.join(HERE, "viewer", "jarvis.ico")
 SHORTCUT_ICON_PS = r"""
 $s = New-Object -ComObject WScript.Shell
 $dirs = @([Environment]::GetFolderPath('Desktop'), (Join-Path ([Environment]::GetFolderPath('StartMenu')) 'Programs'))
@@ -1132,11 +1135,20 @@ def ensure_icon():
     folder's .jarvis-app copy, so take it from there if the app folder lacks it."""
     if os.name != "nt":
         return
-    if not os.path.isfile(ICON_FILE):
+    if not os.path.isfile(ICON_SOURCE):
         src = os.path.join(VAULT, ".jarvis-app", "viewer", "jarvis.ico")
         if not os.path.isfile(src):
             return
-        shutil.copy2(src, ICON_FILE)
+        shutil.copy2(src, ICON_SOURCE)
+    try:
+        with open(ICON_SOURCE, "rb") as a:
+            want = a.read()
+        have = open(ICON_FILE, "rb").read() if os.path.isfile(ICON_FILE) else b""
+        if have != want:
+            with open(ICON_FILE, "wb") as b:
+                b.write(want)
+    except OSError:
+        return
     # Re-apply and refresh once whenever the icon file itself changes (the Halo mark replaced the
     # Jarvis ring in the same file name, so shortcuts already pointing at it kept the old picture).
     stamp_file = os.path.join(HERE, "data", "icon-stamp.txt")
