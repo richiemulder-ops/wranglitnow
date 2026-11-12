@@ -3408,6 +3408,16 @@ def save_fleeting(title, body, path=None):
             if not path.startswith(FLEETING_DIR + "/") or not path.endswith(".md"):
                 raise ChatError(403, "Only fleeting notes can be edited here.")
             full = vault_file(path)
+            stem = os.path.splitext(os.path.basename(full))[0]
+            title = str(title or "").strip()
+            if title and title != stem:   # renamed: same folder, never over another note
+                base, n = fleeting_slug(title), 1
+                new = os.path.join(os.path.dirname(full), base + ".md")
+                while os.path.exists(new) and os.path.normcase(new) != os.path.normcase(full):
+                    n += 1
+                    new = os.path.join(os.path.dirname(full), f"{base}-{n}.md")
+                os.replace(full, new)
+                full = new
         else:
             root = os.path.join(VAULT, *FLEETING_DIR.split("/"))
             base, n = fleeting_slug(title), 1
@@ -3419,6 +3429,30 @@ def save_fleeting(title, body, path=None):
             f.write(body)
     threading.Thread(target=rebuild_galaxy, daemon=True).start()   # joins the galaxy on next reload
     return {"ok": True, "path": os.path.relpath(full, VAULT).replace("\\", "/")}
+
+
+NOTE_TIDY_SYSTEM = """You format a dictated note as clean Obsidian markdown. Keep the author's words, \
+meaning and order. Only: split run-on text into short paragraphs; add ## headings where the topic \
+clearly changes (a single-topic note needs none); turn lists the speaker said aloud (several items, steps, \
+options) into "- " bullets or "1." numbered lists; make a "- [ ] " task only of a clear action someone \
+must take, still in the speaker's words ("- [ ] We need to call Sam", not "- [ ] Call Sam"); a list of \
+things is bullets, not tasks. Fix punctuation, capitals and obvious speech-recognition slips. Do not reword, \
+shorten or drop words (keep "we need to", "we should", "maybe", etc.). Leave markdown that is already there, [[wikilinks]] and \
+URLs as they are. Never add facts, a title, a summary, commentary or code fences. Reply with the note only."""
+
+
+def tidy_note(body):
+    """Give a dictated note structure (headings, bullets, numbers, paragraphs) without rewriting it."""
+    body = str(body).replace("\r\n", "\n").strip()
+    if not body:
+        raise ChatError(400, "The note is empty.")
+    if len(body) > 30000:
+        raise ChatError(400, "That note is too long to tidy in one go.")
+    text, _ = call_claude(FAST_MODEL, f"<note>\n{body}\n</note>", NOTE_TIDY_SYSTEM)
+    text = re.sub(r"^```(?:markdown|md)?\n|\n```$", "", text.strip()).strip()
+    if not text or len(text) < len(body) * 0.5:   # a tidy never drops half the note
+        raise ChatError(502, "The tidy came back incomplete, so your note is unchanged.")
+    return {"body": text}
 
 
 TRANSCRIPT_SYSTEM = """You fetch meeting transcripts from Fireflies, read only. Reply with the transcript \
@@ -4995,7 +5029,7 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
                 self.close_connection = True
                 self._json(400, {"error": "Bad request."})
             return
-        if path in ("/api/open", "/api/reveal", "/api/trash", "/api/action", "/api/fleeting", "/api/models", "/api/projects", "/api/agent-chat",
+        if path in ("/api/open", "/api/reveal", "/api/trash", "/api/action", "/api/fleeting", "/api/note-tidy", "/api/models", "/api/projects", "/api/agent-chat",
                     "/api/agent-chat/stop", "/api/jobs/stop", "/api/stop-answer", "/api/approval", "/api/approval/decide", "/api/hires/approve", "/api/hires/decline", "/api/setup", "/api/logo",
                     "/api/update", "/api/claude-auth/login", "/api/claude-auth/code", "/api/settings", "/api/tools", "/api/schedules", "/api/brief"):
             if not self._trusted():
@@ -5057,6 +5091,8 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
                     self._json(200, claude_login_code(body.get("code")))
                 elif path == "/api/fleeting":
                     self._json(200, save_fleeting(body.get("title", ""), body.get("body", ""), body.get("path")))
+                elif path == "/api/note-tidy":
+                    self._json(200, tidy_note(body.get("body", "")))
                 else:
                     self._json(200, set_action_done(body.get("path", ""), bool(body.get("done"))))
             except ChatError as e:

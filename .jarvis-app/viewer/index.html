@@ -412,11 +412,26 @@
   .editor .note-title { font: inherit; font-size: 18px; background: transparent; border: 0; border-bottom: 1px solid var(--edge);
     color: var(--ink); padding: 6px 2px; outline: none; }
   .editor .note-title:focus { border-bottom-color: var(--accent); }
-  .editor .note-title:disabled { color: var(--dim); }
-  .editor textarea { flex: 1; min-height: 240px; resize: none; background: rgba(255,255,255,0.03); border: 1px solid var(--edge);
-    border-radius: 10px; color: var(--ink); font: inherit; font-size: 14.5px; line-height: 1.65; padding: 12px 14px; outline: none; }
-  .editor textarea:focus { border-color: rgba(186,211,103,0.5); }
   .editor .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .editor .fmt-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .editor .fmt-bar .sep { width: 1px; height: 18px; background: var(--edge); margin: 0 4px; }
+  .editor .fmt-bar .link-btn { padding: 4px 10px; font-size: 12.5px; }
+  .editor .note-rich { flex: 1; min-height: 240px; overflow-y: auto; background: rgba(255,255,255,0.03); border: 1px solid var(--edge);
+    border-radius: 10px; padding: 2px 18px 12px; outline: none; cursor: text; position: relative; }
+  .editor .note-rich:focus { border-color: rgba(186,211,103,0.5); }
+  .editor .note-rich.blank::before { content: attr(data-placeholder); position: absolute; left: 18px; right: 18px; top: 12px; color: var(--dim); pointer-events: none; }
+  .editor .note-rich > :first-child { margin-top: 12px; }
+  .editor .note-rich p { margin: 0 0 10px; }
+  .editor .note-rich h2 { margin: 18px 0 8px; } .editor .note-rich h3 { margin: 14px 0 6px; }
+  .editor .note-rich ul, .editor .note-rich ol { padding-left: 24px; margin: 0 0 10px; }
+  .editor .note-rich li { margin: 3px 0; }
+  .editor .note-rich li:has(> input[type=checkbox]) { list-style: none; margin-left: -20px; }
+  .editor .note-rich input[type=checkbox] { margin: 0 7px 0 0; accent-color: #a3e37a; cursor: pointer; vertical-align: -2px; }
+  .editor .note-rich li:has(> input[type=checkbox]:checked) { color: var(--dim); text-decoration: line-through; }
+  .editor .fmt-bar .link-btn.fmt.on { background: rgba(186,211,103,0.18); border-color: rgba(186,211,103,0.6); color: var(--ink); }
+  .editor .heard { font-size: 13px; color: var(--dim); font-style: italic; padding: 0 4px; }
+  .editor .auto-tidy { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--dim); cursor: pointer; }
+  .editor .auto-tidy input { accent-color: #a3e37a; }
   .editor .hint { margin-left: auto; font-size: 12px; color: var(--dim); }
   .editor .hint.ok { color: var(--brand); }
   .editor .hint.err { color: #ffcf8a; }
@@ -1024,6 +1039,8 @@ const tc = THEME.colour;
 <script src="https://unpkg.com/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/turndown@7.2.0/dist/turndown.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/turndown-plugin-gfm@1.0.2/dist/turndown-plugin-gfm.js"></script>
 <script src="graph-data.js"></script>
 <script>
 // Galaxy views (CR-007): inline here because the updater only installs index.html.
@@ -2185,12 +2202,12 @@ const tc = THEME.colour;
   }
 
   // Markdown → safe HTML, with [[wikilinks]] turned into links that open the linked note.
-  function renderMarkdown(md) {
+  function renderMarkdown(md, opts) {
     const linked = md.replace(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g,
       (_, target, alias) => `[${(alias || target).replace(/[[\]]/g, '')}](#note:${encodeURIComponent(target.trim())})`);
     if (!window.marked || !window.DOMPurify) return `<pre>${escapeHtml(md)}</pre>`;
     const div = document.createElement('div');
-    div.innerHTML = DOMPurify.sanitize(marked.parse(linked));
+    div.innerHTML = DOMPurify.sanitize(marked.parse(linked, opts));
     div.querySelectorAll('a[href]').forEach(a => {
       const href = a.getAttribute('href');
       if (href.startsWith('#note:')) a.dataset.note = decodeURIComponent(href.slice(6));
@@ -2490,6 +2507,69 @@ const tc = THEME.colour;
   const DRAFT_KEY = 'galaxy-note-draft';
   let noteRec = null;   // dictation runs on its own recogniser, separate from the ask-bar mic
 
+  // Notes are edited formatted (bold looks bold, lists look like lists) and saved as markdown, the way
+  // Obsidian keeps them. marked turns markdown into the editor's HTML; turndown turns it back on save.
+  let turndown = null;
+  function mdFromHtml(html) {
+    if (!window.TurndownService) return null;
+    if (!turndown) {
+      turndown = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-', emDelimiter: '*',
+        strongDelimiter: '**', codeBlockStyle: 'fenced', br: '' });
+      if (window.turndownPluginGfm) turndown.use([turndownPluginGfm.tables, turndownPluginGfm.strikethrough, turndownPluginGfm.taskListItems]);
+      turndown.addRule('listItem', { filter: 'li', replacement: (content, node, options) => {
+        const parent = node.parentNode;
+        let prefix = options.bulletListMarker + ' ';
+        if (parent.nodeName === 'OL') {
+          const start = parent.getAttribute('start'), idx = Array.prototype.indexOf.call(parent.children, node);
+          prefix = (start ? Number(start) + idx : idx + 1) + '. ';
+        }
+        content = content.replace(/^\n+/, '').replace(/\n+$/, '\n').replace(/\n/gm, '\n' + ' '.repeat(prefix.length));
+        return prefix + content + (node.nextSibling && !/\n$/.test(content) ? '\n' : '');
+      } });
+      turndown.addRule('wikilink', { filter: n => n.nodeName === 'A' && n.getAttribute('data-note'),
+        replacement: (c, n) => { const t = n.getAttribute('data-note'); c = c.trim(); return c && c !== t ? `[[${t}|${c}]]` : `[[${t}]]`; } });
+      turndown.addRule('bareUrl', { filter: n => n.nodeName === 'A' && !n.getAttribute('data-note') && n.getAttribute('href') === n.textContent,
+        replacement: c => c });
+      turndown.escape = s => s.replace(/^(#{1,6} |[-+*] |\d+\. |> )/gm, '\\$1');
+    }
+    return turndown.turndown(html).replace(/\[( |x)\]\s+/g, '[$1] ').replace(/[ \t]+$/gm, '').replace(/\n{3,}/g, '\n\n').trim();
+  }
+  function htmlFromMd(md) {
+    const div = document.createElement('div');
+    div.innerHTML = md.trim() ? renderMarkdown(md, { breaks: true }) : '';
+    // marked puts newlines between tags; in an editor they become stray blank lines.
+    const walker = document.createTreeWalker(div, NodeFilter.SHOW_TEXT), blanks = [];
+    while (walker.nextNode()) if (!walker.currentNode.textContent.trim() && /^(DIV|UL|OL|LI|BLOCKQUOTE|TABLE|THEAD|TBODY|TR)$/.test(walker.currentNode.parentNode.nodeName)) blanks.push(walker.currentNode);
+    blanks.forEach(t => t.remove());
+    div.querySelectorAll('li, p, h1, h2, h3, h4, h5, h6').forEach(el => { const t = el.lastChild; if (t && t.nodeType === 3) t.textContent = t.textContent.replace(/\s+$/, ''); });
+    // Loose lists wrap each item in <p>: unwrap them so items stay tight and tick boxes stay tasks.
+    div.querySelectorAll('li').forEach(li => [...li.children].filter(c => c.nodeName === 'P').forEach((p, i) => {
+      if (i) p.before(document.createElement('br'));
+      while (p.firstChild) p.before(p.firstChild);
+      p.remove();
+    }));
+    div.querySelectorAll('input[type=checkbox]').forEach(cb => {
+      cb.removeAttribute('disabled'); cb.setAttribute('contenteditable', 'false');
+      const t = cb.nextSibling; if (t && t.nodeType === 3) t.textContent = t.textContent.replace(/^\s+/, '');
+    });
+    return div.innerHTML;
+  }
+  const NOTE_BLOCKS = /^(P|DIV|LI|H[1-6]|BLOCKQUOTE|PRE)$/;
+  // Spoken formatting while dictating: "new paragraph", "new line", "bullet point" / "dot point",
+  // "number point", "new heading", "new subheading", "new task", plus "full stop", "comma",
+  // "question mark", "colon".
+  const SPOKEN = [
+    [/\b(?:new|next) paragraph\b/gi, '\u0001P'],
+    [/\b(?:new|next) line\b/gi, '\u0001L'],
+    [/\b(?:new |next )?sub ?heading\b/gi, '\u0001S'],
+    [/\b(?:new|next|add an?) heading\b/gi, '\u0001H'],
+    [/\b(?:new |next )?(?:bullet|dot) points?\b|\b(?:new|next) bullet\b/gi, '\u0001B'],
+    [/\b(?:new |next )?number(?:ed)? points?\b|\bnext number\b/gi, '\u0001N'],
+    [/\b(?:new|next) (?:task|to-?do|to do|action)\b/gi, '\u0001T'],
+    [/\s*\bfull stop\b/gi, '.'], [/\s*\bquestion mark\b/gi, '?'], [/\s*\bexclamation (?:mark|point)\b/gi, '!'],
+    [/\s*\bcomma\b/gi, ','], [/\s*\bcolon\b/gi, ':'],
+  ];
+
   function showNotes(editPath = null, listen = false, projectName = null) {
     const project = projectName && projects.find(p => p.name === projectName);
     openView({
@@ -2501,7 +2581,10 @@ const tc = THEME.colour;
         linkButton(bar, 'Fleeting Notes folder ↗', () => openOnDesktop(FLEETING), 'Open the folder on your desktop');
         content.innerHTML = `<div class="notes-grid"><div class="editor">
             <input class="note-title" type="text" maxlength="80" placeholder="Name your note (or leave it for a dated name)">
-            <textarea placeholder="Type, or press Dictate and talk. Pauses and full stops won't stop it."></textarea>
+            <div class="fmt-bar"></div>
+            <div class="doc note-rich blank" contenteditable="true" spellcheck="true" role="textbox" aria-multiline="true" aria-label="Note"
+              data-placeholder="Type, or press Dictate and talk. Say &quot;new paragraph&quot;, &quot;bullet point&quot;, &quot;number point&quot;, &quot;new heading&quot; or &quot;new task&quot; to shape it as you go."></div>
+            <div class="heard" hidden></div>
             <div class="tools"></div></div>
           <div class="fleet"><h4>Fleeting notes</h4><input type="search" placeholder="Search notes…"><div class="list"></div></div></div>`;
         // On a project: its description, then its notes, with the fleeting notes a tab away.
@@ -2519,82 +2602,379 @@ const tc = THEME.colour;
           linkButton(bar, '✦ Show in galaxy', () => { closeWork(); showProject(project); });
           linkButton(bar, '📁 Files', () => popProjectFiles(project));
         }
-        const titleEl = content.querySelector('.note-title'), textEl = content.querySelector('textarea');
+        const titleEl = content.querySelector('.note-title'), rich = content.querySelector('.note-rich');
         const tools = content.querySelector('.editor .tools'), listEl = content.querySelector('.fleet .list');
         const searchEl = content.querySelector('.fleet input');
-        const dictBtn = linkButton(tools, '🎙 Dictate', () => dictating ? stopDictation() : startDictation());
+        const heardEl = content.querySelector('.heard'), fmtBar = content.querySelector('.fmt-bar');
+        const dictBtn = linkButton(tools, '🎙 Dictate', () => dictating ? stopDictation(true) : startDictation());
         const saveBtn = linkButton(tools, 'Save', save); saveBtn.classList.add('primary');
-        const readBtn = linkButton(tools, 'Read', () => current && openDoc(current, true));
+        const tidyBtn = linkButton(tools, '✨ Tidy up', () => tidy(), 'Let Jarvis add headings, bullets, numbers and paragraphs. Your words stay the same; Ctrl+Z undoes it.');
+        const autoLbl = document.createElement('label'); autoLbl.className = 'auto-tidy';
+        autoLbl.title = 'When you stop dictating, Jarvis tidies the note into headings, bullets and paragraphs';
+        autoLbl.innerHTML = '<input type="checkbox"> Tidy after dictating';
+        const autoChk = autoLbl.querySelector('input'); tools.appendChild(autoLbl);
+        try { autoChk.checked = localStorage.getItem('galaxy-note-autotidy') !== '0'; } catch (_) { autoChk.checked = true; }
+        autoChk.onchange = () => { try { localStorage.setItem('galaxy-note-autotidy', autoChk.checked ? '1' : '0'); } catch (_) {} };
         const hint = document.createElement('span'); hint.className = 'hint'; tools.appendChild(hint);
         const say = (text, cls = '') => { hint.textContent = text; hint.className = 'hint ' + cls; };
+        try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch (_) {}
+
+        // ---- the formatted editor: what you see is what is saved (as markdown) ----
+        const sel = () => window.getSelection();
+        const inRich = n => !!n && rich.contains(n.nodeType === 1 ? n : n.parentNode);
+        function blockOf(n) {
+          for (let el = n && (n.nodeType === 1 ? n : n.parentNode); el && el !== rich; el = el.parentNode)
+            if (NOTE_BLOCKS.test(el.nodeName)) return el;
+          return null;
+        }
+        const curBlock = () => { const s = sel(); return s.rangeCount && inRich(s.focusNode) ? blockOf(s.focusNode) : null; };
+        const curLi = () => { const b = curBlock(); return b && b.closest('li'); };
+        const hasBox = li => !!(li && li.querySelector(':scope > input[type=checkbox]'));
+        const dropBoxes = li => li && li.querySelectorAll(':scope > input[type=checkbox]').forEach(c => c.remove());
+        const run = (cmd, val = null) => document.execCommand(cmd, false, val);
+        function textBeforeCaret() {
+          const s = sel(), b = curBlock();
+          if (!b || !s.rangeCount) return '';
+          const r = document.createRange(); r.setStart(b, 0); r.setEnd(s.focusNode, s.focusOffset);
+          return r.toString();
+        }
+        function addBox(li) {
+          if (!li || hasBox(li)) return;
+          const cb = document.createElement('input'); cb.type = 'checkbox'; cb.setAttribute('contenteditable', 'false');
+          li.insertBefore(cb, li.firstChild);
+          if (!li.textContent.trim() && !li.querySelector('br')) li.appendChild(document.createElement('br'));
+          const r = document.createRange(); r.setStartAfter(cb); r.collapse(true); sel().removeAllRanges(); sel().addRange(r);
+        }
+        function selectedItems() {   // the list items the selection touches (or the caret's)
+          const s = sel(); if (!s.rangeCount) return [];
+          const r = s.getRangeAt(0);
+          const items = [...rich.querySelectorAll('li')].filter(li => r.intersectsNode(li) && !li.querySelector('li'));
+          return items.length ? items : [curLi()].filter(Boolean);
+        }
+        // Lists are built by hand rather than with execCommand, which nests them inside paragraphs.
+        function caretAtEnd(el) {
+          const r = document.createRange(); r.selectNodeContents(el); r.collapse(false);
+          sel().removeAllRanges(); sel().addRange(r);
+        }
+        function exitList() {   // the caret's list item becomes a plain paragraph (splitting the list there)
+          const li = curLi(); if (!li) return;
+          dropBoxes(li);
+          const list = li.parentNode, p = document.createElement('p');
+          while (li.firstChild) p.appendChild(li.firstChild);
+          if (!p.textContent.trim() && !p.querySelector('br')) p.appendChild(document.createElement('br'));
+          const after = [];
+          for (let n = li.nextElementSibling; n; n = n.nextElementSibling) after.push(n);
+          li.remove();
+          list.after(p);
+          if (after.length) { const tail = document.createElement(list.nodeName); after.forEach(n => tail.appendChild(n)); p.after(tail); }
+          if (!list.children.length) list.remove();
+          caretAtEnd(p);
+        }
+        function makeList(tag, task = false) {   // the caret's paragraph or heading becomes a list item
+          const b = curBlock();
+          if (!b || b.closest('li') || !sel().isCollapsed) {
+            if (!b || !b.closest('li')) run(tag === 'UL' ? 'insertUnorderedList' : 'insertOrderedList');
+            if (task) selectedItems().forEach(addBox);
+            return;
+          }
+          const li = document.createElement('li');
+          while (b.firstChild) li.appendChild(b.firstChild);
+          if (!li.textContent.trim() && !li.querySelector('br')) li.appendChild(document.createElement('br'));
+          const prev = b.previousElementSibling;
+          if (prev && prev.nodeName === tag && hasBox(prev.lastElementChild) === task) { prev.appendChild(li); b.remove(); }
+          else { const list = document.createElement(tag); list.appendChild(li); b.replaceWith(list); }
+          caretAtEnd(li);
+          if (task) addBox(li);
+        }
+        function retag(li, tag) {    // switch the caret's list between bullets and numbers
+          const list = li.parentNode; if (list.nodeName === tag) return;
+          const nl = document.createElement(tag);
+          while (list.firstChild) nl.appendChild(list.firstChild);
+          list.replaceWith(nl); caretAtEnd(li);
+        }
+        function newItem(li, task) {    // Enter in a list item: split it at the caret into a new item
+          const s = sel(), r = document.createRange();
+          r.setStart(s.focusNode, s.focusOffset); r.setEnd(li, li.childNodes.length);
+          const n = document.createElement('li');
+          n.appendChild(r.extractContents());
+          dropBoxes(n);
+          if (!li.textContent.trim() && !li.querySelector('br')) li.appendChild(document.createElement('br'));
+          if (!n.textContent.trim()) n.innerHTML = '<br>';
+          li.after(n);
+          const c = document.createRange(); c.setStart(n, 0); c.collapse(true); sel().removeAllRanges(); sel().addRange(c);
+          if (task) addBox(n);
+        }
+        function newBlock() {    // start a fresh paragraph after the current one, out of any list
+          const b = curBlock();
+          if (!b || !b.textContent.trim()) { if (curLi()) exitList(); else if (b && /^H[1-6]$/.test(b.nodeName)) run('formatBlock', 'p'); return; }
+          const li = curLi();
+          if (li) { newItem(li, false); exitList(); return; }
+          run('insertParagraph');
+          const nb = curBlock(); if (nb && /^H[1-6]$/.test(nb.nodeName)) run('formatBlock', 'p');
+        }
+        const fmt = {
+          heading(level = 'h2') {
+            const v = (document.queryCommandValue('formatBlock') || '').toLowerCase();
+            if (curLi()) exitList();
+            run('formatBlock', v === level ? 'p' : level);
+          },
+          bullets() {
+            const li = curLi();
+            if (!li) return makeList('UL');
+            if (li.parentNode.nodeName === 'OL') return retag(li, 'UL');
+            const items = selectedItems();
+            if (items.some(hasBox)) { items.forEach(dropBoxes); return; }
+            exitList();
+          },
+          numbers() {
+            const li = curLi();
+            if (!li) return makeList('OL');
+            if (li.parentNode.nodeName === 'UL') { selectedItems().forEach(dropBoxes); return retag(li, 'OL'); }
+            exitList();
+          },
+          task() {
+            const li = curLi();
+            if (!li) return makeList('UL', true);
+            const items = selectedItems();
+            if (items.every(hasBox)) { items.forEach(dropBoxes); return; }
+            if (li.parentNode.nodeName === 'OL') retag(li, 'UL');
+            items.forEach(addBox);
+          },
+          bold() { run('bold'); }, italic() { run('italic'); },
+        };
+        const fmtBtns = [
+          ['H', 'Heading (Ctrl+Alt+H, or type "## " at the start of a line)', 'heading', () => fmt.heading()],
+          ['• List', 'Bullet list (Ctrl+Shift+8, or type "- ")', 'bullets', fmt.bullets],
+          ['1. List', 'Numbered list (Ctrl+Shift+7, or type "1. ")', 'numbers', fmt.numbers],
+          ['☐ Task', 'Task with a tick box (or type "[] ")', 'task', fmt.task],
+          ['B', 'Bold (Ctrl+B)', 'bold', fmt.bold],
+          ['I', 'Italic (Ctrl+I)', 'italic', fmt.italic],
+        ].map(([label, title, key, fn]) => {
+          const b = linkButton(fmtBar, label, () => {
+            if (!inRich(sel().focusNode)) { if (lastRange) { rich.focus(); sel().removeAllRanges(); sel().addRange(lastRange); } else placeCaretAtEnd(); }
+            fn(); markDirty(); paintFmt();
+          }, title);
+          b.classList.add('fmt'); b.dataset.k = key;
+          b.onmousedown = e => e.preventDefault();      // keep the selection in the note
+          return b;
+        });
+        fmtBtns[4].style.fontWeight = '700'; fmtBtns[5].style.fontStyle = 'italic';
+        function paintFmt() {    // light up the buttons for what the caret is in
+          if (!inRich(sel().focusNode)) return;
+          const li = curLi(), block = (document.queryCommandValue('formatBlock') || '').toLowerCase();
+          const on = { heading: /^h[1-6]$/.test(block), bullets: !!li && li.parentNode.nodeName === 'UL' && !hasBox(li),
+            numbers: !!li && li.parentNode.nodeName === 'OL', task: hasBox(li),
+            bold: document.queryCommandState('bold'), italic: document.queryCommandState('italic') };
+          fmtBtns.forEach(b => b.classList.toggle('on', !!on[b.dataset.k]));
+        }
+        function placeCaretAtEnd() {
+          rich.focus();
+          let end = rich;      // the end of the last paragraph or list item, not after it
+          while (end.lastElementChild && NOTE_BLOCKS.test(end.lastElementChild.nodeName) || end.lastElementChild && /^(UL|OL)$/.test(end.lastElementChild.nodeName)) end = end.lastElementChild;
+          const r = document.createRange(); r.selectNodeContents(end); r.collapse(false);
+          sel().removeAllRanges(); sel().addRange(r);
+        }
+        let lastRange = null;
+        const onSel = () => {
+          if (!rich.isConnected) { document.removeEventListener('selectionchange', onSel); return; }
+          const s = sel(); if (s.rangeCount && inRich(s.focusNode)) { lastRange = s.getRangeAt(0).cloneRange(); paintFmt(); }
+        };
+        document.addEventListener('selectionchange', onSel);
+        const getMd = () => {
+          rich.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked ? cb.setAttribute('checked', '') : cb.removeAttribute('checked'));
+          const md = mdFromHtml(rich.innerHTML);
+          return md === null ? rich.innerText.trim() : md;
+        };
+        const paintBlank = () => rich.classList.toggle('blank', !rich.textContent.trim() && !rich.querySelector('li, input, h1, h2, h3, hr, table'));
+        function setMd(md) { rich.innerHTML = htmlFromMd(md || '') || '<p><br></p>'; paintBlank(); }
+        if (!window.TurndownService) say('Formatting tools did not load (offline?): notes save as plain text', 'err');
 
         async function loadInto(path) {
           stopDictation();
           current = path;
-          titleEl.value = path.split('/').pop().replace(/\.md$/, ''); titleEl.disabled = true;
+          titleEl.value = path.split('/').pop().replace(/\.md$/, '');
           workEl.querySelector('h2').textContent = titleEl.value;
-          textEl.value = ''; say('Opening…');
-          try { textEl.value = (await api(`/api/note?path=${encodeURIComponent(path)}`)).body; say(path.split('/').slice(0, -1).join(' / ')); }
+          setMd(''); say('Opening…');
+          try { setMd((await api(`/api/note?path=${encodeURIComponent(path)}`)).body); say(path.split('/').slice(0, -1).join(' / ')); }
           catch (err) { say(err.message, 'err'); }
-          readBtn.hidden = false; dirty = false; paintList();
+          dirty = false; lastRange = null; paintList();
         }
         if (current) loadInto(current);
         else {
-          readBtn.hidden = true;
-          try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); if (d) { titleEl.value = d.title || ''; textEl.value = d.body || ''; if (d.body) say('Unsaved draft restored'); } } catch (_) {}
-          setTimeout(() => textEl.focus(), 50);
+          try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); if (d) { titleEl.value = d.title || ''; setMd(d.body || ''); if (d.body) say('Unsaved draft restored'); } } catch (_) {}
+          if (!rich.innerHTML.trim()) setMd('');
+          setTimeout(() => placeCaretAtEnd(), 50);
         }
 
-        const keepDraft = () => {
-          dirty = true;
-          if (!current) try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ title: titleEl.value, body: textEl.value })); } catch (_) {}
+        let draftTimer = null;
+        function markDirty() {
+          dirty = true; paintBlank();
+          if (current) return;
+          clearTimeout(draftTimer);
+          draftTimer = setTimeout(() => { try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ title: titleEl.value, body: getMd() })); } catch (_) {} }, 400);
+        }
+        titleEl.oninput = markDirty;
+        titleEl.onkeydown = e => {
+          if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); }
+          else if (e.key === 'Enter') { e.preventDefault(); placeCaretAtEnd(); }
         };
-        titleEl.oninput = textEl.oninput = keepDraft;
-        textEl.onkeydown = titleEl.onkeydown = e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); } };
+        // Markdown shortcuts as you type: "- " bullets, "1. " numbers, "## " heading, "[] " task.
+        rich.oninput = e => {
+          markDirty();
+          if (!curBlock() && inRich(sel().focusNode)) run('formatBlock', 'p');   // loose text gets a paragraph
+          if (e.inputType !== 'insertText' || !/ $/.test(e.data || '')) return;
+          const b = curBlock(); if (!b || !/^(P|DIV)$/.test(b.nodeName)) return;
+          const m = textBeforeCaret().replace(/ /g, ' ').match(/^(-|\*|1\.|#{1,3}|\[ ?\]) $/);
+          if (!m) return;
+          const s = sel(), r = document.createRange(); r.setStart(b, 0); r.setEnd(s.focusNode, s.focusOffset);
+          s.removeAllRanges(); s.addRange(r); run('delete');
+          const k = m[1];
+          if (!curBlock()) run('formatBlock', 'p');
+          if (k[0] === '#') run('formatBlock', k.length >= 3 ? 'h3' : 'h2');
+          else makeList(k === '1.' ? 'OL' : 'UL', k[0] === '[');
+          paintFmt();
+        };
+        rich.onkeydown = e => {
+          const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+          if (mod && k === 's') { e.preventDefault(); save(); }
+          else if (mod && e.altKey && k === 'h') { e.preventDefault(); fmt.heading(); markDirty(); }
+          else if (mod && e.shiftKey && e.code === 'Digit8') { e.preventDefault(); fmt.bullets(); markDirty(); }
+          else if (mod && e.shiftKey && e.code === 'Digit7') { e.preventDefault(); fmt.numbers(); markDirty(); }
+          else if (e.key === 'Enter' && !e.shiftKey && !mod && !e.isComposing) {
+            const li = curLi();
+            if (!li) return;
+            // Enter on an empty item ends the list; tasks carry on with a fresh tick box.
+            if (!li.textContent.trim() && !li.querySelector('li')) { e.preventDefault(); exitList(); markDirty(); paintFmt(); }
+            else if (hasBox(li)) { e.preventDefault(); newItem(li, true); markDirty(); }
+          }
+        };
+        rich.onclick = e => {
+          if (e.target.matches('input[type=checkbox]')) { markDirty(); return; }
+          const a = e.target.closest('a'); if (!a) return;
+          e.preventDefault();
+          if (!(e.ctrlKey || e.metaKey)) { say('Ctrl+click a link to open it'); return; }
+          if (a.dataset.note) {
+            const n = nodeByLabel.get(a.dataset.note.split('/').pop().toLowerCase());
+            if (n) openDoc(nodePath(n), true); else say(`No note called "${a.dataset.note}" in the vault`, 'err');
+          } else if (/^https?:/i.test(a.getAttribute('href') || '')) window.open(a.href, '_blank', 'noopener');
+        };
+        // Paste comes in as text; markdown in it (from Obsidian, say) arrives formatted.
+        rich.onpaste = e => {
+          const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+          if (!text) return;
+          e.preventDefault();
+          if (/\n|^\s*(#{1,6} |[-*] |\d+\. )|\*\*|\[\[/.test(text)) run('insertHTML', htmlFromMd(text));
+          else run('insertText', text);
+        };
+
+        // AI tidy: Jarvis adds structure without changing the words. Ctrl+Z puts the old text back.
+        let tidying = false;
+        async function tidy(auto = false) {
+          if (tidying) return;
+          const before = getMd();
+          if (!before.trim()) { if (!auto) say('Nothing to tidy yet', 'err'); return; }
+          tidying = true; tidyBtn.disabled = true; say('Tidying into headings, bullets and paragraphs…');
+          try {
+            const r = await api('/api/note-tidy', { body: before });
+            if (getMd() !== before) { say('You kept typing, so the tidy was skipped. Press Tidy up again.', 'err'); return; }
+            rich.focus(); sel().selectAllChildren(rich);
+            if (!run('insertHTML', htmlFromMd(r.body))) setMd(r.body);
+            markDirty();
+            say('Tidied. Check it, then Save (Ctrl+Z undoes it)', 'ok');
+          } catch (err) { say(err.message, 'err'); }
+          finally { tidying = false; tidyBtn.disabled = false; }
+        }
 
         async function save() {
-          if (!textEl.value.trim()) { say('Nothing to save yet', 'err'); return; }
+          const body = getMd();
+          if (!body.trim()) { say('Nothing to save yet', 'err'); return; }
           saveBtn.disabled = true; say('Saving…');
           try {
-            const r = await api('/api/fleeting', { title: titleEl.value, body: textEl.value, path: current });
-            const wasNew = !current;
-            current = r.path; dirty = false; titleEl.disabled = true; readBtn.hidden = false;
+            const r = await api('/api/fleeting', { title: titleEl.value, body, path: current });
+            const wasNew = !current, renamed = current && r.path !== current;
+            current = r.path; dirty = false;
             titleEl.value = r.path.split('/').pop().replace(/\.md$/, '');
             workEl.querySelector('h2').textContent = titleEl.value;
-            if (wasNew) try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
-            say(`Saved to ${r.path}`, 'ok');
+            if (wasNew) try { clearTimeout(draftTimer); localStorage.removeItem(DRAFT_KEY); } catch (_) {}
+            say(renamed ? `Renamed and saved to ${r.path}` : `Saved to ${r.path}`, 'ok');
             refreshList();
           } catch (err) { say(err.message, 'err'); }
           finally { saveBtn.disabled = false; }
         }
 
-        // Dictation: continuous, keeps going through pauses until you press Stop.
+        // Dictation: continuous, keeps going through pauses until you press Stop. Only finished phrases
+        // go into the note, at the cursor, so typing or formatting while it listens is never overwritten.
+        // What it is still hearing shows underneath. Spoken commands format as you go.
+        let handled = new Set(), dictWords = 0;
         function startDictation() {
           if (!Recognition) { say('Dictation needs Chrome or Edge', 'err'); return; }
           if (wantOn) micEl.onclick();                     // don't run alongside the ask-bar mic
           stopSpeaking();
           noteRec = noteRec || new Recognition();
           Object.assign(noteRec, { lang: navigator.language || 'en-GB', interimResults: true, continuous: true });
-          dictating = true; base = textEl.value;
-          dictBtn.textContent = '■ Stop dictating'; dictBtn.classList.add('dictating'); say('Listening…');
+          dictating = true; handled = new Set(); dictWords = 0;
+          if (!inRich(sel().focusNode)) placeCaretAtEnd();
+          dictBtn.textContent = '■ Stop dictating'; dictBtn.classList.add('dictating');
+          say('Listening… say "new paragraph", "bullet point", "number point", "new heading", "new task"');
+          noteRec.onstart = () => { handled = new Set(); };
           noteRec.onresult = e => {
-            let text = '';
-            for (const r of e.results) text += r[0].transcript;
-            textEl.value = base + (base && !/\s$/.test(base) ? ' ' : '') + text.trim();
-            textEl.scrollTop = textEl.scrollHeight; keepDraft();
+            let interim = '';
+            for (let i = e.resultIndex; i < e.results.length; i++) {
+              const r = e.results[i];
+              if (!r.isFinal) { interim += r[0].transcript; continue; }
+              if (handled.has(i)) continue;
+              handled.add(i);
+              insertSpoken(r[0].transcript);
+            }
+            heardEl.hidden = !interim.trim(); heardEl.textContent = interim.trim() ? '… ' + interim.trim() : '';
           };
           noteRec.onerror = e => { if (FATAL_REC_ERRORS.has(e.error)) { say(REC_ERRORS[e.error] || e.error, 'err'); stopDictation(); } };
           noteRec.onend = () => {                          // Chrome ends sessions now and then: carry on
-            base = textEl.value;
             if (dictating) setTimeout(() => { if (dictating) try { noteRec.start(); } catch (_) {} }, 150);
           };
           try { noteRec.start(); } catch (_) {}
         }
-        function stopDictation() {
+        function insertSpoken(raw) {
+          if (!raw.trim() || !rich.isConnected) return;
+          dictWords += raw.trim().split(/\s+/).length;
+          if (document.activeElement !== rich) rich.focus();
+          if (!inRich(sel().focusNode)) {
+            if (lastRange) { sel().removeAllRanges(); sel().addRange(lastRange); } else placeCaretAtEnd();
+          }
+          let t = ' ' + raw.trim() + ' ';
+          for (const [re, rep] of SPOKEN) t = t.replace(re, rep);
+          t.split('\u0001').forEach((part, i) => {
+            let piece = part;
+            if (i > 0) {
+              const cmd = part[0], li = curLi(); piece = part.slice(1);
+              const inUl = li && li.parentNode.nodeName === 'UL', inOl = li && li.parentNode.nodeName === 'OL';
+              if (cmd === 'P') { if (li) { if (li.textContent.trim()) newItem(li, false); exitList(); } else run('insertParagraph'); }
+              else if (cmd === 'L') run('insertLineBreak');
+              else if (cmd === 'H' || cmd === 'S') { newBlock(); run('formatBlock', cmd === 'H' ? 'h2' : 'h3'); }
+              else if (cmd === 'B') { if (inUl && !hasBox(li)) newItem(li, false); else { newBlock(); makeList('UL'); } }
+              else if (cmd === 'N') { if (inOl) newItem(li, false); else { newBlock(); makeList('OL'); } }
+              else if (cmd === 'T') { if (inUl && hasBox(li)) newItem(li, true); else { newBlock(); makeList('UL', true); } }
+            }
+            piece = piece.replace(/\s+/g, ' ');
+            const before = textBeforeCaret().replace(/ /g, ' ');
+            const atStart = !before.trim();
+            if (atStart || /\s$/.test(before)) piece = piece.trimStart();
+            else if (piece.trim() && !/^[ .,?!:;]/.test(piece)) piece = ' ' + piece;
+            if (atStart || /[.?!]\s*$/.test(before)) piece = piece.replace(/^(\s*)([a-z])/, (_, s, c) => s + c.toUpperCase());
+            piece = piece.replace(/([.?!] )([a-z])/g, (_, p, c) => p + c.toUpperCase()).replace(/\s+$/, '');
+            if (piece) run('insertText', piece);
+          });
+          markDirty(); paintFmt();
+          const b = curBlock(); if (b) b.scrollIntoView({ block: 'nearest' });
+        }
+        function stopDictation(byUser = false) {
           if (!dictating) return;
           dictating = false;
           try { noteRec.stop(); } catch (_) {}
+          heardEl.hidden = true;
           dictBtn.textContent = '🎙 Dictate'; dictBtn.classList.remove('dictating'); say(dirty ? 'Not saved yet' : '');
+          // Give Chrome a moment to hand over the last phrase, then tidy if asked to.
+          if (byUser && autoChk.checked) setTimeout(() => { if (!dictating && dictWords >= 15) tidy(true); }, 700);
         }
         workEl.current.stop = stopDictation;
 
@@ -2613,7 +2993,7 @@ const tc = THEME.colour;
           if (!shown.length) listEl.innerHTML = '<div class="empty">No notes match.</div>';
           shown.forEach(n => listEl.appendChild(rowEl(n.path === current ? 'current' : '',
             `<div class="main"><div class="t">${escapeHtml(n.name)}</div><div class="m">${escapeHtml(n.topic || 'Unfiled')} · ` +
-            `${escapeHtml(fmtDate(n.modified))} · ${escapeHtml(n.preview)}</div></div>`,
+            `${escapeHtml(fmtDate(n.modified))} · ${escapeHtml(n.preview.replace(/(^|\s)(#{1,6}|[-*] \[[ xX]\]|[-*]|\d+\.)(?=\s)/g, '$1').replace(/\*\*|__/g, '').replace(/\s+/g, ' ').trim())}</div></div>`,
             () => { if (dirty && !confirm('Leave this note without saving?')) return; loadInto(n.path); })));
         }
         async function refreshList() {
