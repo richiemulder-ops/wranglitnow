@@ -4649,6 +4649,8 @@ const tc = THEME.colour;
   // daily brief, waits until the tour ends or is turned down, so neither cuts the other off.
   let greetHeld = false;
   const setupAtBoot = api('/api/setup').catch(() => null);
+  // Live Jarvis has no /api/setup; "What's new" still needs the release list.
+  setupAtBoot.then(s => { if (!s || !s.tour_releases) api('/api/tour-releases').then(r => { if (r && r.tour_releases) SETUP.tour_releases = r.tour_releases; }).catch(() => {}); });
   async function announceOrHold() {
     const s = await setupAtBoot;
     if (s && s.version && !s.tour_seen) { greetHeld = true; return; }
@@ -7989,7 +7991,13 @@ const tc = THEME.colour;
   function tourStepsFor(topic) {
     const t = String(topic || 'all').toLowerCase().trim();
     if (!t || t === 'all' || /full|whole|everything|^tour$/.test(t)) return TOUR_STEPS;
-    if (t === 'new' || /what.?s new|latest|update/.test(t)) return whatsNewSteps(SETUP.tour_seen_before || '') || [];
+    if (t === 'new' || /what.?s new|latest|update/.test(t)) {
+      // Asked for: what changed since the last tour, or failing that (never toured, or seen it all)
+      // the latest release's steps, so the button always shows something.
+      const seen = SETUP.tour_seen_before || '';
+      const latest = (SETUP.tour_releases || [])[0];
+      return (seen && whatsNewSteps(seen)) || (latest ? latest.steps.map(tourStep).filter(Boolean) : []);
+    }
     const ch = TOUR_CHAPTERS.find(c => c.key === t || c.title.toLowerCase().includes(t) || t.includes(c.key));
     if (ch) return TOUR_STEPS.filter(s => s.ch === ch.key);
     const words = t.replace(/[^a-z ]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !['the', 'how', 'show', 'works', 'use', 'what', 'does'].includes(w));
