@@ -1,7 +1,8 @@
 {
-  "version": "2026.11.12.1",
+  "version": "2026.11.12.2",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes. 'tour' lists the tutorial step ids (TOUR_STEPS in viewer/index.html) this release added or changed, for the 'what's new' tour; run check_tour.py before pushing.",
   "notes": [
+    "Jarvis keeps running if whatever started him closes, for example the Claude Code window used to install or update him. Before, closing that window too soon could take Jarvis down with it (\"site can't be reached\").",
     "Jarvis now finds notes by meaning, not just exact words: ask about \"the truck dealership's risk meeting\" and he finds the note called \"governance session\". Exact names still come first. It runs on your own computer (nothing is sent anywhere) and sets itself up in the background the first time, so it may take a few minutes after this update before it kicks in.",
     "Settings no longer has a Jobs tab: everything it did is on the Jobs card on the left. Jobs in your daily brief open that job's page.",
     "Jarvis now remembers. Your conversations with him are kept (across windows, days and restarts), he recalls older chats that match what you ask, he knows what the team has finished lately, and he keeps a list of facts to remember for good. Say \"remember that...\" or just correct him, and he notes it; when something changes, the newest wins.",
@@ -75,6 +76,13 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.12.2",
+      "notes": [
+        "Jarvis keeps running if whatever started him closes, for example the Claude Code window used to install or update him. Before, closing that window too soon could take Jarvis down with it (\"site can't be reached\")."
+      ],
+      "tour": []
+    },
     {
       "version": "2026.11.12.1",
       "notes": [

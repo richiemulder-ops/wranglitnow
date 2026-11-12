@@ -32,19 +32,62 @@ def python_exe():
     return exe
 
 
-def start():
+def spawn():
+    """launch.py --spawn: start the server, record its process id, and exit straight away.
+
+    The server must outlive whatever started Jarvis: the desktop shortcut, the updater, or a Claude
+    Code session running the install, whose processes are cleaned up (the whole tree under its
+    shell) when the session closes. Started from this short-lived helper, the server has no living
+    parent within moments, so a clean-up of the caller's tree can't reach it, even while the server
+    is still loading. Flags (Windows):
+      CREATE_NO_WINDOW: no black box on screen, and a console of its own, apart from the caller's.
+      CREATE_NEW_PROCESS_GROUP: the caller's Ctrl+C or console closing doesn't reach it.
+      CREATE_BREAKAWAY_FROM_JOB: out of the caller's job object, where that job allows it."""
     os.makedirs(os.path.join(HERE, "data"), exist_ok=True)
     log = open(os.path.join(HERE, "data", "server.log"), "a", encoding="utf-8")
-    flags = 0x08000000 if os.name == "nt" else 0          # CREATE_NO_WINDOW: no black box on screen
-    p = subprocess.Popen([python_exe(), os.path.join(HERE, "server.py")], cwd=HERE,
-                         stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
-                         creationflags=flags, close_fds=True)
+    base = (0x08000000 | 0x00000200) if os.name == "nt" else 0
+    cmd = [python_exe(), os.path.join(HERE, "server.py")]
+    try:
+        p = subprocess.Popen(cmd, cwd=HERE, stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
+                             creationflags=base | (0x01000000 if os.name == "nt" else 0), close_fds=True,
+                             start_new_session=os.name != "nt")
+    except OSError:   # the caller's job forbids breaking away: start it without that
+        p = subprocess.Popen(cmd, cwd=HERE, stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
+                             creationflags=base, close_fds=True, start_new_session=os.name != "nt")
     with open(PID_FILE, "w") as f:
         f.write(str(p.pid))
+
+
+def alive(pid):
+    if os.name != "nt":
+        try:
+            os.kill(pid, 0)
+            return True
+        except OSError:
+            return False
+    import ctypes   # os.kill(pid, 0) would stop the process on Windows, so ask for its exit code
+    k = ctypes.windll.kernel32
+    h = k.OpenProcess(0x1000, False, pid)   # PROCESS_QUERY_LIMITED_INFORMATION
+    if not h:
+        return False
+    code = ctypes.c_ulong()
+    k.GetExitCodeProcess(h, ctypes.byref(code))
+    k.CloseHandle(h)
+    return code.value == 259   # STILL_ACTIVE
+
+
+def start():
+    flags = 0x08000000 if os.name == "nt" else 0   # the helper is gone in a moment; no window for it either
+    subprocess.run([python_exe(), os.path.abspath(__file__), "--spawn"], cwd=HERE, creationflags=flags,
+                   stdin=subprocess.DEVNULL, timeout=60)
+    try:
+        pid = int(open(PID_FILE).read().strip())
+    except (OSError, ValueError):
+        return False
     for _ in range(60):
         if running():
             return True
-        if p.poll() is not None:
+        if not alive(pid):
             return False
         time.sleep(0.5)
     return running()
@@ -65,6 +108,8 @@ def stop():
 
 
 def main():
+    if "--spawn" in sys.argv:   # internal: see spawn()
+        return spawn()
     if "--stop" in sys.argv:
         return stop()
     if "--restart" in sys.argv:   # the page reloads itself, so no new browser tab
