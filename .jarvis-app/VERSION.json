@@ -1,7 +1,8 @@
 {
-  "version": "2026.11.13.5",
+  "version": "2026.11.13.6",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes. 'tour' lists the tutorial step ids (TOUR_STEPS in viewer/index.html) this release added or changed, for the 'what's new' tour; run check_tour.py before pushing.",
   "notes": [
+    "The Halo mark on the right now shows what is going on at a glance. Resting: it draws itself and fills, with no pulsing. Speaking: it stays filled and sends out soft sonar rings with the voice. Thinking: it spins. When the team is working on something: a circle draws round the mark clockwise while the leaves fill in anticlockwise. Also fixed: the Current work bar, the Index and the Halo mark no longer overlap on smaller screens; the mark shrinks to fit the space it has.",
     "The sparks between notes are back to plain moving sparks, without the glowing trails, and they are larger in the Logo and Nucleus views so you can still see them. The Frame menu now appears only in the Logo view.",
     "The Logo view in the galaxy can now put each leaf of the mark in a 3D frame, with the notes floating inside it. Pick Glass case, Wire cage, Neon rim or None from the new Frame menu under View, and tick Colours to give each leaf its own colour. Halo remembers your choice. The sparks that run between notes now leave a short glowing trail, so you can see them travelling along their connections in the Logo and Nucleus views too, where the lines themselves are hidden.",
     "Settings > Colours now lets you change the background too, not just the two highlight colours: pick black, dark grey or any dark colour, and the page and every panel follow it. There are three new themes with darker backgrounds (Midnight, Graphite, Forest). You can also save your own colours as a named theme: type a name and press Save as theme, then click it any time to switch back.",
@@ -91,6 +92,13 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.13.6",
+      "notes": [
+        "The Halo mark on the right now shows what is going on at a glance. Resting: it draws itself and fills, with no pulsing. Speaking: it stays filled and sends out soft sonar rings with the voice. Thinking: it spins. When the team is working on something: a circle draws round the mark clockwise while the leaves fill in anticlockwise. Also fixed: the Current work bar, the Index and the Halo mark no longer overlap on smaller screens; the mark shrinks to fit the space it has."
+      ],
+      "tour": []
+    },
     {
       "version": "2026.11.13.5",
       "notes": [

@@ -558,7 +558,7 @@
 
   /* Metrics bar along the top: five tiles between the logo and the Index. */
   #metrics { position: fixed; z-index: 4; top: 18px; display: flex; gap: 10px;
-    left: calc(var(--left-rail) + 4px); right: calc(var(--right-rail) + 200px); }
+    left: calc(var(--left-rail) + 4px); right: calc(var(--right-rail) + var(--legend-room, 200px)); }
   .metric { position: relative; flex: 1 1 0; min-width: 0; padding: 8px 12px 8px 15px; border-radius: 12px;
     background: var(--glass); backdrop-filter: blur(10px); border: 1px solid var(--edge); text-align: left;
     font: inherit; color: var(--ink); cursor: pointer; overflow: hidden; transition: background 0.2s; }
@@ -593,7 +593,7 @@
   .newproj.busy input, .newproj.busy textarea { opacity: 0.6; }
   @keyframes npslide { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
   @media (max-width: 1000px) {
-    #metrics { right: calc(var(--jarvis-size) + 40px); }
+    #metrics { right: calc(var(--right-rail) + var(--legend-room, 200px)); }
     #metrics .metric:nth-child(n+4) { display: none; }
   }
   @media (max-width: 600px) { #metrics { display: none; } }
@@ -4857,6 +4857,7 @@ const tc = THEME.colour;
     waking = false;
     document.body.classList.remove('waking');
     if (typeof maybeOnboard === 'function') maybeOnboard();
+    if (typeof placeJarvis === 'function') setTimeout(placeJarvis, 950);   // after the glide to its corner
   }
   document.getElementById('wake').addEventListener('click', wakeUp);
   window.addEventListener('keydown', e => { if (waking) { e.preventDefault(); wakeUp(); } });
@@ -5943,9 +5944,11 @@ const tc = THEME.colour;
   setInterval(loadHires, 60000);   // hires can also be staged from Team chat or Claude Code
 
   // ---- H.A.L.O. emblem: the Carbonhalo mark --------------------------------------------
-  // Five petals from the brand logo. Idle: the outline draws itself petal by petal, fills, then
-  // sends out sonar rings while solid. Listening: pale and ripples. Thinking: fast even spin with a
-  // bright petal chasing round. Speaking: steady spin, petals open and close with the words.
+  // Five petals from the brand logo. Idle: the outline draws itself petal by petal, fills and rests
+  // solid. Agents working: a circle draws round the mark clockwise while the petals fill one by one
+  // anticlockwise. Listening: pale and ripples. Thinking: fast spin with a bright petal chasing round.
+  // Speaking: solid and still, sending out sonar rings in time with the voice.
+  let agentsBusy = false;   // set by pollCrew: someone on the team is working
   const jarvisEl = document.getElementById('jarvis');
   const SVGNS = 'http://www.w3.org/2000/svg';   // also used by the tutorial's spotlight
   const halo = (() => {
@@ -5972,6 +5975,10 @@ const tc = THEME.colour;
     const root = document.getElementById('j-scale');
     const glow = add(root, 'circle', { r: 58, fill: 'url(#j-glow)', opacity: 0.15 });
     const rings = [0, 1, 2].map(() => add(root, 'circle', { r: 46, fill: 'none', stroke: GREEN, 'stroke-width': 0.8, opacity: 0 }));
+    // Agents working: a ring that draws itself clockwise from the top.
+    const ORBIT_R = 50, ORBIT_LEN = TAU * ORBIT_R;
+    const orbit = add(root, 'circle', { r: ORBIT_R, fill: 'none', stroke: GREEN, 'stroke-width': 1.4, 'stroke-linecap': 'round',
+      transform: 'rotate(-90)', opacity: 0, 'stroke-dasharray': `0 ${ORBIT_LEN.toFixed(1)}` });
     const spinG = add(root, 'g', {});
     const C0 = [18.6 * S, -29.6 * S];   // first petal's middle, from the centre; the rest are 72 degree turns of it
     const petals = PETALS.map((d, i) => {
@@ -5984,19 +5991,27 @@ const tc = THEME.colour;
     const P = () => petals.map(() => ({ x: 0, y: 0, s: 1, a: 1, fill: 1, dash: null }));
     const bloom = b => petals.map(pt => ({ x: Math.cos(pt.ang) * b, y: Math.sin(pt.ang) * b, s: 1, a: 1, fill: 1, dash: null }));
 
-    let rot = 0, spin = 0, idleT = 0, lastMode = '', cur = P(), g = { glow: 0.15, pale: 0 };
+    let rot = 0, spin = 0, idleT = 0, workT = 0, lastMode = '', cur = P(), g = { glow: 0.15, pale: 0, orbit: 0 };
+    const ANTI = [0, 4, 3, 2, 1];   // petals in anticlockwise order from the top (PETALS runs clockwise)
     function target(mode, t, dt, energy) {
-      if (mode === 'idle') {
+      if (mode === 'idle') {   // draw, fill, rest solid; then fade and draw again. No sonar.
         idleT += dt;
         const u = idleT % 10, END = 8.6;
-        const env = clamp((u - 3.4) / 0.6) * (1 - clamp((u - (END - 0.6)) / 0.6));
-        const beat = env * (0.5 + 0.5 * Math.cos(Math.max(0, u - 3.4) * 0.55 * TAU * 3));
-        return { spin: 0, beat, glow: u > 3 && u < END ? 0.22 + beat * 0.15 : 0.08,
-          ripple: [0, 1, 2].map(j => { const fr = (Math.max(0, u - 3.4) * 0.55 + j / 3) % 1; return { r: 46 + fr * 13, a: env * 0.6 * (1 - fr) * Math.min(1, fr * 6) }; }),
+        return { spin: 0, glow: u > 3 && u < END ? 0.22 : 0.08,
           p: petals.map((_, i) => {
             const dash = u < END ? clamp((u - i * 0.4) / 0.8) : 1;
             const fill = u < 2.8 ? 0 : u < END ? ease((u - 2.8 - i * 0.08) / 0.5) : 1 - ease((u - END) / 0.9);
-            return { x: 0, y: 0, s: 1 + beat * 0.02, a: u < END ? 1 : mix(1, 0.15, ease((u - END) / 0.9)), fill, dash };
+            return { x: 0, y: 0, s: 1, a: u < END ? 1 : mix(1, 0.15, ease((u - END) / 0.9)), fill, dash };
+          }) };
+      }
+      if (mode === 'working') {   // 6 s: ring draws clockwise as the petals fill anticlockwise, holds, fades
+        workT += dt;
+        const u = workT % 6, out = 1 - ease((u - 5.1) / 0.9);
+        return { spin: 0, glow: 0.18 + 0.1 * clamp(u / 3) * out,
+          orbit: { draw: ease(u / 3), a: 0.9 * out },
+          p: petals.map((_, i) => {
+            const k = ANTI.indexOf(i);
+            return { x: 0, y: 0, s: 1, a: 0.35 + 0.65 * out, fill: ease((u - 0.2 - k * 0.55) / 0.6) * out, dash: null };
           }) };
       }
       if (mode === 'listening') {
@@ -6009,19 +6024,31 @@ const tc = THEME.colour;
         const head = (t * 2.2) % 5;
         return { spin: 200, glow: 0.35, p: P().map((q, i) => { const d = (i - head + 5) % 5; q.a = 0.3 + 0.7 * Math.max(0, 1 - d / 2.2); return q; }) };
       }
-      // speaking: energy already follows the voice (word-boundary kicks over a speech-like flutter)
-      return { spin: 160, glow: 0.25 + energy * 0.45, p: bloom(energy * 4) };
+      // speaking: solid and still; sonar rings go out faster and brighter with the voice
+      // (energy follows word-boundary kicks over a speech-like flutter).
+      return { spin: 0, glow: 0.25 + energy * 0.35, beat: energy,
+        ripple: [0, 1, 2].map(j => { const fr = (t * (0.45 + energy * 0.35) + j / 3) % 1; return { r: 46 + fr * 14, a: (0.35 + energy * 0.45) * (1 - fr) * Math.min(1, fr * 6) }; }),
+        p: P().map(q => { q.s = 1 + energy * 0.025; return q; }) };
     }
     return function frame(now, dt, mode, energy) {
-      if (mode !== lastMode) { if (mode === 'idle' && lastMode) idleT = 3.4; lastMode = mode; }   // back to idle: stay solid, no redraw
+      if (mode !== lastMode) {
+        if (mode === 'idle' && lastMode) idleT = 3.4;   // back to idle: stay solid, no redraw
+        if (mode === 'working') workT = 0;              // start the ring from the top
+        lastMode = mode;
+      }
       const f = target(mode, now / 1000, dt, energy), k = Math.min(1, dt * 9), k2 = Math.min(1, dt * 5);
       spin = mix(spin, f.spin, Math.min(1, dt * 3));
       rot = (rot + spin * dt) % 360;
+      // Not spinning: settle upright (the mark repeats every 72 degrees), so it never rests askew.
+      if (!f.spin && Math.abs(spin) < 20) rot = mix(rot, Math.round(rot / 72) * 72, Math.min(1, dt * 3));
       g.glow = mix(g.glow, f.glow || 0, k2); g.pale = mix(g.pale, f.pale || 0, k2);
       cur = cur.map((q, i) => { const w = f.p[i]; return { x: mix(q.x, w.x, k), y: mix(q.y, w.y, k), s: mix(q.s, w.s, k), a: mix(q.a, w.a, k), fill: mix(q.fill, w.fill, k), dash: w.dash }; });
       spinG.setAttribute('transform', `rotate(${rot.toFixed(2)})`);
       glow.setAttribute('opacity', g.glow.toFixed(3));
       rings.forEach((c, j) => { const r = f.ripple && f.ripple[j]; c.setAttribute('opacity', r ? r.a.toFixed(3) : 0); if (r) c.setAttribute('r', r.r.toFixed(2)); });
+      g.orbit = mix(g.orbit, f.orbit ? f.orbit.a : 0, k2);
+      orbit.setAttribute('opacity', g.orbit.toFixed(3));
+      if (f.orbit) orbit.setAttribute('stroke-dasharray', `${(ORBIT_LEN * f.orbit.draw).toFixed(1)} ${ORBIT_LEN.toFixed(1)}`);
       const col = colour(g.pale);
       petals.forEach((pt, i) => {
         const q = cur[i], [cx, cy] = pt.c;
@@ -6040,7 +6067,7 @@ const tc = THEME.colour;
   function animateJarvis(now) {
     const dt = Math.min(0.05, (now - lastFrame) / 1000);
     lastFrame = now;
-    const mode = ['speaking', 'thinking', 'listening'].find(m => statusEl.classList.contains(m)) || 'idle';
+    const mode = ['speaking', 'thinking', 'listening'].find(m => statusEl.classList.contains(m)) || (agentsBusy ? 'working' : 'idle');
     const speaking = mode === 'speaking';
     // While speaking: word-boundary kicks (where the voice reports them) over a speech-like flutter.
     voiceKick *= Math.pow(0.03, dt);
@@ -6060,14 +6087,26 @@ const tc = THEME.colour;
     if (!streamLevel && overlayPairs.length) overlayMat.opacity = overlayOpacity;
   }
 
-  // Sit just under the Index, wherever its height ends up.
+  // Sit just under the Index, wherever its height ends up, and shrink (down to 110px) to fit in the
+  // space left above the context card. The metrics bar stops short of the Index, however wide it is.
   function placeJarvis() {
-    const legend = document.getElementById('legend');
-    const h = legend.offsetHeight;
-    document.documentElement.style.setProperty('--jarvis-top', h ? `${legend.offsetTop + h + 28}px` : '22px');
+    const css = document.documentElement.style;
+    const legend = document.getElementById('legend'), ctx = document.getElementById('context');
+    const lr = legend.getBoundingClientRect();
+    if (lr.width) css.setProperty('--legend-room', `${Math.ceil(lr.width) + 26 + 12}px`);
+    const top = lr.height ? Math.round(lr.bottom + 28) : 22;
+    css.setProperty('--jarvis-top', `${top}px`);
+    if (document.body.classList.contains('waking')) return;   // centre stage at full size until woken
+    const cr = ctx && getComputedStyle(ctx).display !== 'none' ? ctx.getBoundingClientRect() : null;
+    const floor = cr && cr.height ? cr.top - 18 : window.innerHeight - 26;
+    css.setProperty('--jarvis-size', `${Math.round(Math.max(110, Math.min(210, floor - top)))}px`);
   }
   placeJarvis();
   window.addEventListener('resize', placeJarvis);
+  if (window.ResizeObserver) {
+    const ro = new ResizeObserver(() => placeJarvis());
+    ['legend', 'context'].forEach(id => { const el = document.getElementById(id); if (el) ro.observe(el); });
+  }
 
   // Talk to the emblem: same as the mic button (the first click only wakes him).
   jarvisEl.onclick = () => (waking ? wakeUp() : micEl.onclick());
@@ -6752,6 +6791,7 @@ const tc = THEME.colour;
       if (!jobPoll) jobPoll = setInterval(pollJobs, 5000);
     }
     const live = crew.workers.filter(w => !w.done);
+    agentsBusy = live.length > 0;   // the emblem draws its working ring
     const projects = [...new Set(live.map(w => w.project))];
     tCrew.el.classList.toggle('live', live.length > 0);
     tCrew.set(live.length ? `${live.length} <small>${live.length === 1 ? 'agent' : 'agents'}</small>` : '<small>Team idle</small>',
