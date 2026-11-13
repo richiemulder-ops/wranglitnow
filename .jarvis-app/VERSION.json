@@ -1,7 +1,11 @@
 {
-  "version": "2026.11.12.9",
+  "version": "2026.11.13.1",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes. 'tour' lists the tutorial step ids (TOUR_STEPS in viewer/index.html) this release added or changed, for the 'what's new' tour; run check_tour.py before pushing.",
   "notes": [
+    "Answers in the main chat are now laid out to be easy to read: short paragraphs, bullet points, bold lead-ins and headings for longer replies, instead of one long run of text. Team reports in the answer card look the same way. What he says aloud is unchanged.",
+    "The Team Inbox and Deliverables cards and the To file counts now update by themselves when the team files or adds something, so you no longer see files that have already gone.",
+    "In the office view, empty charging pads show the Carbonhalo mark; when a bot stands on one, it glows as a solid circle.",
+    "The Logo galaxy view is now a thicker 3D mark that slowly turns like a coin while spinning like the Halo emblem, without the tangle of note-to-note lines hiding the petals.",
     "Fixed: the desktop shortcut could keep showing the old Jarvis picture. It now shows the Halo mark.",
     "The desktop and Start menu shortcut is now called Halo, with the Halo icon. It renames itself the first time Halo starts after this update.",
     "Jarvis is now Halo (H.A.L.O.). The ring on the right is replaced by the Carbonhalo mark: it draws itself, fills and sends out soft pulses while waiting, goes pale and ripples while listening, spins with a chasing petal while thinking, and spins while he talks. New icon on the desktop shortcut too. He still answers if you call him Jarvis, and your settings, chats and shortcut keep working as before.",
@@ -83,6 +87,16 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.13.1",
+      "notes": [
+        "Answers in the main chat are now laid out to be easy to read: short paragraphs, bullet points, bold lead-ins and headings for longer replies, instead of one long run of text. Team reports in the answer card look the same way. What he says aloud is unchanged.",
+        "The Team Inbox and Deliverables cards and the To file counts now update by themselves when the team files or adds something, so you no longer see files that have already gone.",
+        "In the office view, empty charging pads show the Carbonhalo mark; when a bot stands on one, it glows as a solid circle.",
+        "The Logo galaxy view is now a thicker 3D mark that slowly turns like a coin while spinning like the Halo emblem, without the tangle of note-to-note lines hiding the petals."
+      ],
+      "tour": []
+    },
     {
       "version": "2026.11.12.9",
       "notes": [

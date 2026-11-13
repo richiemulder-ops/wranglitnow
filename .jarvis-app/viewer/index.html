@@ -775,6 +775,14 @@
   #answer-close:hover { color: var(--ink); background: rgba(186,211,103,0.18); }
   #answer.error { color: #ffb3b3; }
   #answer .q { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); margin-bottom: 6px; }
+  #answer .md > :first-child { margin-top: 0; } #answer .md > :last-child { margin-bottom: 0; }
+  #answer .md p { margin: 0 0 10px; } #answer .md ul, #answer .md ol { margin: 4px 0 10px; padding-left: 20px; }
+  #answer .md li { margin: 3px 0; } #answer .md li > p { margin: 0; }
+  #answer .md h1, #answer .md h2, #answer .md h3, #answer .md h4 { font-size: 14.5px; font-weight: 600; color: var(--ink); margin: 14px 0 6px; }
+  #answer .md strong { color: var(--ink); font-weight: 600; } #answer .md a { color: #bad367; }
+  #answer .md table { border-collapse: collapse; margin: 6px 0 10px; font-size: 13px; }
+  #answer .md th, #answer .md td { border: 1px solid var(--edge); padding: 4px 8px; text-align: left; vertical-align: top; }
+  #answer .md code { font-size: 12.5px; background: rgba(255,255,255,0.06); padding: 1px 4px; border-radius: 4px; }
   #answer .sources { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
   #answer .sources button { font: inherit; font-size: 12px; color: var(--ink); background: rgba(255,255,255,0.05);
     border: 1px solid var(--edge); border-radius: 999px; padding: 3px 10px; cursor: pointer;
@@ -1297,6 +1305,28 @@ const tc = THEME.colour;
     st.swirl = requestAnimationFrame(tick);
   }
 
+  // ---- Logo spin: the mark turns like a coin round the vertical axis while it also spins in its own
+  // plane, clockwise, as the Halo emblem does. Rotates the laid-out positions every frame.
+  function spinLogo(Graph, st, positions) {
+    const pts = [];
+    for (const n of Graph.graphData().nodes) { const p = positions.get(n.id); if (p) pts.push({ n, x: p.x, y: p.y, z: p.z }); }
+    const SPIN = 0.1, TURN = 0.11;   // rad per second: in-plane spin (~63 s a turn), coin turn (~57 s)
+    let a = 0, b = 0, last = performance.now(), kick = last;
+    const tick = now => {
+      const dt = Math.min(0.1, (now - last) / 1000); last = now;
+      a = (a - SPIN * dt) % TAU; b = (b + TURN * dt) % TAU;
+      const ca = Math.cos(a), sa = Math.sin(a), cb = Math.cos(b), sb = Math.sin(b);
+      for (const q of pts) {
+        const x1 = q.x * ca - q.y * sa, y1 = q.x * sa + q.y * ca, n = q.n;
+        n.fx = n.x = x1 * cb + q.z * sb; n.fy = n.y = y1; n.fz = n.z = -x1 * sb + q.z * cb;
+      }
+      if (now - kick > 8000) { kick = now; Graph.d3ReheatSimulation(); }   // keeps the graph redrawing
+      st.swirl = requestAnimationFrame(tick);
+    };
+    Graph.d3ReheatSimulation();
+    st.swirl = requestAnimationFrame(tick);
+  }
+
   // ---- Logo: notes form a halo ring with a gap (facing the default camera on +z) ----
   // ---- Logo: the notes fill the Carbonhalo mark (five petals), each type a stretch round it ----
   // The mark's path, from carbonhalo_logo_black.svg (viewBox 0 0 91.6415 90.7938).
@@ -1340,7 +1370,7 @@ const tc = THEME.colour;
     const pts = logoPoints(order.length);
     const K = (R * 2) / (LOGO_W / 2);   // the mark's radius maps to about 2x HUB_RADIUS
     const at = ([x, y], id, depth) => ({ x: (x - LOGO_CX) * K, y: -(y - LOGO_CY) * K, z: (hash01(id, 9) - 0.5) * depth });
-    order.forEach((n, i) => pos.set(n.id, at(pts[Math.min(i, pts.length - 1)], n.id, R * 0.12)));
+    order.forEach((n, i) => pos.set(n.id, at(pts[Math.min(i, pts.length - 1)], n.id, R * 0.55)));   // a thick coin, not a sheet
     // Hubs float just in front of the middle of their own notes.
     const centre = list => {
       const c = { x: 0, y: 0 };
@@ -1348,8 +1378,8 @@ const tc = THEME.colour;
       return { x: c.x / (list.length || 1), y: c.y / (list.length || 1) };
     };
     idx.types.forEach(t => {
-      if (t.ordered.length) pos.set(t.hub.id, { ...centre(t.ordered), z: R * 0.25 });
-      t.groups.forEach(g => { if (g.sub && g.notes.length) pos.set(g.sub.id, { ...centre(g.notes), z: R * 0.15 }); });
+      if (t.ordered.length) pos.set(t.hub.id, { ...centre(t.ordered), z: R * 0.42 });
+      t.groups.forEach(g => { if (g.sub && g.notes.length) pos.set(g.sub.id, { ...centre(g.notes), z: R * 0.34 }); });
     });
     return finish(nodes, pos, idx, R * 3);
   }
@@ -1439,6 +1469,7 @@ const tc = THEME.colour;
         if (name === 'galaxy') Graph.d3ReheatSimulation();   // let the notes settle round their hubs again
         const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
         if (name === 'nucleus' && positions && !still) swirl(Graph, st, positions);
+        if (name === 'logo' && positions && !still) spinLogo(Graph, st, positions);
         resolve(true);
       };
       st.raf = requestAnimationFrame(step);
@@ -1596,8 +1627,8 @@ const tc = THEME.colour;
     try { localStorage.setItem('jarvis-layout', v); } catch (e) {}
     if (!window.JarvisLayouts) return;
     const pos = v === 'galaxy' ? null : JarvisLayouts.LAYOUTS[v](nodes, hubLinks, { NOTE_COUNT, HUB_RADIUS, typeHub });
-    // Nucleus: the note-to-note links would cross the ball and hide the core, so only the hub lines show.
-    Graph.linkVisibility(v === 'nucleus' ? l => l.kind === 'sub' || l.kind === 'core' : l => l.kind !== 'spoke');
+    // Nucleus and Logo: the note-to-note links would hide the shape, so only the hub lines show.
+    Graph.linkVisibility(v === 'nucleus' || v === 'logo' ? l => l.kind === 'sub' || l.kind === 'core' : l => l.kind !== 'spoke');
     pauseDrift(ms + 4000);
     JarvisLayouts.applyLayout(Graph, v, pos, ms);
     Graph.cameraPosition(VIEW_CAM[v], { x: 0, y: 0, z: 0 }, ms);
@@ -3641,6 +3672,7 @@ const tc = THEME.colour;
     catch (err) { setStatus('error', err.message, 4000); }
   }
 
+  const fileRefreshers = [];   // CR-019: cards that list files re-read them when the team may have moved some
   const tourRefreshers = [];   // cards that cache a listing: the tour swaps examples in and out
   function folderSection(key, icon, title, color) {
     const root = { inbox: 'Team Inbox', deliverables: 'Deliverables' }[key];
@@ -3669,6 +3701,7 @@ const tc = THEME.colour;
     }
 
     function render(b, data) {
+      shownSig = sigOf(data);
       b.innerHTML = '';
       const tools = document.createElement('div'); tools.className = 'tools';
       const btn = (label, fn, tip) => {
@@ -3692,6 +3725,20 @@ const tc = THEME.colour;
     }
 
     const openInOs = path => openInDesktop(key, path);
+
+    // CR-019: re-read the listing in the background and redraw only when it changed, so the card never
+    // shows files the team has already filed (or misses ones they added).
+    let shownSig = '';
+    function sigOf(d) { return JSON.stringify(d.entries.map(e => [e.name, e.modified, e.size])); }
+    fileRefreshers.push(async () => {
+      if (!loaded) return;
+      let d;
+      try { d = await api(`/api/folder?name=${key}&path=${encodeURIComponent(current)}`); }
+      catch (_) { if (current) load(body, ''); return; }   // the folder it was showing has gone
+      if (sigOf(d) === shownSig) return;
+      if (!current) justAdded = justAdded.filter(n => d.entries.some(e => e.name === n));
+      render(body, d);
+    });
 
     // Team Inbox takes files: dragged from the desktop onto its card, or picked with "+ Add files".
     // They go into whichever inbox folder the card is showing.
@@ -5191,7 +5238,10 @@ const tc = THEME.colour;
       const q = document.createElement('div'); q.className = 'q'; q.textContent = question;
       answerEl.appendChild(q);
     }
-    const a = document.createElement('div'); a.textContent = text;
+    // CR-020: the reply is markdown (paragraphs, bullets, headings), shown formatted. Errors stay plain.
+    const a = document.createElement('div');
+    if (isError) a.textContent = text;
+    else { a.className = 'md'; a.innerHTML = renderMarkdown(String(text || '')); wireNoteLinks(a); }
     answerEl.appendChild(a);
     if (ids.length) {
       const src = document.createElement('div'); src.className = 'sources';
@@ -6496,9 +6546,19 @@ const tc = THEME.colour;
     setPiles();
   }
 
+  // CR-019: file cards and the To file counts follow what the team does. While anyone is working (and for
+  // the 20 s finished work stays listed) they are re-read every poll; otherwise every 30 s, since Claude
+  // Code sessions outside Halo move files too; and whenever the window comes back into focus.
+  let filesAt = 0, crewWasBusy = false;
+  function refreshFileViews() { filesAt = Date.now(); pollPiles(); fileRefreshers.forEach(f => f()); }
+  window.addEventListener('focus', refreshFileViews);
+
   async function pollCrew() {
     if (crewOpen) pollPiles();
     try { crew = await api('/api/current-work'); } catch (_) { return; }
+    const busyNow = crew.workers.length > 0;
+    if (Date.now() - filesAt > (busyNow || crewWasBusy ? 4000 : 30000)) refreshFileViews();
+    crewWasBusy = busyNow;
     if ((crew.jobs_running || []).some(id => !jobs.has(id))) {   // a scheduled job started on the server
       pollJobs();
       if (!jobPoll) jobPoll = setInterval(pollJobs, 5000);
@@ -6918,7 +6978,11 @@ const tc = THEME.colour;
       const p = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.85, 0.12, 28),
         mat(0x2d3570, { emissive: new THREE.Color(tc('#bad367')), emissiveIntensity: 0.2 }));
       p.position.set(x, 0.36, z); p.receiveShadow = true; scene.add(p);
-      F.pads.push({ pos: new THREE.Vector3(x, 0.42, z), mesh: p, col: i % 3, boost: 0 });
+      // CR-021: an empty pad shows the Carbonhalo mark; with a bot on it, the mark goes and the pad glows solid.
+      const mark = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.2),
+        new THREE.MeshBasicMaterial({ map: logoTexture(), transparent: true, depthWrite: false }));
+      mark.rotation.x = -Math.PI / 2; mark.position.set(x, 0.425, z); scene.add(mark);
+      F.pads.push({ pos: new THREE.Vector3(x, 0.42, z), mesh: p, mark, col: i % 3, boost: 0 });
     }
     // Power: a battery pack at each end of HQ, wired through every column of charging pads. Pulses of
     // charge run from battery to battery along the wires and light each pad (and its bot) as they pass.
@@ -7565,9 +7629,12 @@ const tc = THEME.colour;
       const f = Math.min(1, Math.max(0, Math.abs(z) - BUS) / (END - BUS));
       p.z = z; p.mesh.position.set(p.x + (HQ_X - p.x) * f, 0.4, z);
     });
+    const botsNow = [...F.bots.values()];
     F.pads.forEach((p, i) => {
       p.boost = 0; F.pulses.forEach(q => { if (q.col === p.col) p.boost = Math.max(p.boost, 1 - Math.abs(q.z - p.pos.z)); });
-      p.mesh.material.emissiveIntensity = 0.18 + Math.max(0, Math.sin(t * 2 + i)) * 0.12 + p.boost * 0.7;
+      const taken = botsNow.some(b => Math.hypot(b.pos.x - p.pos.x, b.pos.z - p.pos.z) < 0.7);
+      p.mark.visible = !taken;
+      p.mesh.material.emissiveIntensity = 0.18 + Math.max(0, Math.sin(t * 2 + i)) * 0.12 + p.boost * 0.7 + (taken ? 0.35 : 0);
     });
     F.batteries.forEach((bt, j) => { const lit = Math.floor(((t * 0.3 + j * 0.5) % 1) * (bt.bars.length + 1));
       bt.bars.forEach((bar, k) => { bar.material.emissiveIntensity = k < lit ? 0.9 : 0.08; }); });
