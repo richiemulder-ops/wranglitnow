@@ -1051,7 +1051,23 @@ def get_settings():
     return {"voice": cfg.get("voice", ""), "rate": cfg.get("rate", 1.2),
             "personality": cfg.get("personality") or "butler", "personalityNote": cfg.get("personality_note", ""),
             "personalities": [{"id": k, "name": v["name"], "note": v["note"]} for k, v in PERSONALITIES.items()],
-            "theme": cfg.get("theme") or None, **get_models()}
+            "theme": cfg.get("theme") or None, "customThemes": cfg.get("custom_themes") or [], **get_models()}
+
+
+DEFAULT_BG = "#161933"   # Carbonhalo navy
+
+
+def clean_theme(t):
+    """A theme from the page: green, orange and an optional background, each #rrggbb."""
+    if not isinstance(t, dict):
+        raise ChatError(400, "Colours must be #rrggbb.")
+    out = {}
+    for k in ("green", "orange", "bg"):
+        v = str(t.get(k) or (DEFAULT_BG if k == "bg" else "")).lower()
+        if not HEX.match(v):
+            raise ChatError(400, "Colours must be #rrggbb.")
+        out[k] = v
+    return out
 
 
 def save_settings(body):
@@ -1068,11 +1084,19 @@ def save_settings(body):
             if t is None:
                 cfg.pop("theme", None)
             else:
-                if not (isinstance(t, dict) and HEX.match(str(t.get("green", "")).lower())
-                        and HEX.match(str(t.get("orange", "")).lower())):
-                    raise ChatError(400, "Colours must be #rrggbb.")
-                cfg["theme"] = {"green": t["green"].lower(), "orange": t["orange"].lower()}
+                cfg["theme"] = clean_theme(t)
             write_theme_file(cfg.get("theme"))
+        if "customThemes" in body:
+            items = body["customThemes"]
+            if not isinstance(items, list) or len(items) > 12:
+                raise ChatError(400, "Keep up to 12 saved themes.")
+            saved = []
+            for t in items:
+                name = re.sub(r"[\x00-\x1f]", "", str((t or {}).get("name") or "")).strip()[:24] if isinstance(t, dict) else ""
+                if not name:
+                    raise ChatError(400, "Each saved theme needs a name.")
+                saved.append({"name": name, **clean_theme(t)})
+            cfg["custom_themes"] = saved
         if "openaiKey" in body:
             key = str(body["openaiKey"] or "").strip()
             if key:
