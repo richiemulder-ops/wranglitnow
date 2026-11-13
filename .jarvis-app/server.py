@@ -1890,7 +1890,31 @@ def read_email(key):
 # Larry runs as the vault's own Claude Code session (its CLAUDE.md, agents, skills and permission
 # rules), so Penn and the others follow their normal process. Edits are allowed inside the vault;
 # Bash is limited to what the vault's settings already allow; no tools that send anything.
-JOB_TIMEOUT = 45 * 60
+# Runaway guard for background jobs. Two limits: a job is stopped when nobody on the team has done
+# anything for JOB_IDLE_MIN minutes (stuck), or when it reaches its overall limit. The overall limit is
+# minutes: config.json "job_timeout_minutes" sets the default, a scheduled job's own "timeout_minutes"
+# overrides it, and nothing goes past the ceiling.
+JOB_IDLE_MIN = 20
+JOB_TIMEOUT_DEFAULT_MIN = 240
+JOB_TIMEOUT_CEILING_MIN = 480   # a hung job always dies by here, whatever was asked for
+
+
+def _minutes(v):
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return None
+    return v if v > 0 else None
+
+
+def job_timeout_minutes(job=None):
+    """Minutes this job may run: its own setting, else config.json, else the default; capped at the ceiling."""
+    try:
+        cfg = read_config()
+    except ChatError:
+        cfg = {}
+    m = _minutes((job or {}).get("timeout_minutes")) or _minutes(cfg.get("job_timeout_minutes")) or JOB_TIMEOUT_DEFAULT_MIN
+    return min(m, JOB_TIMEOUT_CEILING_MIN)
 JOB_TOOLS = ["Read", "Write", "Edit", "Glob", "Grep", "Agent", "Task", "TodoWrite", "Skill",
              "mcp__fireflies",
              "mcp__claude_ai_Microsoft_365__outlook_email_search",
@@ -2491,6 +2515,7 @@ def run_job(job):
     env = claude_env()
     report, ok, result, replies = "", False, None, []
     user = _user_name()
+    timed_out, run_start = threading.Event(), time.time()
     try:
         # stderr joins stdout so a noisy error stream can never fill its pipe and stall the job.
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -2498,9 +2523,24 @@ def run_job(job):
                                 start_new_session=os.name != "nt")
         if job.get("stop"):   # stopped before it had started
             kill_tree(proc)
-        timed_out = threading.Event()
-        timer = threading.Timer(JOB_TIMEOUT, lambda: (timed_out.set(), kill_tree(proc)))
-        timer.start()
+        limit_min = job_timeout_minutes(job)
+        job["limit_minutes"] = limit_min
+        # Watchdog: stop the job when nobody on the team has done anything for JOB_IDLE_MIN minutes (every
+        # event Larry or a specialist streams counts), or when it reaches its overall limit.
+        job["last_seen"] = time.time()
+
+        def watchdog():
+            while proc.poll() is None:
+                now = time.time()
+                why = ("idle" if now - job["last_seen"] > JOB_IDLE_MIN * 60 else
+                       "long" if now - run_start > limit_min * 60 else None)
+                if why:
+                    job["stopped_why"] = why
+                    timed_out.set()
+                    kill_tree(proc)
+                    return
+                time.sleep(15)
+        threading.Thread(target=watchdog, daemon=True).start()
         first = (job.get("brief") or JOB_PROMPT.format(question=job["question"], task=job["task"]) +
                  (SCHEDULED_NOTE if job.get("origin", "user") != "user" else ""))
         job["brief"] = first   # a retry (Larry's old thread wouldn't resume) sends the same brief
@@ -2517,6 +2557,7 @@ def run_job(job):
                 pass
         other = []   # non-JSON lines (errors), kept for the report
         for line in proc.stdout:
+            job["last_seen"] = time.time()
             try:
                 event = json.loads(line)
             except ValueError:
@@ -2537,7 +2578,6 @@ def run_job(job):
                     except OSError:
                         pass
         proc.wait()
-        timer.cancel()
         with job["inbox_lock"]:
             job["accepting"] = False
         if job.get("stop"):
@@ -2548,7 +2588,10 @@ def run_job(job):
             report, ok = "\n\n---\n\n".join(replies), not result.get("is_error")
             job["agents"]["main"]["window"] = context_of(result)["window"]
         elif timed_out.is_set():
-            report = "Larry ran out of time (45 minutes) and was stopped."
+            why = (f"nobody on the team had done anything for {JOB_IDLE_MIN} minutes, so it looked stuck"
+                   if job.get("stopped_why") == "idle" else f"it reached its time limit of {limit_min:g} minutes")
+            report = (f"I stopped Larry's job: {why}. Anything already written to the vault stays as it is. "
+                      "Say \"carry on\" and Larry picks up where the team left off.")
         else:
             report = other[-1] if other else f"claude exited with code {proc.returncode}"
         if not ok:
@@ -2556,12 +2599,16 @@ def run_job(job):
     except OSError as e:
         report = f"Couldn't start claude ({e})."
 
-    if job.pop("resume", None) and not result and not job.get("stop"):
+    # Larry's old thread not opening fails within seconds. A run that was stopped, or had been working a
+    # while, is never redone from scratch (that once doubled a job's time and threw its work away).
+    if (job.pop("resume", None) and not result and not job.get("stop") and not timed_out.is_set()
+            and time.time() - run_start < 120):
         save_desk(None)        # Larry's old thread couldn't be resumed: start him fresh once
         with job["inbox_lock"]:   # and resend the follow-ups the failed run swallowed
             job["queued"] = [(f["task"], f["question"]) for f in job.get("followups", [])]
         return run_job(job)
-    if result and job.get("session") and job.get("origin", "user") == "user":
+    # A job stopped by the watchdog keeps its thread too, so "carry on" resumes it.
+    if (result or timed_out.is_set()) and job.get("session") and job.get("origin", "user") == "user":
         save_desk(job["session"])
     job["activity"] = ""
     job.pop("proc", None)
