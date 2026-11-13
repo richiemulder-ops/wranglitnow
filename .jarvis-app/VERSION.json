@@ -1,7 +1,8 @@
 {
-  "version": "2026.11.13.3",
+  "version": "2026.11.13.4",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes. 'tour' lists the tutorial step ids (TOUR_STEPS in viewer/index.html) this release added or changed, for the 'what's new' tour; run check_tour.py before pushing.",
   "notes": [
+    "The Logo view in the galaxy can now put each leaf of the mark in a 3D frame, with the notes floating inside it. Pick Glass case, Wire cage, Neon rim or None from the new Frame menu under View, and tick Colours to give each leaf its own colour. Halo remembers your choice. The sparks that run between notes now leave a short glowing trail, so you can see them travelling along their connections in the Logo and Nucleus views too, where the lines themselves are hidden.",
     "Settings > Colours now lets you change the background too, not just the two highlight colours: pick black, dark grey or any dark colour, and the page and every panel follow it. There are three new themes with darker backgrounds (Midnight, Graphite, Forest). You can also save your own colours as a named theme: type a name and press Save as theme, then click it any time to switch back.",
     "Long team jobs no longer get cut off at 45 minutes and quietly started again from scratch. A job now stops only if nobody on the team has done anything for 20 minutes (it looks stuck), or after 4 hours; you hear about it straight away, and saying \"carry on\" picks up where the team left off.",
     "Answers in the main chat are now laid out to be easy to read: short paragraphs, bullet points, bold lead-ins and headings for longer replies, instead of one long run of text. Team reports in the answer card look the same way. What he says aloud is unchanged.",
@@ -89,6 +90,15 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.13.4",
+      "notes": [
+        "The Logo view in the galaxy can now put each leaf of the mark in a 3D frame, with the notes floating inside it. Pick Glass case, Wire cage, Neon rim or None from the new Frame menu under View, and tick Colours to give each leaf its own colour. Halo remembers your choice. The sparks that run between notes now leave a short glowing trail, so you can see them travelling along their connections in the Logo and Nucleus views too, where the lines themselves are hidden."
+      ],
+      "tour": [
+        "g.view"
+      ]
+    },
     {
       "version": "2026.11.13.3",
       "notes": [

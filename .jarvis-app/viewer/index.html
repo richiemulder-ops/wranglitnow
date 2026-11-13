@@ -99,6 +99,8 @@
   #legend .view select { background: rgba(0,0,0,0.25); color: #fff; border: 1px solid var(--edge); border-radius: 8px;
     padding: 3px 6px; font: inherit; cursor: pointer; }
   #legend .view select option { background: #10151c; color: #fff; }
+  #legend .frame-opts .frame-tint { display: flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--dim); cursor: pointer; white-space: nowrap; }
+  #legend .frame-opts .frame-tint input { margin: 0; accent-color: #bad367; }
   #legend i { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 10px currentColor; background: currentColor; }
 
   #panel { position: fixed; top: 0; right: 0; height: 100%; width: min(420px, 100vw); box-sizing: border-box;
@@ -1328,6 +1330,8 @@ const tc = THEME.colour;
     st.swirl = requestAnimationFrame(tick);
   }
 
+  // Current spin of the Logo view: in-plane angle a (round z), then coin turn b (round y).
+  const logoSpin = { a: 0, b: 0 };
   // ---- Logo spin: the mark turns like a coin round the vertical axis while it also spins in its own
   // plane, clockwise, as the Halo emblem does. Rotates the laid-out positions every frame.
   function spinLogo(Graph, st, positions) {
@@ -1335,9 +1339,11 @@ const tc = THEME.colour;
     for (const n of Graph.graphData().nodes) { const p = positions.get(n.id); if (p) pts.push({ n, x: p.x, y: p.y, z: p.z }); }
     const SPIN = 0.1, TURN = 0.11;   // rad per second: in-plane spin (~63 s a turn), coin turn (~57 s)
     let a = 0, b = 0, last = performance.now(), kick = last;
+    logoSpin.a = 0; logoSpin.b = 0;
     const tick = now => {
       const dt = Math.min(0.1, (now - last) / 1000); last = now;
       a = (a - SPIN * dt) % TAU; b = (b + TURN * dt) % TAU;
+      logoSpin.a = a; logoSpin.b = b;   // the leaf frames (index.html) turn with the notes
       const ca = Math.cos(a), sa = Math.sin(a), cb = Math.cos(b), sb = Math.sin(b);
       for (const q of pts) {
         const x1 = q.x * ca - q.y * sa, y1 = q.x * sa + q.y * ca, n = q.n;
@@ -1451,6 +1457,7 @@ const tc = THEME.colour;
     }
     if (st.raf) cancelAnimationFrame(st.raf);
     if (st.swirl) { cancelAnimationFrame(st.swirl); st.swirl = 0; }
+    logoSpin.a = logoSpin.b = 0;
     if (st.resolve) st.resolve(false);
     st.raf = 0; st.resolve = null;
 
@@ -1500,7 +1507,10 @@ const tc = THEME.colour;
   }
 
   const LAYOUTS = { concentric: layoutConcentric, rings: layoutRings, spiral: layoutSpiral, nucleus: layoutNucleus, logo: layoutLogo };
-  const api = { layoutConcentric, layoutRings, layoutSpiral, layoutNucleus, layoutLogo, applyLayout, LAYOUTS };
+  // The mark's geometry for anything drawn round the Logo view: K maps logo units to the scene,
+  // DEPTH is how deep the coin of notes is (both as in layoutLogo).
+  const logoShape = R => ({ PATH: LOGO_PATH, W: LOGO_W, H: LOGO_H, CX: LOGO_CX, CY: LOGO_CY, K: (R * 2) / (LOGO_W / 2), DEPTH: R * 0.55 });
+  const api = { layoutConcentric, layoutRings, layoutSpiral, layoutNucleus, layoutLogo, applyLayout, LAYOUTS, logoSpin, logoShape };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.JarvisLayouts = api;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -1638,7 +1648,10 @@ const tc = THEME.colour;
   const VIEWS = [['galaxy', 'Galaxy'], ['concentric', 'Concentric'], ['rings', 'Rings'], ['spiral', 'Spiral'],
                  ['nucleus', 'Nucleus'], ['logo', 'Logo']];
   legendEl.insertAdjacentHTML('beforeend', '<div class="view"><label for="view-sel">View</label><select id="view-sel">' +
-    VIEWS.map(([v, t]) => `<option value="${v}">${t}</option>`).join('') + '</select></div>');
+    VIEWS.map(([v, t]) => `<option value="${v}">${t}</option>`).join('') + '</select></div>' +
+    '<div class="view frame-opts" hidden><label for="frame-sel">Frame</label><select id="frame-sel">' +
+    [['glass', 'Glass case'], ['cage', 'Wire cage'], ['neon', 'Neon rim'], ['none', 'None']].map(([v, t]) => `<option value="${v}">${t}</option>`).join('') +
+    '</select><label class="frame-tint" title="Give each leaf its own colour"><input type="checkbox" id="frame-tint"> Colours</label></div>');
   const viewSel = document.getElementById('view-sel');
   // Where ⌂ and a view change put the camera, so each shape is seen whole and from its best side.
   const VIEW_CAM = { galaxy: { x: 0, y: 200, z: 1150 }, concentric: { x: 0, y: 1900, z: 1900 },
@@ -1653,10 +1666,122 @@ const tc = THEME.colour;
     // Nucleus and Logo: the note-to-note links would hide the shape, so only the hub lines show.
     Graph.linkVisibility(v === 'nucleus' || v === 'logo' ? l => l.kind === 'sub' || l.kind === 'core' : l => l.kind !== 'spoke');
     pauseDrift(ms + 4000);
-    JarvisLayouts.applyLayout(Graph, v, pos, ms);
+    leafFrames.hide();
+    if (typeof sparkScale === 'function') sparkScale(v);
+    const moved = JarvisLayouts.applyLayout(Graph, v, pos, ms);
+    if (v === 'logo') moved.then(done => { if (done && viewSel.value === 'logo') leafFrames.show(); });
+    legendEl.querySelector('.frame-opts').hidden = v !== 'logo';
     Graph.cameraPosition(VIEW_CAM[v], { x: 0, y: 0, z: 0 }, ms);
   }
   viewSel.onchange = () => setView(viewSel.value);
+
+  // ---- Logo view: a 3D frame round each leaf of the mark, the notes inside it ------------------
+  // Glass case (bevelled see-through blocks), wire cage (front and back outlines with struts) or
+  // neon rim (glowing tubes on both edges). It turns with the notes (JarvisLayouts.logoSpin).
+  const leafFrames = (() => {
+    const saved = (k, d) => { try { return localStorage.getItem(k) || d; } catch (e) { return d; } };
+    const store = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+    const frameSel = document.getElementById('frame-sel'), tintBox = document.getElementById('frame-tint');
+    let style = saved('jarvis-logo-frame', 'glass'), tinted = saved('jarvis-logo-tint', '0') === '1';
+    if (![...frameSel.options].some(o => o.value === style)) style = 'glass';
+    frameSel.value = style; tintBox.checked = tinted;
+    const coin = new THREE.Group(), mark = new THREE.Group();   // coin turns round y, mark spins round z inside it
+    coin.add(mark); coin.visible = false;   // added to the scene on first show: Graph doesn't exist yet here
+    let built = null, shown = false, raf = 0, fade = 0, geo = null;
+
+    function outlines() {   // each leaf's outline in logo units, centred, y up
+      if (geo) return geo;
+      const S = JarvisLayouts.logoShape(HUB_RADIUS), ns = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(ns, 'svg'); svg.setAttribute('width', '0'); svg.setAttribute('height', '0');
+      svg.style.position = 'absolute'; document.body.appendChild(svg);
+      // Split the path into its five leaves; a relative "m" after "Z" starts at the last leaf's start.
+      const parts = S.PATH.match(/[Mm][^Mm]*/g);
+      let start = [0, 0];
+      const leaves = parts.map(d => {
+        const nums = d.slice(1).match(/-?\d*\.?\d+(?:e-?\d+)?/g).slice(0, 2).map(Number);
+        const at = d[0] === 'm' ? [start[0] + nums[0], start[1] + nums[1]] : nums;
+        start = at;
+        const p = document.createElementNS(ns, 'path');
+        p.setAttribute('d', 'M' + at[0] + ',' + at[1] + d.slice(1).replace(/^\s*-?\d*\.?\d+,?\s*-?\d*\.?\d+/, ''));
+        svg.appendChild(p);
+        const len = p.getTotalLength(), n = 160, pts = [];
+        for (let i = 0; i < n; i++) { const q = p.getPointAtLength(len * i / n); pts.push(new THREE.Vector2(q.x - S.CX, -(q.y - S.CY))); }
+        return pts;
+      });
+      svg.remove();
+      geo = { leaves, K: S.K, depth: S.DEPTH / S.K };
+      return geo;
+    }
+    const glow = (() => {
+      const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+      const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+      r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.4, 'rgba(255,255,255,0.7)'); r.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = r; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c);
+    })();
+    const LEAF_TINT = ['#bad367', '#8fd3ff', '#ff9f43', '#b39dff', '#f2c94c'].map(tc);
+    const tint = i => new THREE.Color(tinted ? LEAF_TINT[i % LEAF_TINT.length] : tc('#bad367'));
+
+    function build() {
+      const { leaves, depth: D } = outlines(), g = new THREE.Group(), mats = [];
+      const keep = m => { mats.push({ m, o: m.opacity }); return m; };
+      leaves.forEach((pts, i) => {
+        const c = tint(i);
+        if (style === 'glass') {
+          const shape = new THREE.ExtrudeGeometry(new THREE.Shape(pts), { depth: D, bevelEnabled: true, bevelThickness: 1.1, bevelSize: 0.9, bevelSegments: 3, curveSegments: 48 });
+          shape.translate(0, 0, -D / 2);
+          const shell = new THREE.Mesh(shape, keep(new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.09, side: THREE.DoubleSide, depthWrite: false })));
+          g.add(shell, new THREE.LineSegments(new THREE.EdgesGeometry(shape, 28), keep(new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: 0.8 }))));
+        } else if (style === 'cage') {
+          const z0 = -D / 2 - 0.6, z1 = D / 2 + 0.6, rim = keep(new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: 0.9 }));
+          [z0, z1].forEach(z => {
+            const v = pts.map(p => new THREE.Vector3(p.x, p.y, z)); v.push(v[0].clone());
+            g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(v), rim));
+          });
+          const ribs = [];
+          for (let k = 0; k < pts.length; k += 8) ribs.push(new THREE.Vector3(pts[k].x, pts[k].y, z0), new THREE.Vector3(pts[k].x, pts[k].y, z1));
+          const rg = new THREE.BufferGeometry().setFromPoints(ribs);
+          g.add(new THREE.LineSegments(rg, keep(new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: 0.38 }))));
+          g.add(new THREE.Points(rg.clone(), keep(new THREE.PointsMaterial({ size: 1.4, color: c, map: glow, transparent: true, opacity: 1, depthWrite: false }))));
+        } else if (style === 'neon') {
+          [-D / 2 - 0.4, D / 2 + 0.4].forEach((z, side) => {
+            const curve = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(p.x, p.y, z)), true);
+            g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 220, 0.42, 8, true),
+              keep(new THREE.MeshBasicMaterial({ color: c.clone().lerp(new THREE.Color(0xffffff), 0.35), transparent: true, opacity: 1 }))));
+            g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 220, 1.5, 10, true),
+              keep(new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: side ? 0.16 : 0.1, blending: THREE.AdditiveBlending, depthWrite: false }))));
+          });
+        }
+      });
+      g.scale.setScalar(outlines().K);
+      return { g, mats };
+    }
+    function dispose() {
+      if (!built) return;
+      mark.remove(built.g);
+      built.g.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+      built = null;
+    }
+    function rebuild() { dispose(); if (style !== 'none') { built = build(); mark.add(built.g); } }
+    function tick() {
+      const S = JarvisLayouts.logoSpin;
+      mark.rotation.z = S.a; coin.rotation.y = S.b;
+      fade = Math.min(1, fade + 0.04);
+      if (built) built.mats.forEach(({ m, o }) => { m.opacity = o * fade; });
+      raf = shown ? requestAnimationFrame(tick) : 0;
+    }
+    function show() {
+      if (shown) return;
+      shown = true; fade = 0;
+      if (!coin.parent) Graph.scene().add(coin);
+      if (!built && style !== 'none') rebuild();
+      coin.visible = true;
+      if (!raf) raf = requestAnimationFrame(tick);
+    }
+    function hide() { shown = false; coin.visible = false; if (raf) { cancelAnimationFrame(raf); raf = 0; } }
+    frameSel.onchange = () => { style = frameSel.value; store('jarvis-logo-frame', style); rebuild(); fade = 0; };
+    tintBox.onchange = () => { tinted = tintBox.checked; store('jarvis-logo-tint', tinted ? '1' : '0'); rebuild(); fade = 0; };
+    return { show, hide };
+  })();
   let savedView = 'galaxy';
   try { savedView = localStorage.getItem('jarvis-layout') || 'galaxy'; } catch (e) {}
   if (savedView !== 'galaxy') setTimeout(() => setView(savedView, 800), 300); else viewSel.value = 'galaxy';
@@ -1848,6 +1973,16 @@ const tc = THEME.colour;
   const sparkPoints = new THREE.Points(sparkGeo, sparkMat);
   sparkPoints.frustumCulled = false;
   Graph.scene().add(sparkPoints);
+  // Each spark drags a short glowing trail along its link, so the connection it is crossing lights
+  // up even where the links themselves are hidden (Nucleus and Logo views).
+  const trailGeo = new THREE.BufferGeometry();
+  trailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(SPARK_COUNT * 6), 3));
+  trailGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(SPARK_COUNT * 6), 3));
+  const trailMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  const sparkTrails = new THREE.LineSegments(trailGeo, trailMat);
+  sparkTrails.frustumCulled = false;
+  Graph.scene().add(sparkTrails);
+  let TRAIL = 0.3;   // share of the link the trail covers; longer in the far-off shape views
   const neighbours = nodes.map(() => []);
   backbonePairs.forEach(([a, b]) => { neighbours[a].push(b); neighbours[b].push(a); });
   const SPARK_RGB = [[0.85, 1.0, 0.45], [1.0, 1.0, 0.85], [1.0, 0.7, 0.3]].map(THEME.rgb01);   // bright brand green, near-white lime, orange
@@ -1867,14 +2002,20 @@ const tc = THEME.colour;
   }
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   for (let k = 0; k < SPARK_COUNT; k++) { const s = {}; launchSpark(s); s.f = Math.random(); sparks.push(s); }
-  sparkPoints.visible = !reduceMotion && backbonePairs.length > 0;
+  sparkPoints.visible = sparkTrails.visible = !reduceMotion && backbonePairs.length > 0;
+  // The shape views put the camera 2-3 times further out: bigger sparks and longer trails there.
+  function sparkScale(view) {
+    const far = view === 'logo' || view === 'nucleus';
+    sparkMat.size = far ? 34 : 16; TRAIL = far ? 0.55 : 0.3;
+  }
   function updateSparks(dt, quiet) {
     if (!sparkPoints.visible) return;
     const pos = sparkGeo.attributes.position.array, col = sparkGeo.attributes.color.array;
+    const tp = trailGeo.attributes.position.array, tcl = trailGeo.attributes.color.array;
     // Dimmer while a note is in focus or while the speaking stream is running.
     const gain = (highlight.size ? 0.4 : 1) * (1 - 0.6 * quiet);
     sparks.forEach((s, k) => {
-      if (s.wait > 0) { s.wait -= dt; col[k*3] = col[k*3+1] = col[k*3+2] = 0; return; }
+      if (s.wait > 0) { s.wait -= dt; col[k*3] = col[k*3+1] = col[k*3+2] = 0; tcl.fill(0, k*6, k*6 + 6); return; }
       s.f += dt * s.speed;
       if (s.f >= 1) launchSpark(s, Math.random() < 0.7 ? s.b : null);
       const A = nodes[s.a], B = nodes[s.b], f = Math.min(1, s.f);
@@ -1882,9 +2023,16 @@ const tc = THEME.colour;
       pos[k*3] = A.x + (B.x - A.x) * f; pos[k*3+1] = A.y + (B.y - A.y) * f; pos[k*3+2] = A.z + (B.z - A.z) * f;
       const glow = gain * (0.6 + 0.4 * Math.sin(Math.PI * f));
       col[k*3] = s.rgb[0] * glow; col[k*3+1] = s.rgb[1] * glow; col[k*3+2] = s.rgb[2] * glow;
+      const t0 = Math.max(0, f - TRAIL);   // tail: dark; head: the spark's own colour
+      tp[k*6] = A.x + (B.x - A.x) * t0; tp[k*6+1] = A.y + (B.y - A.y) * t0; tp[k*6+2] = A.z + (B.z - A.z) * t0;
+      tp[k*6+3] = pos[k*3]; tp[k*6+4] = pos[k*3+1]; tp[k*6+5] = pos[k*3+2];
+      tcl[k*6] = tcl[k*6+1] = tcl[k*6+2] = 0;
+      tcl[k*6+3] = s.rgb[0] * glow * 0.8; tcl[k*6+4] = s.rgb[1] * glow * 0.8; tcl[k*6+5] = s.rgb[2] * glow * 0.8;
     });
     sparkGeo.attributes.position.needsUpdate = true;
     sparkGeo.attributes.color.needsUpdate = true;
+    trailGeo.attributes.position.needsUpdate = true;
+    trailGeo.attributes.color.needsUpdate = true;
   }
 
   // Lit notes swell in rolling waves while Halo speaks.
@@ -8142,7 +8290,7 @@ const tc = THEME.colour;
     { id: 'g.zoom', ch: 'around', target: () => legendEl.querySelector('.zoom'),
       say: 'Zoom in and out here. The middle button brings the whole galaxy back into view.' },
     { id: 'g.view', ch: 'around', target: () => legendEl.querySelector('.view'),
-      say: 'View changes the shape of the galaxy: rings, a spiral, a nucleus, a logo and more. Pick whichever you like; I remember it.' },
+      say: 'View changes the shape of the galaxy: rings, a spiral, a nucleus, a logo and more. In the Logo view, Frame puts each leaf in a glass case, a wire cage or a neon rim. Pick whichever you like; I remember it.' },
     { id: 'g.model', ch: 'around', target: () => document.getElementById('context'),
       say: "This shows which models the team and I use, and how much of my memory this conversation has taken. You can change them here too." },
     { id: 'g.update', ch: 'around',
