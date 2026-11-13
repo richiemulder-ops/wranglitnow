@@ -99,6 +99,7 @@
   #legend .view select { background: rgba(0,0,0,0.25); color: #fff; border: 1px solid var(--edge); border-radius: 8px;
     padding: 3px 6px; font: inherit; cursor: pointer; }
   #legend .view select option { background: #10151c; color: #fff; }
+  #legend .frame-opts[hidden] { display: none; }
   #legend .frame-opts .frame-tint { display: flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--dim); cursor: pointer; white-space: nowrap; }
   #legend .frame-opts .frame-tint input { margin: 0; accent-color: #bad367; }
   #legend i { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 10px currentColor; background: currentColor; }
@@ -1973,16 +1974,6 @@ const tc = THEME.colour;
   const sparkPoints = new THREE.Points(sparkGeo, sparkMat);
   sparkPoints.frustumCulled = false;
   Graph.scene().add(sparkPoints);
-  // Each spark drags a short glowing trail along its link, so the connection it is crossing lights
-  // up even where the links themselves are hidden (Nucleus and Logo views).
-  const trailGeo = new THREE.BufferGeometry();
-  trailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(SPARK_COUNT * 6), 3));
-  trailGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(SPARK_COUNT * 6), 3));
-  const trailMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
-  const sparkTrails = new THREE.LineSegments(trailGeo, trailMat);
-  sparkTrails.frustumCulled = false;
-  Graph.scene().add(sparkTrails);
-  let TRAIL = 0.3;   // share of the link the trail covers; longer in the far-off shape views
   const neighbours = nodes.map(() => []);
   backbonePairs.forEach(([a, b]) => { neighbours[a].push(b); neighbours[b].push(a); });
   const SPARK_RGB = [[0.85, 1.0, 0.45], [1.0, 1.0, 0.85], [1.0, 0.7, 0.3]].map(THEME.rgb01);   // bright brand green, near-white lime, orange
@@ -2002,20 +1993,16 @@ const tc = THEME.colour;
   }
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   for (let k = 0; k < SPARK_COUNT; k++) { const s = {}; launchSpark(s); s.f = Math.random(); sparks.push(s); }
-  sparkPoints.visible = sparkTrails.visible = !reduceMotion && backbonePairs.length > 0;
-  // The shape views put the camera 2-3 times further out: bigger sparks and longer trails there.
-  function sparkScale(view) {
-    const far = view === 'logo' || view === 'nucleus';
-    sparkMat.size = far ? 34 : 16; TRAIL = far ? 0.55 : 0.3;
-  }
+  sparkPoints.visible = !reduceMotion && backbonePairs.length > 0;
+  // The shape views put the camera 2-3 times further out: bigger sparks there, so they still show.
+  function sparkScale(view) { sparkMat.size = view === 'logo' || view === 'nucleus' ? 34 : 16; }
   function updateSparks(dt, quiet) {
     if (!sparkPoints.visible) return;
     const pos = sparkGeo.attributes.position.array, col = sparkGeo.attributes.color.array;
-    const tp = trailGeo.attributes.position.array, tcl = trailGeo.attributes.color.array;
     // Dimmer while a note is in focus or while the speaking stream is running.
     const gain = (highlight.size ? 0.4 : 1) * (1 - 0.6 * quiet);
     sparks.forEach((s, k) => {
-      if (s.wait > 0) { s.wait -= dt; col[k*3] = col[k*3+1] = col[k*3+2] = 0; tcl.fill(0, k*6, k*6 + 6); return; }
+      if (s.wait > 0) { s.wait -= dt; col[k*3] = col[k*3+1] = col[k*3+2] = 0; return; }
       s.f += dt * s.speed;
       if (s.f >= 1) launchSpark(s, Math.random() < 0.7 ? s.b : null);
       const A = nodes[s.a], B = nodes[s.b], f = Math.min(1, s.f);
@@ -2023,16 +2010,9 @@ const tc = THEME.colour;
       pos[k*3] = A.x + (B.x - A.x) * f; pos[k*3+1] = A.y + (B.y - A.y) * f; pos[k*3+2] = A.z + (B.z - A.z) * f;
       const glow = gain * (0.6 + 0.4 * Math.sin(Math.PI * f));
       col[k*3] = s.rgb[0] * glow; col[k*3+1] = s.rgb[1] * glow; col[k*3+2] = s.rgb[2] * glow;
-      const t0 = Math.max(0, f - TRAIL);   // tail: dark; head: the spark's own colour
-      tp[k*6] = A.x + (B.x - A.x) * t0; tp[k*6+1] = A.y + (B.y - A.y) * t0; tp[k*6+2] = A.z + (B.z - A.z) * t0;
-      tp[k*6+3] = pos[k*3]; tp[k*6+4] = pos[k*3+1]; tp[k*6+5] = pos[k*3+2];
-      tcl[k*6] = tcl[k*6+1] = tcl[k*6+2] = 0;
-      tcl[k*6+3] = s.rgb[0] * glow * 0.8; tcl[k*6+4] = s.rgb[1] * glow * 0.8; tcl[k*6+5] = s.rgb[2] * glow * 0.8;
     });
     sparkGeo.attributes.position.needsUpdate = true;
     sparkGeo.attributes.color.needsUpdate = true;
-    trailGeo.attributes.position.needsUpdate = true;
-    trailGeo.attributes.color.needsUpdate = true;
   }
 
   // Lit notes swell in rolling waves while Halo speaks.
