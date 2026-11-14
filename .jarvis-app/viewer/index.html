@@ -31,7 +31,9 @@
     filter: drop-shadow(0 0 14px rgba(186, 211, 103, 0.35)); }
   #hud p { margin: 6px 0 0; font-size: 12px; color: var(--dim); letter-spacing: 0.12em; }
 
-  #legend { position: fixed; right: 26px; top: 22px; font-size: 12px; color: var(--dim);
+  /* The galaxy controls (zoom and View), just under the metrics bar on the right. The Index list went
+     with Mission control (2026-11-14); the bar now runs the full width. */
+  #legend { position: fixed; right: 26px; top: var(--legend-top, 104px); font-size: 12px; color: var(--dim);
     display: flex; flex-direction: column; gap: 5px; padding: 12px 14px; border-radius: 12px;
     background: rgba(13, 16, 40, 0.45); border: 1px solid var(--edge); backdrop-filter: blur(8px); }
   #legend .title { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 3px; }
@@ -91,6 +93,7 @@
   #legend button { font: inherit; color: inherit; background: none; border: 0; padding: 1px 0; cursor: pointer; text-align: left; }
   #legend button span { color: #fff; } #legend button:hover span { color: #fff; text-decoration: underline; }
   #legend .zoom { gap: 6px; margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--edge); }
+  #legend .zoom:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
   #legend .zoom button { width: 28px; height: 26px; justify-content: center; padding: 0; border-radius: 8px;
     border: 1px solid var(--edge); background: rgba(255,255,255,0.04); color: var(--ink); font-size: 15px; line-height: 1; }
   #legend .zoom button:hover { background: rgba(186,211,103,0.18); }
@@ -556,9 +559,9 @@
   #p-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: -8px 0 14px; }
   #p-actions:empty { display: none; }
 
-  /* Metrics bar along the top: five tiles between the logo and the Index. */
+  /* Metrics bar along the top: Mission control first, then the tiles, out to the right edge. */
   #metrics { position: fixed; z-index: 4; top: 18px; display: flex; gap: 10px;
-    left: calc(var(--left-rail) + 4px); right: calc(var(--right-rail) + var(--legend-room, 200px)); }
+    left: calc(var(--left-rail) + 4px); right: calc(var(--right-rail) + 26px); }
   .metric { position: relative; flex: 1 1 0; min-width: 0; padding: 8px 12px 8px 15px; border-radius: 12px;
     background: var(--glass); backdrop-filter: blur(10px); border: 1px solid var(--edge); text-align: left;
     font: inherit; color: var(--ink); cursor: pointer; overflow: hidden; transition: background 0.2s; }
@@ -593,7 +596,7 @@
   .newproj.busy input, .newproj.busy textarea { opacity: 0.6; }
   @keyframes npslide { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
   @media (max-width: 1000px) {
-    #metrics { right: calc(var(--right-rail) + var(--legend-room, 200px)); }
+    #metrics { right: calc(var(--right-rail) + 26px); }
     #metrics .metric:nth-child(n+4) { display: none; }
   }
   @media (max-width: 600px) { #metrics { display: none; } }
@@ -607,6 +610,79 @@
   .metric.crew-tile.live .k span::after { content: ""; display: inline-block; width: 7px; height: 7px; margin-left: 7px;
     border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: crewpulse 1.2s ease-in-out infinite; }
   @keyframes crewpulse { 50% { opacity: 0.25; transform: scale(0.7); } }
+  /* Mission control: one board of tiles over everything (tokens, clients, Xero, the team, the day). */
+  #mission { position: fixed; inset: 0; z-index: 45; display: flex; flex-direction: column; padding: 18px 22px 22px;
+    box-sizing: border-box; background: rgba(8, 10, 26, 0.9); backdrop-filter: blur(6px); }
+  #mission[hidden] { display: none; }
+  #mission header { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+  #mission header .kick { font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); }
+  #mission header h2 { margin: 2px 0 0; font-size: 20px; font-weight: 600; }
+  #mission .tools { margin-left: auto; }
+  #mission header button, #mission .setup .acts button, #mission .setup .add, #mission .mc .tbtn { font: inherit; font-size: 12.5px; color: var(--ink); background: rgba(255,255,255,0.05);
+    border: 1px solid var(--edge); border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+  #mission header .close { font-size: 16px; width: 34px; height: 34px; padding: 0; border-radius: 50%; }
+  #mission header button:hover { background: rgba(186,211,103,0.15); }
+  #mission .grid { flex: 1; min-height: 0; display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: repeat(4, minmax(190px, 1fr)); overflow-y: auto; scrollbar-width: thin; }
+  .mc .spark { display: block; width: 100%; height: 34px; }
+  .mc .mrow { display: grid; grid-template-columns: 92px minmax(0, 1fr) 92px; gap: 10px; align-items: center; font-size: 12px; padding: 3px 0; }
+  .mc .mrow .r { text-align: right; color: var(--dim); font-size: 11px; }
+  .mc .seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 999px; background: rgba(255,255,255,0.06); }
+  .mc .seg button { font: inherit; font-size: 10.5px; color: var(--dim); background: none; border: 0; border-radius: 999px; padding: 2px 9px; cursor: pointer; }
+  .mc .seg button.on { background: rgba(186,211,103,0.2); color: var(--ink); }
+  .mc table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  .mc th { text-align: right; font-weight: 600; font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); padding: 2px 4px; }
+  .mc th:first-child, .mc td:first-child { text-align: left; }
+  .mc td { text-align: right; padding: 3px 4px; border-top: 1px solid rgba(255,255,255,0.05); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .mc .cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; flex: 1; min-height: 0; }
+  .mc .cols > div { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+  #mission .setup { position: absolute; right: 22px; top: 70px; z-index: 2; width: 420px; max-width: calc(100% - 44px);
+    padding: 16px 18px; border-radius: 14px; background: #12152e; border: 1px solid var(--edge); box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    display: flex; flex-direction: column; gap: 10px; font-size: 12.5px; }
+  #mission .setup[hidden] { display: none; }
+  #mission .setup h3 { margin: 0; font-size: 15px; }
+  #mission .setup label { font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+  #mission .setup input { font: inherit; font-size: 13px; color: var(--ink); background: rgba(255,255,255,0.05);
+    border: 1px solid var(--edge); border-radius: 8px; padding: 7px 10px; min-width: 0; }
+  #mission .setup .plan { display: grid; grid-template-columns: minmax(0, 1fr) 110px 30px; gap: 6px; }
+  #mission .setup .plan button { font: inherit; color: var(--dim); background: none; border: 0; cursor: pointer; }
+  #mission .setup .help { color: var(--dim); font-size: 11.5px; line-height: 1.5; }
+  #mission .setup .msg { font-size: 12px; color: #ffcf8a; min-height: 1em; }
+  #mission .setup .acts { display: flex; gap: 8px; justify-content: flex-end; }
+  #mission .setup .link { font: inherit; font-size: inherit; color: var(--brand); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+  .mc { position: relative; display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; overflow: hidden;
+    padding: 14px 16px; border-radius: 14px; background: rgba(13, 16, 40, 0.86); border: 1px solid var(--edge); }
+  .mc.wide { grid-column: span 2; } .mc.tall { grid-row: span 2; }
+  .mc.alert { border-color: rgba(255, 159, 67, 0.6); } .mc.good { border-color: rgba(61, 220, 151, 0.4); }
+  .mc .th { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .mc .k { font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); }
+  .mc .th .note { font-size: 11px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mc .big { font-size: 28px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .mc .big small { font-size: 13px; font-weight: 500; color: var(--dim); }
+  .mc .nums { display: flex; gap: 22px; flex-wrap: wrap; }
+  .mc .nums .l { font-size: 11px; color: var(--dim); }
+  .mc .body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(186,211,103,0.25) transparent; }
+  .mc .li { display: flex; align-items: center; gap: 8px; width: 100%; font: inherit; font-size: 12px; color: var(--ink);
+    text-align: left; background: none; border: 0; border-bottom: 1px solid rgba(255,255,255,0.05); padding: 5px 0; }
+  .mc button.li { cursor: pointer; } .mc button.li:hover { color: #fff; background: rgba(186,211,103,0.06); }
+  .mc .li:last-child { border-bottom: 0; }
+  .mc .li .t { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mc .li .t span { display: block; font-size: 10.5px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; }
+  .mc .li .r { margin-left: auto; color: var(--dim); font-size: 11px; white-space: nowrap; }
+  .mc .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--c, var(--brand)); }
+  .mc .bar { flex: 1; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.1); overflow: hidden; min-width: 40px; }
+  .mc .bar i { display: block; height: 100%; border-radius: 3px; background: var(--c, var(--brand)); }
+  .mc .chip { font-size: 10.5px; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,0.07); color: #cfd5e3; white-space: nowrap; }
+  .mc .chips { display: flex; gap: 5px; flex-wrap: wrap; }
+  .mc .grade { width: 18px; height: 18px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 800; flex: none; background: var(--brand); color: #161933; }
+  .mc .grade.b { background: rgba(111,179,255,0.25); color: #a9d0ff; }
+  .mc .empty { color: var(--dim); font-size: 12.5px; line-height: 1.5; }
+  .mc .wait { color: var(--dim); font-size: 12px; }
+  .mc .link { font: inherit; font-size: 11px; color: var(--brand); background: none; border: 0; padding: 0; cursor: pointer; }
+  @media (max-width: 1100px) { #mission .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none;
+    overflow-y: auto; grid-auto-rows: 240px; } }
+  .metric.mission-tile .v { color: var(--brand); }
   #crew { position: fixed; inset: 0; z-index: 45; display: flex; flex-direction: column; padding: 18px 22px 22px;
     box-sizing: border-box; background: rgba(8, 10, 26, 0.86); backdrop-filter: blur(6px); }
   #crew[hidden] { display: none; }
@@ -1036,6 +1112,26 @@ const tc = THEME.colour;
 
 <div id="ctxmenu" hidden role="menu"></div>
 <div id="qmodal" hidden role="dialog" aria-modal="true" aria-label="A question from the team"><div class="qbox"></div></div>
+<div id="mission" hidden role="dialog" aria-modal="true" aria-label="Mission control">
+  <header><div><div class="kick">Mission control</div><h2 class="when"></h2></div>
+    <div class="tools"><button class="refresh" type="button" title="Re-read everything, including Xero and monday">Refresh</button></div>
+    <button class="close" type="button" title="Close (Esc)" aria-label="Close">✕</button></header>
+  <div class="grid"></div>
+  <form class="setup" hidden aria-label="AI cost setup">
+    <h3>AI cost setup</h3>
+    <div class="help">Plans: your Claude subscriptions and any other fixed monthly AI costs, in your currency.</div>
+    <div class="plans"></div>
+    <div><button type="button" class="add">+ Add a plan</button>
+      <label style="margin-left:12px">Currency <input class="cur" maxlength="3" style="width:60px" aria-label="Currency"></label></div>
+    <label for="ms-admin">Anthropic Admin API key</label>
+    <input id="ms-admin" class="admin" type="password" autocomplete="off" placeholder="sk-ant-admin… (leave empty to keep the saved one)">
+    <div class="help">For API cost and tokens by API key (the Carbonhalo app's key shows on its own). An organisation admin
+      makes it in the Claude Console: Settings, Admin keys. It is read only here and stays in Halo's config.json on this PC.</div>
+    <label style="text-transform:none;letter-spacing:0"><input type="checkbox" class="forget"> Remove the saved Admin key</label>
+    <div class="msg" role="status"></div>
+    <div class="acts"><button type="button" class="cancel">Cancel</button><button type="submit">Save</button></div>
+  </form>
+</div>
 <div id="crew" hidden role="dialog" aria-modal="true" aria-label="Current work">
   <header><div><div class="kick">Current work</div><h2>Who is working on what</h2><div class="kick" style="margin-top:4px;letter-spacing:0.04em;text-transform:none">Click a bot or a row to chat with that agent · drag to turn · scroll to zoom</div></div>
     <button class="close" type="button" title="Close (Esc)" aria-label="Close">✕</button></header>
@@ -1622,12 +1718,10 @@ const tc = THEME.colour;
 
   document.getElementById('stats').textContent =
     `${NOTE_COUNT.toLocaleString()} notes · ${NOTE_LINKS.toLocaleString()} connections`;
-  // The legend lists the type hubs; click one to fly to it and light up its notes.
+  // The galaxy controls: zoom and View. (The Index list of type hubs was taken out on 2026-11-14;
+  // the hubs are still labelled in the galaxy and clickable there.)
   const legendEl = document.getElementById('legend');
-  legendEl.innerHTML = '<div class="title">Index</div>' + groups.map(g =>
-    `<button type="button" data-g="${escapeHtml(g)}" style="color:${groupColor[g]}" title="Show ${escapeHtml(g)} in the galaxy">` +
-    `<i></i><span>${escapeHtml(g)} · ${groupCounts[g]}</span></button>`).join('');
-  legendEl.querySelectorAll('button').forEach(b => { b.onclick = () => select(typeHub[b.dataset.g]); });
+  legendEl.innerHTML = '';
   // Zoom buttons: a gentle step in or out towards whatever the view is centred on; ⌂ goes back to the whole galaxy.
   legendEl.insertAdjacentHTML('beforeend', '<div class="zoom"><button type="button" data-z="out" title="Zoom out">−</button>' +
     '<button type="button" data-z="fit" class="fit" title="Whole galaxy">⌂</button><button type="button" data-z="in" title="Zoom in">+</button></div>');
@@ -6092,6 +6186,8 @@ const tc = THEME.colour;
   function placeJarvis() {
     const css = document.documentElement.style;
     const legend = document.getElementById('legend'), ctx = document.getElementById('context');
+    const mr = document.getElementById('metrics').getBoundingClientRect();
+    if (mr.height) css.setProperty('--legend-top', `${Math.round(mr.bottom + 10)}px`);   // the controls sit under the bar
     const lr = legend.getBoundingClientRect();
     if (lr.width) css.setProperty('--legend-room', `${Math.ceil(lr.width) + 26 + 12}px`);
     const top = lr.height ? Math.round(lr.bottom + 28) : 22;
@@ -6105,7 +6201,7 @@ const tc = THEME.colour;
   window.addEventListener('resize', placeJarvis);
   if (window.ResizeObserver) {
     const ro = new ResizeObserver(() => placeJarvis());
-    ['legend', 'context'].forEach(id => { const el = document.getElementById(id); if (el) ro.observe(el); });
+    ['legend', 'context', 'metrics'].forEach(id => { const el = document.getElementById(id); if (el) ro.observe(el); });
   }
 
   // Talk to the emblem: same as the mic button (the first click only wakes him).
@@ -6802,6 +6898,448 @@ const tc = THEME.colour;
   }
   pollCrew();
   setInterval(() => { if (!crewOpen) pollCrew(); }, 5000);
+
+  // ---- Mission control (2026-11-14) ------------------------------------------------------------
+  // The first tile on the bar opens one board of tiles: AI use by model, my clients, what needs me,
+  // priorities from Actions, Xero, the team, client progress, today's meetings and Halo's own health.
+  // Everything comes from endpoints the page already uses, plus /api/xero (read only, kept 3 hours).
+  const msEl = document.getElementById('mission'), msGrid = msEl.querySelector('.grid');
+  const tMission = tile(tc('#bad367'), 'Mission control', () => openMission());
+  tMission.el.classList.add('mission-tile');
+  metricsEl.prepend(tMission.el);
+  tMission.set('Open', 'Clients · Xero · team · usage', 'Open the Mission control board');
+  let msOpen = false, msXero = null, msXeroErr = '', msXeroBusy = false, msToday = null, msTodayErr = '';
+  let msPipe = null, msPipeErr = '', msPipeBusy = false, msFleetPeriod = 7;
+  try { msFleetPeriod = +localStorage.getItem('halo-fleet-period') === 30 ? 30 : 7; } catch (_) {}
+  // A small bar chart: one bar per value, scaled to the largest.
+  function sparkBars(vals, colour, label) {
+    const max = Math.max(1, ...vals), n = Math.max(1, vals.length), w = 100 / n;
+    return `<svg class="spark" viewBox="0 0 100 34" preserveAspectRatio="none" role="img" aria-label="${esc(label)}">` +
+      vals.map((v, i) => { const h = v ? Math.max(1.5, v / max * 32) : 0;
+        return `<rect x="${(i * w + w * 0.12).toFixed(2)}" y="${(34 - h).toFixed(2)}" width="${(w * 0.76).toFixed(2)}" height="${h.toFixed(2)}" rx="0.6" fill="${colour}"><title>${esc(String(v))}</title></rect>`; }).join('') + '</svg>';
+  }
+  // AI cost: API spend a day as bars across the tile's full width, with the peak marked and the dates at the ends.
+  function costChart(vals, days, fmt, emptyNote) {
+    const max = Math.max(...vals), top = max || 1, n = vals.length, W = 300, H = 80, bw = W / n;
+    const bars = vals.map((v, i) => { const h = v ? Math.max(1, v / top * (H - 8)) : 0;
+      return `<rect x="${(i * bw + bw * 0.15).toFixed(2)}" y="${(H - h).toFixed(2)}" width="${(bw * 0.7).toFixed(2)}" height="${h.toFixed(2)}" fill="#6fb3ff">` +
+        `<title>${esc(days[i])}: ${esc(fmt(v))}</title></rect>`; }).join('');
+    const label = `API cost a day, last ${n} days; peak ${fmt(max)}`;
+    return `<div style="flex:none;display:flex;justify-content:space-between;align-items:baseline;margin-top:2px"><span class="k">API cost a day · last ${n} days</span>` +
+      `<span style="font-size:10px;color:var(--dim)">${max ? 'peak ' + esc(fmt(max)) : ''}</span></div>` +
+      `<div style="position:relative;flex:1;min-height:40px;border-bottom:1px solid rgba(255,255,255,0.12)">` +
+      `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${esc(label)}" style="position:absolute;inset:0;width:100%;height:100%">` +
+      `<line x1="0" x2="${W}" y1="${H / 2}" y2="${H / 2}" stroke="rgba(255,255,255,0.08)" vector-effect="non-scaling-stroke"></line>${bars}</svg>` +
+      (emptyNote ? `<div class="empty" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center">${esc(emptyNote)}</div>` : '') +
+      `</div><div style="flex:none;display:flex;justify-content:space-between;font-size:10px;color:var(--dim)"><span>${esc(days[0].slice(5))}</span><span>today</span></div>`;
+  }
+  // AI usage: one line chart, a line per model (new tokens a day), with a legend of totals underneath.
+  function modelChart(rows, days, byDay, list, sum, today) {
+    const series = rows.map(([id], i) => ({ id, c: MODEL_COLOUR[i] || '#8a93a8', v: days.map(dd => (byDay[dd] || {})[id] || 0) }));
+    const max = Math.max(1, ...series.flatMap(s => s.v)), n = days.length, W = 300, H = 80;
+    const x = i => n > 1 ? i / (n - 1) * W : W / 2, y = v => H - 2 - v / max * (H - 6);
+    const grid = [0.5, 1].map(f => `<line x1="0" x2="${W}" y1="${y(max * f).toFixed(1)}" y2="${y(max * f).toFixed(1)}" stroke="rgba(255,255,255,0.08)" vector-effect="non-scaling-stroke"></line>`).join('');
+    const lines = series.map(s => `<polyline fill="none" stroke="${s.c}" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke" ` +
+      `points="${s.v.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')}"></polyline>`).join('');
+    const label = `New tokens a day by model, last ${n} days; peak ${fmtTokens(max)}`;
+    return `<div style="position:relative;flex:1;min-height:60px"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${esc(label)}" ` +
+      `style="position:absolute;inset:0;width:100%;height:100%">${grid}${lines}</svg>` +
+      `<span style="position:absolute;right:0;top:-2px;font-size:10px;color:var(--dim)">${fmtTokens(max)}/day</span></div>` +
+      `<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--dim);margin-top:-4px"><span>${esc(days[0].slice(5))}</span><span>today</span></div>` +
+      `<div class="chips">${rows.map(([id, tot], i) => `<span class="chip" style="display:inline-flex;gap:6px;align-items:center;--c:${series[i].c}">` +
+        `<span class="dot"></span>${esc(modelName(id, list))} · ${fmtTokens(tot)} (${Math.round(tot / sum * 100)}%) · today ${fmtTokens(today[id] || 0)}</span>`).join('')}</div>`;
+  }
+  const lastDays = n =>Array.from({ length: n }, (_, i) => dayISO(new Date(Date.now() - (n - 1 - i) * 864e5)));
+  const esc = s => escapeHtml(String(s == null ? '' : s));
+  const money = (n, cur) => n == null || isNaN(+n) ? '—' :
+    new Intl.NumberFormat('en-AU', { style: 'currency', currency: cur || 'AUD', maximumFractionDigits: 0 }).format(+n);
+  const norm = s => String(s || '').toLowerCase().replace(/[^a-z]/g, '');
+  const dayISO = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const agoSay = secs => secs < 90 ? 'just now' : secs < 3600 ? `${Math.round(secs / 60)} min ago` :
+    secs < 86400 ? `${Math.round(secs / 3600)} h ago` : `${Math.round(secs / 86400)} d ago`;
+  const MODEL_COLOUR = ['#bad367', '#6fb3ff', '#ff9f43', '#c9a7ff', '#8a93a8'];
+  function modelName(id, list) {
+    const hit = (list || []).find(m => String(id).startsWith(m.id));
+    if (hit) return hit.name;
+    // An older model not in the picker: claude-opus-5 → "Opus 5", claude-sonnet-4-6 → "Sonnet 4.6".
+    const m = /^claude-([a-z]+)-(\d+)(?:-(\d))?(?:-\d{8})?$/.exec(String(id));
+    return m ? `${m[1][0].toUpperCase()}${m[1].slice(1)} ${m[2]}${m[3] ? '.' + m[3] : ''}` : String(id).replace(/^claude-/, '');
+  }
+  // Where each tile sits (CSS order): four rows, wide tiles down the left, Clients tall in the third column.
+  const MC_ORDER = ['AI usage', 'Clients · summary', 'Needs you', 'AI cost', 'Priorities', 'Agent fleet', 'Money · Xero',
+    "Today's meetings", 'Pipeline &amp; leads', 'Client progress', 'System health'];
+  function mcTile(cls, key, note, inner) {
+    return `<section class="mc ${cls}" style="order:${MC_ORDER.indexOf(key)}"><div class="th"><div class="k">${key}</div>${note ? `<span class="note">${note}</span>` : ''}</div>${inner}</section>`;
+  }
+
+  function openMission() {
+    msEl.hidden = false; msOpen = true;
+    renderMission();
+    loadMission(false);
+  }
+  function closeMission() { msEl.hidden = true; msOpen = false; }
+  msEl.querySelector('.close').onclick = closeMission;
+  msEl.querySelector('.refresh').onclick = () => loadMission(true);
+  window.addEventListener('keydown', e => {
+    if (e.key !== 'Escape' || msEl.hidden) return;
+    e.stopPropagation(); closeMission();
+  }, true);
+
+  let msData = {};
+  async function loadMission(fresh) {
+    // Each tile fills in as its data lands, rather than all waiting for the slowest.
+    const show = () => { if (msOpen) renderMission(); };
+    const get = async (path, key) => { try { msData[key] = await api(path); } catch (err) { msData[key] = { error: err.message }; } show(); };
+    Promise.all([get(`/api/metrics?period=${metricPeriod}`, 'metrics'), get('/api/models', 'models'),
+      get('/api/approvals', 'approvals'), get('/api/hires', 'hires'), get('/api/actions', 'actions'),
+      get('/api/crm?kind=organizations', 'crm'), get('/api/mission', 'mission'), get(`/api/fleet?period=${msFleetPeriod}`, 'fleet'),
+      get('/api/costs' + (fresh ? '?refresh=1' : ''), 'costs'), pollCrew().then(show)]);
+    if ((!msPipe || fresh) && !msPipeBusy) {   // monday, about 15 to 40 seconds when not cached
+      msPipeBusy = true; show();
+      api('/api/pipeline' + (fresh ? '?refresh=1' : '')).then(d => { msPipe = d; msPipeErr = ''; }, err => { msPipeErr = err.message; })
+        .then(() => { msPipeBusy = false; show(); });
+    }
+    // The slow ones: Outlook (about 20 s when not cached) and Xero (about 30 s when not cached).
+    if (!msToday || fresh) api('/api/today').then(d => { msToday = d; msTodayErr = ''; }, err => { msTodayErr = err.message; })
+      .then(() => msOpen && renderMission());
+    if ((!msXero || fresh) && !msXeroBusy) {
+      msXeroBusy = true;
+      if (msOpen) renderMission();
+      api('/api/xero' + (fresh ? '?refresh=1' : '')).then(d => { msXero = d; msXeroErr = ''; }, err => { msXeroErr = err.message; })
+        .then(() => { msXeroBusy = false; if (msOpen) renderMission(); });
+    }
+  }
+
+  function renderMission() {
+    const now = new Date();
+    msEl.querySelector('.when').textContent = now.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' }) +
+      ' · ' + now.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+    const d = msData, wait = '<div class="wait">Loading…</div>';
+    const tiles = [];
+
+    // AI usage, today and over the bar's period, split by model.
+    {
+      const m = d.metrics, t = m && m.tokens;
+      let inner = wait;
+      if (m && m.error) inner = `<div class="empty">${esc(m.error)}</div>`;
+      else if (t) {
+        const list = (d.models && d.models.models) || [];
+        // One graph per model: new tokens a day over the bar's period (at most 30 bars), largest model first.
+        const span = PERIOD_LABEL[m.period] || `${m.period} days`;
+        const days = lastDays(Math.min(30, m.period)), byDay = Object.fromEntries((t.daily || []).map(x => [x.day, x.m]));
+        const rows = Object.entries(t.models || {}).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
+        const sum = rows.reduce((s, r) => s + r[1], 0) || 1;
+        inner = `<div class="nums"><div><div class="big">${fmtTokens(t.today || 0)}</div><div class="l">new tokens today</div></div>` +
+          `<div><div class="big">${fmtTokens(t.fresh)}</div><div class="l">${esc(span)}</div></div>` +
+          `<div><div class="big">${fmtTokens(t.cached)}</div><div class="l">cached reads · ${esc(span)}</div></div>` +
+          `<div><div class="big">${fmtTokens(t.jarvis)}</div><div class="l">by Halo &amp; the team</div></div></div>` +
+          (rows.length ? modelChart(rows.slice(0, 5), days, byDay, list, sum, t.models_today || {})
+            : '<div class="empty">No per-model split yet. It fills in as new sessions are logged.</div>');
+      }
+      const md = d.models;
+      const note = md && !md.error ? `Halo: ${esc(modelName(md.chat, md.models))} · team: ${esc(modelName(md.jobs, md.models))}` : '';
+      tiles.push(mcTile('wide', 'AI usage', note, inner));
+    }
+
+    // Clients: your CRM's organisations (those marked client first). Set up when there are none yet.
+    {
+      let inner = wait, note = '';
+      const orgs = d.crm && d.crm.rows;
+      if (d.crm && d.crm.error) inner = setupNote(esc(d.crm.error));
+      else if (orgs && !orgs.length) inner = setupNote('No clients yet. Add them as organisations in your CRM ' +
+        '(PKM/CRM/Organizations), or tell Halo "add Acme as a client".');
+      else if (orgs) {
+        const isClient = r => /client/i.test(r.sub || '');
+        const clients = orgs.filter(isClient), list = clients.length ? clients : orgs;
+        note = `${orgs.length} organisations`;
+        inner = `<div class="nums"><div><div class="big">${clients.length}</div><div class="l">clients</div></div>` +
+          `<div><div class="big">${orgs.length - clients.length}</div><div class="l">other organisations</div></div></div><div class="body">` +
+          list.map(r => `<button type="button" class="li" data-note="${esc(r.path)}" style="--c:${isClient(r) ? '#bad367' : '#8a93a8'}"><span class="dot"></span>` +
+            `<span class="t">${esc(r.name)}<span>${esc(r.sub || '')}</span></span></button>`).join('') + '</div>';
+      }
+      tiles.push(mcTile('tall good', 'Clients · summary', esc(note), inner));
+    }
+
+    // Needs you: the team's approvals and questions, and new hires waiting on a yes.
+    {
+      const ap = (d.approvals && d.approvals.pending) || [], hires = (d.hires && d.hires.hires) || [];
+      const n = ap.length + hires.length;
+      const inner = !d.approvals ? wait : `<div class="big" style="${n ? 'color:#ffb46b' : ''}">${n}</div><div class="body">` +
+        (n ? ap.map(a => `<button type="button" class="li" data-open="crew" style="--c:#ff9f43"><span class="dot"></span>` +
+          `<span class="t">${esc(a.asker || a.agent)}: ${esc(a.kind === 'question' ? 'has a question' : (a.plain || a.what || a.tool))}</span></button>`).join('') +
+          hires.map(h => `<button type="button" class="li" data-open="crew" style="--c:#6fb3ff"><span class="dot"></span>` +
+          `<span class="t">New hire: ${esc(h.name)}<span>${esc(h.role || '')}</span></span></button>`).join('')
+          : '<div class="empty">Nothing is waiting on you.</div>') + '</div>';
+      tiles.push(mcTile(n ? 'alert' : '', 'Needs you', n ? 'click to answer' : '', inner));
+    }
+
+    // Priorities, from Actions: A = every overdue action (anyone's, owner shown when not mine) and mine
+    // due today; B = mine due in the next 7 days.
+    {
+      let inner = wait, note = '';
+      const acts = d.actions && d.actions.actions;
+      if (acts) {
+        const me = norm(SETUP.user_name || ''), today = dayISO(), week = dayISO(new Date(Date.now() + 7 * 864e5));
+        const open = acts.filter(a => !a.done), mine = open.filter(a => norm(a.owner) === me);
+        const overdue = open.filter(a => a.due && a.due < today).sort((a, b) => a.due.localeCompare(b.due));
+        const A = overdue.concat(mine.filter(a => a.due === today)), B = mine.filter(a => a.due && a.due > today && a.due <= week);
+        const fallback = !A.length && !B.length ? [...mine].sort((a, b) => (b.raised || '').localeCompare(a.raised || '')).slice(0, 5) : [];
+        note = `${overdue.length} overdue · ${mine.length} open are mine`;
+        const who = a => norm(a.owner) === me || !a.owner ? '' : ` · ${String(a.owner).replace(/-/g, ' ')}`;
+        const row = (a, g) => `<button type="button" class="li" data-open="actions">${g ? `<span class="grade${g === 'B' ? ' b' : ''}">${g}</span>` : ''}` +
+          `<span class="t">${esc(a.action)}${a.due && a.due < today ? `<span style="color:#ffb46b">overdue since ${esc(a.due)}${esc(who(a))}</span>` : ''}</span>` +
+          `<span class="r">${a.due ? esc(a.due.slice(5)) : ''}</span></button>`;
+        inner = '<div class="body">' + A.map(a => row(a, 'A')).join('') + B.map(a => row(a, 'B')).join('') +
+          (fallback.length ? '<div class="empty">Nothing of yours is due this week. Newest open:</div>' + fallback.map(a => row(a, '')).join('') : '') +
+          (!mine.length ? '<div class="empty">No open actions are yours.</div>' : '') + '</div>';
+      } else if (acts === undefined && d.actions && d.actions.error) inner = `<div class="empty">${esc(d.actions.error)}</div>`;
+      tiles.push(mcTile('', 'Priorities', esc(note), inner));
+    }
+
+    // Money, from Xero.
+    {
+      const xSetup = msXero && msXero.setup, x = xSetup ? null : msXero;
+      let inner;
+      if (xSetup) inner = setupNote('Cash, money owed to you and bills due, from Xero. Connect Xero in claude.ai, then switch it on here.');
+      else if (x) inner = `<div class="big">${money(x.cash, x.currency)}</div><div class="l" style="font-size:11px;color:var(--dim);margin-top:-6px">cash in bank</div><div class="body">` +
+        `<div class="li">Owed to us<span class="r" style="color:var(--ink)">${money(x.owed_to_us, x.currency)}</span></div>` +
+        `<div class="li">Overdue 30+ days<span class="r" style="color:${x.overdue_30 ? '#ffb46b' : 'var(--ink)'}">${money(x.overdue_30, x.currency)}` +
+        `${x.overdue_customers ? ` · ${esc(x.overdue_customers)} ${x.overdue_customers == 1 ? 'client' : 'clients'}` : ''}</span></div>` +
+        `<div class="li">Bills due this week<span class="r" style="color:var(--ink)">${money(x.bills_due_week, x.currency)}</span></div>` +
+        (x.top_owing || []).slice(0, 3).map(o => `<div class="li"><span class="t" style="color:var(--dim)">${esc(o.name)}</span><span class="r">${money(o.amount, x.currency)}</span></div>`).join('') + '</div>';
+      else if (msXeroBusy) inner = '<div class="wait">Reading Xero… about 30 seconds.</div>';
+      else inner = `<div class="empty">${esc(msXeroErr || 'Not read yet.')}</div>`;
+      tiles.push(mcTile('', 'Money · Xero', x ? `read ${esc(x.fetched)}${msXeroBusy ? ' · refreshing' : ''}` : '', inner));
+    }
+
+    // The team: who is working now (left) and each agent's work over the last 7 or 30 days (right).
+    {
+      const live = (crew.workers || []).filter(w => !w.done);
+      const f = d.fleet, rows = (f && f.agents) || [];
+      const topMin = Math.max(1, ...rows.map(r => r.minutes));
+      const hrs = m => m >= 60 ? `${(m / 60).toFixed(1)} h` : `${m} min`;
+      const hist = !f ? wait : f.error ? `<div class="empty">${esc(f.error)}</div>` : !rows.length
+        ? `<div class="empty">No agent work in the last ${f.period} days.</div>`
+        : '<div class="body"><table><thead><tr><th>Agent</th><th>Jobs</th><th>Time</th><th>Asks</th><th>Tokens</th></tr></thead><tbody>' +
+          rows.slice(0, 14).map(r => `<tr><td><span style="display:inline-flex;gap:6px;align-items:center;--c:${colourOf(r.agent)}"><span class="dot"></span>${esc(r.agent)}</span>` +
+            `<span class="bar" style="display:block;margin-top:3px;max-width:140px;height:3px;--c:${colourOf(r.agent)}"><i style="width:${Math.round(r.minutes / topMin * 100)}%"></i></span></td>` +
+            `<td>${r.jobs}</td><td>${hrs(r.minutes)}</td><td>${r.asks}</td><td>${r.tokens ? fmtTokens(r.tokens) : '—'}</td></tr>`).join('') + '</tbody></table></div>';
+      const inner = `<div class="cols"><div><div class="big">${live.length} <small>working now · ${(crew.team || []).length} on the team</small></div><div class="body">` +
+        (live.length ? live.map(w => `<button type="button" class="li" data-open="crew" style="--c:${colourOf(w.agent)}"><span class="dot"></span>` +
+          `<span class="t">${esc(w.agent)}<span>${esc(w.project)}${w.activity ? ' · ' + esc(w.activity) : ''}</span></span></button>`).join('')
+          : '<div class="empty">Everyone is idle. Give Larry a job from the chat.</div>') + '</div></div>' +
+        `<div><div class="th"><span class="k">History</span><span class="seg">${[7, 30].map(p =>
+          `<button type="button" data-fleet="${p}" class="${msFleetPeriod === p ? 'on' : ''}">${p} days</button>`).join('')}</span></div>${hist}` +
+        '<div style="font-size:10.5px;color:var(--dim)">Asks: your messages to that agent. Tokens are counted from 14 Nov on.</div></div></div>';
+      tiles.push(mcTile('wide', 'Agent fleet', '', inner));
+    }
+
+    // AI cost: plan costs you set, plus 30 days of API spend by API key (Anthropic's cost data, 4 to 24 h behind).
+    {
+      const c = d.costs;
+      let inner = wait;
+      if (c && c.error) inner = `<div class="empty">${esc(c.error)}</div>`;
+      else if (c) {
+        const cur = c.currency || 'AUD', api = c.api;
+        const usd = n => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'USD', maximumFractionDigits: n < 100 ? 2 : 0 }).format(n);
+        // Every API key together; the busiest key is named underneath.
+        const app = api && { name: api.keys.length ? `All API keys (busiest: ${api.keys[0].name})` : 'All API keys', usd: api.total,
+          tokens: api.keys.reduce((n, k) => n + (k.tokens || 0), 0), daily: Object.fromEntries(api.daily.map(x => [x.day, x.usd])) };
+        const days = lastDays(30);
+        const plans = c.plans.length ? c.plans.map(p => `${esc(p.name)} ${money(p.monthly, cur)}/mo`).join(' · ') : 'No plans entered yet';
+        const apiBig = app ? usd(app.usd) : '—';
+        const apiSub = app ? `${esc(app.name)} · ${fmtTokens(app.tokens)} tokens · 30 days (USD)`
+          : c.apiProblem ? esc(c.apiProblem) : 'API cost needs an Anthropic Admin API key: click Set up';
+        // One compact row of totals, then the daily chart filling the rest of the tile.
+        const top = `<div class="nums" style="flex:none;flex-wrap:nowrap"><div style="min-width:0"><div class="big">${money(c.plan_monthly, cur)}</div>` +
+          `<div class="l" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">plans a month · ${plans}</div></div>` +
+          `<div style="min-width:0"><div class="big">${apiBig}</div><div class="l" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${apiSub}</div></div></div>`;
+        const chart = app ? costChart(days.map(dd => app.daily[dd] || 0), days, usd)
+          : costChart(days.map(() => 0), days, usd, 'The daily API cost chart fills in once the Admin key is added (Set up, top right).');
+        inner = top + chart +
+          (api ? `<div style="flex:none;font-size:10px;color:var(--dim)">Anthropic data to ${esc(String(api.refreshed || '').slice(0, 16).replace('T', ' '))} UTC, 4 to 24 h behind</div>` : '');
+      }
+      tiles.push(mcTile('wide', 'AI cost', '<button type="button" class="link" data-open="costs">Set up</button>', inner));
+    }
+
+    // Client progress comes with the client tracker, which isn't in this Halo yet.
+    tiles.push(mcTile('', 'Client progress', '', setupNote('Each client\'s work stream and how far along it is. ' +
+      'This needs the client tracker: ask Richie if you\'d like it.', true)));
+
+    // Pipeline & leads, from the monday CRM (Deals and Leads boards).
+    {
+      const p = msPipe;
+      let inner;
+      const pSetup = p && p.setup;
+      if (pSetup) inner = setupNote('Your sales pipeline, wins, new leads and follow-ups due, from monday CRM. Paste your Deals board link in Set up.');
+      else if (p) {
+        const st = p.stages || [], open = st.filter(x => x.kind === 'open'), wonRows = st.filter(x => x.kind === 'won');
+        const won = { count: wonRows.reduce((n, x) => n + (+x.count || 0), 0), value: wonRows.reduce((n, x) => n + (+x.value || 0), 0) };
+        const openVal = open.reduce((n, x) => n + (+x.value || 0), 0), openN = open.reduce((n, x) => n + (+x.count || 0), 0);
+        const topV = Math.max(1, ...open.map(x => +x.value || 0));
+        // Totals on one row (pipeline, won, new leads), then the open stages, compact enough to fit the tile.
+        const left = `<div style="overflow:hidden"><div class="nums" style="flex-wrap:nowrap;gap:24px">` +
+          `<div><div class="big" style="font-size:22px">${money(openVal)}</div><div class="l" style="white-space:nowrap">open pipeline · ${openN} deals</div></div>` +
+          `<div><div class="big" style="color:#3ddc97;font-size:22px">${money(won.value)}</div><div class="l" style="white-space:nowrap">won · ${won.count} deals</div></div>` +
+          `<div><div class="big" style="font-size:22px">${esc(p.new_leads_7d ?? '—')}</div><div class="l" style="white-space:nowrap">new leads · 7 days</div></div></div>` +
+          `<div style="display:flex;flex-direction:column;gap:2px;margin-top:4px">` +
+          open.slice(0, 4).map(x => `<div class="mrow" style="grid-template-columns:160px minmax(0,1fr) 120px;font-size:12.5px;padding:1px 0;--c:#6fb3ff"><span>${esc(x.stage)}</span>` +
+            `<span class="bar" style="height:7px"><i style="width:${Math.round((+x.value || 0) / topV * 100)}%"></i></span>` +
+            `<span class="r" style="font-size:12px;color:var(--ink)">${x.count} · ${money(x.value)}</span></div>`).join('') + '</div></div>';
+        const leadChips = `<div class="chips" style="margin-top:6px">${(p.leads || []).filter(l => l.count && l.status).slice(0, 6).map(l => `<span class="chip">${esc(l.status)} ${esc(l.count)}</span>`).join('')}</div>`;
+        const fu = p.followups || [];
+        const right = `<div><div class="k">Follow-ups due</div><div class="body">` + (fu.length ? fu.map(x =>
+          `<div class="li" style="--c:#ffb347"><span class="dot"></span><span class="t">${esc(x.name)}<span>${esc(x.stage || '')}${x.owner ? ' · ' + esc(x.owner) : ''}</span></span>` +
+          `<span class="r">${esc(x.date || '')}${x.value ? ' · ' + money(x.value) : ''}</span></div>`).join('') : '<div class="empty">No follow-ups due.</div>') +
+          `</div>${leadChips}</div>`;
+        inner = `<div class="cols" style="grid-template-columns:minmax(0,1.75fr) minmax(0,1fr)">${left}${right}</div>`;   // follow-ups narrower
+      } else if (msPipeBusy) inner = '<div class="wait">Reading monday… about 30 seconds.</div>';
+      else inner = `<div class="empty">${esc(msPipeErr || 'Not read yet.')}</div>`;
+      tiles.push(mcTile('wide', 'Pipeline &amp; leads', p && !pSetup ? `<a href="${esc(p.board)}" target="_blank" rel="noopener" style="color:var(--brand)">monday CRM ↗</a> · read ${esc(p.fetched)}${msPipeBusy ? ' · refreshing' : ''}` : 'monday CRM', inner));
+    }
+
+    // Today's meetings, from the Outlook card's feed.
+    {
+      let inner;
+      if (msToday) {
+        const ev = msToday.events || [];
+        inner = '<div class="body">' + (ev.length ? ev.map(e => {
+          const s = toToday(e.start), en = toToday(e.end), past = en ? en < new Date() : s && s < new Date();
+          return `<div class="li" style="${past ? 'opacity:.5' : ''}"><b style="font-weight:600;width:64px;flex:none">${esc(e.start)}</b>` +
+            `<span class="t">${esc(e.title)}<span>${esc(e.location || '')}</span></span></div>`;
+        }).join('') : '<div class="empty">Diary clear today.</div>') + '</div>';
+      } else inner = msTodayErr ? setupNote('Today\'s meetings, from Outlook. Connect Microsoft 365 in claude.ai (Settings, Connectors), then Set up, Check again.')
+        : '<div class="wait">Checking Outlook…</div>';
+      tiles.push(mcTile('', "Today's meetings", msToday ? `Outlook · ${esc(msToday.fetched || '')}` : '', inner));
+    }
+
+    // Halo's own health.
+    {
+      const row = (ok, name, say) => `<div class="li" style="--c:${ok === null ? '#8a93a8' : ok ? '#3ddc97' : '#ff9f43'}"><span class="dot"></span>${name}<span class="r">${say}</span></div>`;
+      const inner = '<div class="body">' + row(true, 'Halo server', 'responding') +
+        row(msToday ? true : msTodayErr ? false : null, 'Outlook', msToday ? `read ${esc(msToday.fetched || '')}` : msTodayErr ? 'not reachable' : 'checking') +
+        row(msXero && msXero.setup ? null : msXero ? true : msXeroErr ? false : null, 'Xero',
+          msXero && msXero.setup ? 'not set up' : msXero ? `read ${esc(msXero.fetched)}` : msXeroErr ? 'not reachable' : 'checking') +
+        row(msPipe && msPipe.setup ? null : msPipe ? true : msPipeErr ? false : null, 'monday CRM',
+          msPipe && msPipe.setup ? 'not set up' : msPipe ? `read ${esc(msPipe.fetched)}` : msPipeErr ? 'not reachable' : 'checking') +
+        row(d.metrics && !d.metrics.error, 'Usage log', d.metrics && d.metrics.tokens ? `since ${esc(d.metrics.tokens.since || '')}` : '…') + '</div>';
+      tiles.push(mcTile('', 'System health', '', inner));
+    }
+
+    msGrid.innerHTML = tiles.join('');
+    msGrid.querySelectorAll('[data-note]').forEach(b => { b.onclick = () => { closeMission(); openDoc(b.dataset.note, false); }; });
+    msGrid.querySelectorAll('[data-open="connect"]').forEach(b => { b.onclick = openConnections; });
+    msGrid.querySelectorAll('[data-open="crew"]').forEach(b => { b.onclick = () => { closeMission(); openCrew(); }; });
+    msGrid.querySelectorAll('[data-open="actions"]').forEach(b => { b.onclick = () => { closeMission(); showActions(); }; });
+    msGrid.querySelectorAll('[data-open="costs"]').forEach(b => { b.onclick = openCostSetup; });
+    msGrid.querySelectorAll('[data-fleet]').forEach(b => { b.onclick = async () => {
+      msFleetPeriod = +b.dataset.fleet;
+      try { localStorage.setItem('halo-fleet-period', msFleetPeriod); } catch (_) {}
+      msData.fleet = null; renderMission();
+      try { msData.fleet = await api(`/api/fleet?period=${msFleetPeriod}`); } catch (err) { msData.fleet = { error: err.message }; }
+      if (msOpen) renderMission();
+    }; });
+  }
+
+  // A tile with nothing connected yet: what it would show, and a Set up button (or, for something this Halo
+  // can't connect itself, just the note).
+  function setupNote(text, infoOnly) {
+    return `<div class="empty" style="margin-bottom:8px">${text}</div>` +
+      (infoOnly ? '' : '<div><button type="button" class="tbtn" data-open="connect" style="padding:5px 14px">Set up</button></div>');
+  }
+  // Connections: one panel for everything Mission control can read. Xero and monday are tried once before
+  // they're saved, so a tile only leaves Set up when it can really show its data.
+  const msConn = document.createElement('form');
+  msConn.className = 'setup'; msConn.hidden = true; msConn.setAttribute('aria-label', 'Mission control connections');
+  msConn.innerHTML = '<h3>Mission control connections</h3>' +
+    '<div class="help">Halo reads these through the connectors in claude.ai (Settings, Connectors), signed in with the ' +
+    'same account as Claude Code. Connect them there first.</div>' +
+    '<label style="text-transform:none;letter-spacing:0;font-size:12.5px;color:var(--ink)"><input type="checkbox" class="xero"> ' +
+    'Xero: show cash, money owed and bills due</label>' +
+    '<label for="mc-deals">monday CRM: Deals board link</label>' +
+    '<input id="mc-deals" class="deals" placeholder="https://yourteam.monday.com/boards/1234567890">' +
+    '<label for="mc-leads">Leads board link (optional)</label>' +
+    '<input id="mc-leads" class="leads" placeholder="https://yourteam.monday.com/boards/…">' +
+    '<div class="help"><b>Outlook meetings:</b> connect Microsoft 365 in claude.ai, then <button type="button" class="link recheck">check again</button>.<br>' +
+    '<b>Clients:</b> come from the organisations in your CRM folder; mark them as clients.<br>' +
+    '<b>AI cost:</b> use Set up on the AI cost tile.</div>' +
+    '<div class="msg" role="status"></div>' +
+    '<div class="acts"><button type="button" class="cancel">Close</button><button type="submit">Save</button></div>';
+  msEl.appendChild(msConn);
+  const msConnMsg = msConn.querySelector('.msg');
+  function openConnections() {
+    const m = msData.mission && !msData.mission.error ? msData.mission : {};
+    msConn.querySelector('.xero').checked = !!m.xero;
+    msConn.querySelector('.deals').value = m.deals_url || '';
+    msConn.querySelector('.leads').value = m.leads_url || '';
+    msConnMsg.textContent = '';
+    msSetup.hidden = true; msConn.hidden = false;
+  }
+  msConn.querySelector('.cancel').onclick = () => { msConn.hidden = true; };
+  msConn.querySelector('.recheck').onclick = () => {
+    msToday = null; msTodayErr = ''; renderMission();
+    api('/api/today?refresh=1').then(dd => { msToday = dd; }, err => { msTodayErr = err.message; }).then(() => msOpen && renderMission());
+    msConnMsg.textContent = 'Checking Outlook… about 20 seconds.';
+  };
+  msConn.onsubmit = async e => {
+    e.preventDefault();
+    const body = { xero: msConn.querySelector('.xero').checked,
+      deals_url: msConn.querySelector('.deals').value.trim(), leads_url: msConn.querySelector('.leads').value.trim() };
+    msConnMsg.textContent = 'Checking the connections… up to a minute.';
+    try {
+      msData.mission = await api('/api/mission', body);
+      msConn.hidden = true;
+      msXero = null; msPipe = null;
+      loadMission(true);
+    } catch (err) { msConnMsg.textContent = err.message; }
+  };
+
+  // AI cost setup: plans (name and monthly cost) and the Anthropic Admin API key. The key is sent once,
+  // checked by the server against Anthropic, and never sent back to the page.
+  const msSetup = msEl.querySelector('.setup'), msPlans = msSetup.querySelector('.plans'), msSetupMsg = msSetup.querySelector('.msg');
+  function planRow(p = {}) {
+    const row = document.createElement('div');
+    row.className = 'plan';
+    row.innerHTML = '<input class="pn" placeholder="e.g. Claude Max, Richie" aria-label="Plan name" maxlength="60">' +
+      '<input class="pm" type="number" min="0" step="0.01" placeholder="per month" aria-label="Monthly cost">' +
+      '<button type="button" title="Remove this plan" aria-label="Remove this plan">✕</button>';
+    row.querySelector('.pn').value = p.name || '';
+    row.querySelector('.pm').value = p.monthly != null ? p.monthly : '';
+    row.querySelector('button').onclick = () => row.remove();
+    msPlans.appendChild(row);
+  }
+  function openCostSetup() {
+    const c = msData.costs && !msData.costs.error ? msData.costs : { plans: [], currency: 'AUD', hasAdminKey: false };
+    msPlans.innerHTML = '';
+    (c.plans.length ? c.plans : [{}]).forEach(planRow);
+    msSetup.querySelector('.cur').value = c.currency || 'AUD';
+    msSetup.querySelector('.admin').value = '';
+    msSetup.querySelector('.forget').checked = false;
+    msSetup.querySelector('.forget').parentElement.hidden = !c.hasAdminKey;
+    msSetup.querySelector('.admin').placeholder = c.hasAdminKey ? 'Saved. Paste a new one to replace it' : 'sk-ant-admin…';
+    msSetupMsg.textContent = '';
+    msSetup.hidden = false;
+    msSetup.querySelector('.pn').focus();
+  }
+  msSetup.querySelector('.add').onclick = () => planRow();
+  msSetup.querySelector('.cancel').onclick = () => { msSetup.hidden = true; };
+  msSetup.onsubmit = async e => {
+    e.preventDefault();
+    const body = { currency: msSetup.querySelector('.cur').value.trim() || 'AUD',
+      plans: [...msPlans.querySelectorAll('.plan')].map(r => ({ name: r.querySelector('.pn').value.trim(), monthly: r.querySelector('.pm').value }))
+        .filter(p => p.name) };
+    const key = msSetup.querySelector('.admin').value.trim();
+    if (key) body.adminKey = key;
+    else if (msSetup.querySelector('.forget').checked) body.adminKey = '';
+    msSetupMsg.textContent = key ? 'Checking the key with Anthropic…' : 'Saving…';
+    try {
+      msData.costs = await api('/api/costs', body);
+      msSetup.querySelector('.admin').value = '';
+      msSetup.hidden = true;
+      renderMission();
+    } catch (err) { msSetupMsg.textContent = err.message; }
+  };
+  setInterval(() => { if (msOpen) loadMission(false); }, 60 * 1000);
   let crewTimer = null;
 
   function openCrew() {
@@ -8248,6 +8786,8 @@ const tc = THEME.colour;
     // The top bar
     { id: 't.bar', ch: 'topbar', target: () => metricsEl,
       say: 'Along the top are your numbers at a glance. Each one opens information about your productivity.' },
+    { id: 't.mission', ch: 'topbar', target: () => tMission.el,
+      say: "Mission control, first on the bar, opens one board with everything: AI use and cost, clients, what needs you, priorities, the team, money, your pipeline and today's meetings. Anything not connected yet shows a Set up button: press it to connect Xero, your monday boards or Outlook." },
     { id: 't.tokens', ch: 'topbar', target: () => tTokens.el,
       say: 'Tokens shows you how many tokens your sessions have used. The drop-down menu lets you change the period.' },
     { id: 't.meeting', ch: 'topbar', target: () => tMeeting.el,
@@ -8305,8 +8845,6 @@ const tc = THEME.colour;
     { id: 's.tutorial', ch: 'settings', target: () => stBox(), do: stTab('tutorial'),
       say: "Tutorial replays this tour, or one chapter of it, or just what's new." },
     // Getting around
-    { id: 'g.index', ch: 'around', target: () => legendEl.querySelector('.title') ? legendEl : null,
-      say: 'The Index lists the kinds of notes in your galaxy. Click one to fly to it.' },
     { id: 'g.zoom', ch: 'around', target: () => legendEl.querySelector('.zoom'),
       say: 'Zoom in and out here. The middle button brings the whole galaxy back into view.' },
     { id: 'g.view', ch: 'around', target: () => legendEl.querySelector('.view'),
