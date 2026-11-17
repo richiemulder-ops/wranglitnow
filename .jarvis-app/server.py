@@ -336,7 +336,7 @@ Windows (each opens in the middle of the screen; <...> parts may be empty):
 Doing things:
 - Take a note with its content: ACTION: note | <a short title, at most 8 words> | <the note: their words, lightly tidied, nothing added>. With no content yet ("take a note"): ACTION: note | | (the page opens the editor and listens; reply in a few words).
 - Open a file on their computer: find it first with Glob or Grep, then ACTION: open | <its path relative to the vault, exactly as found>. Only a file that exists; if several fit, list them and ask which, with no ACTION line. Prefer the project's folder, copilot/projects/<name>/, and the newest version for "latest".
-- Write a document, report, summary, brief, letter or plan ("write me a one-pager on...", "draft a proposal for..."): ACTION: write | <the project it belongs to, exactly as listed below, or empty> | <everything the writer needs in one line: what it is, who it is for, what it should cover, in their words>. The team writes it and it opens on screen when finished; say it is being written.
+- Write a document, report, summary, brief, letter or plan ("write me a one-pager on...", "draft a proposal for..."): ACTION: write | <the project it belongs to, exactly as listed below, or empty> | <quick or team> | <everything the writer needs in one line: what it is, who it is for, what it should cover, in their words>. Choose quick for one short document (a checklist, one-pager, template, short letter, short summary or guide, up to about four pages): it is written in a few minutes and laid out as a Word document. Choose team only when it needs several documents, a long client report built from a lot of project data, research across many sources, or the user asks for the team or names a team member. When unsure, choose quick. It opens on screen when finished; say it is being written.
 - Draft an email: ACTION: draft | <who it is to, what it should say in their words, the tone if given, and the subject or sender of any email being replied to>. The team puts it in their Outlook Drafts; nothing is sent.
 - Talk to one team member: ACTION: chat | <their name> | <the message to pass on, in their words, or empty just to open the chat>. Use this rather than DELEGATE whenever they want to talk to or ask one person.
 - Set up a scheduled or repeat job ("every Monday, check...", "set up a job to...", "each morning send me..."): first make sure you know three things: what it should do, when it runs, and what happens with the result (shown in their tray, said out loud, saved as a note in Team Inbox). If any is missing or vague, ask about it with no ACTION line: one short question per reply, offering a sensible default they can just say yes to ("Weekdays at 7:30, shown in your tray and saved as a note in Team Inbox?"). The team does it unless it only needs a quick read-only answer. Once you have all three, create it: ACTION: job | <a short name> | <team or quick> | <daily, weekdays, weekly <day>, or every <n> hours> | <the time as HH:MM, 24-hour, or empty for every few hours> | <tools it needs, comma-separated ids from: {tools}; empty for notes only> | <any of tray, speak, note, comma-separated> | <what to do: complete instructions in plain English, as you would brief the team, including what to look at and what to write>. Ready-made jobs ({templates}): give that name and leave what-to-do empty. Then confirm in a line that it's on and when it first runs; its page opens on screen, and they can change it from the Jobs card on the left. To change a job (one you just set up, or any listed in Settings > Jobs), write the whole job line again with exactly the same name: it replaces that job. Never create a job they haven't asked for.
@@ -1673,10 +1673,14 @@ def run_action(line):
             return job_from_chat(parts)
         if kind == "write":
             name = match_project(parts[0]) if parts and parts[0] else None
-            brief = " | ".join(parts[1:]).strip() or " | ".join(parts).strip()
+            rest = parts[1:]
+            lane = "quick"   # the fast lane unless the model chose the team
+            if rest and rest[0].strip().lower() in ("quick", "team"):
+                lane = rest.pop(0).strip().lower()
+            brief = " | ".join(rest).strip() or " | ".join(parts).strip()
             if not brief:
                 return {"type": "error", "message": "Tell me what the document should be about."}
-            return {"type": "job", "job": start_document(brief, name)}
+            return {"type": "job", "job": start_document(brief, name, lane)}
         if kind == "projectnotes":
             name = match_project(parts[0] if parts else "")
             if not name:
@@ -1759,7 +1763,9 @@ def show_window(parts):
 DOCUMENT_LINE = re.compile(r"^\W*DOCUMENT\W*:\s*`?([^`\n]+?\.(?:md|docx|pptx|xlsx|pdf|html))`?\s*$", re.I | re.M)
 
 
-def start_document(brief, project=None):
+def start_document(brief, project=None, lane="team"):
+    if lane == "quick":
+        return start_job(brief, brief, project, resume=False, lane="quick")
     where = (f"copilot/projects/{project}/outputs/" if project else "PKM/Documents/")
     task = (f"Write this document: {brief}\nUse the vault's notes for facts and check them. Save it as a "
             f"markdown note in {where} with a clear file name, then end your report with one line of its own: "
@@ -2013,8 +2019,327 @@ the AskUserQuestion tool: it pops up on their screen with your options and waits
 Moving, copying, deleting and renaming files inside the vault is allowed: use plain Bash commands \
 (mv, cp, rm, mkdir) with paths relative to the vault. Don't send email or messages to anyone.
 
+Scope and pace (these come before anything else in your contract):
+- Deliver exactly what was asked, nothing more. One document asked for is one document. If you \
+spot a useful extra (a version for a particular client, another format, a follow-on piece), don't \
+make it: offer it in one line at the end of your report.
+- Keep the process in proportion to the ask. A short internal aid doesn't need the full client \
+deliverable route: one review pass at most, and nothing cosmetic blocks it.
+- Specialists run in the foreground. When two pieces of work don't depend on each other, hand them \
+out in the same message so they run at the same time. Never end your turn while a specialist is \
+still working: your last message is the report, written once the work is filed.
+
 Finish with a short plain-English report: what you did, then the vault-relative paths of the files \
 you created or changed, one per line."""
+
+# ---- the fast lane: one short document, written by one model call, laid out by Halo ------------
+# Larry's team route (specialists, review passes) suits big pieces of work; for a checklist or a
+# one-pager it took an hour. Here one Sonnet run writes the words as a markdown note, with no
+# subagents or shell, and Halo lays it out as a Word file itself (python-docx, installed in the
+# background like meaning search). Until python-docx is there, the note itself opens on screen.
+QUICK_MODEL = "claude-sonnet-5-5"
+QUICK_TOOLS = ["Read", "Write", "Edit", "Glob", "Grep"]
+QUICK_MAX_TURNS = "30"
+DOCX_PACKAGE = "python-docx==1.2.0"
+QUICK_PROMPT = """Halo, the user's voice assistant, relays this request from the user:
+
+"{question}"
+
+Write this one document yourself, now. It is a short piece: work quickly and keep it simple. \
+Skip any first-run, setup or onboarding steps in CLAUDE.md or AGENTS.md: they don't apply here.
+
+- Write from what you know. Look in the vault only when the request names a client, project or \
+note, and then read at most five files (Grep or Glob to find them first). No web searches.
+- Plain English, short sentences, no em dashes, no filler, no headings that only restate the title.
+- Save it as one markdown note at PKM/Documents/<short-lowercase-hyphen-name>.md in this shape:
+
+---
+deliverable: {today}_<Entity>_<Topic>_<DocType>_v1.0
+eyebrow: <two to four words, for example SITE CHECKLIST>
+client: <the client's name if it is for one, otherwise leave empty>
+---
+# <Title>
+
+<one or two opening paragraphs>
+
+## <Section>
+<paragraphs, "- " bullet lists, and pipe tables>
+
+  For the deliverable name use the entity it is for and CamelCase topic words, for example \
+{today}_Acme_Site_Safety_Checklist_v1.0.
+  For a checklist use a pipe table with a tick column per answer (for example "Done" and \
+"Not done") holding [ ] in each row, plus any note column. A line starting "Summary:" becomes a \
+highlighted summary line.
+- Don't build Word files or run commands: Halo lays the note out as a Word document.
+- Make only this document. If something else would help, mention it in one line in your report.
+
+Finish with one or two plain sentences on what you wrote, then a last line of its own:
+NOTE: <the note's path relative to the vault>"""
+NOTE_LINE = re.compile(r"^\W*NOTE\W*:\s*`?([^`\n]+?\.md)`?\s*$", re.I | re.M)
+DOCX_SETUP = os.path.join(HERE, "data", "docx-setup.json")
+_docx_lock = threading.Lock()
+TICK_HEADS = {"captured", "not captured", "not confirmed", "done", "not done", "yes", "no", "checked", "n/a", "tick"}
+
+
+def _docx():
+    """python-docx, or None when it isn't installed (yet)."""
+    try:
+        import importlib
+        importlib.invalidate_caches()
+        import docx
+        return docx
+    except ImportError:
+        return None
+
+
+def ensure_docx():
+    """Install python-docx in the background (once a day at most when it fails), with the same pip
+    set-up meaning search uses, so quick documents come out as Word files."""
+    if _docx() or not semantic or not hasattr(semantic, "_ensure_pip"):
+        return bool(_docx())
+    with _docx_lock:
+        last = _read_json(DOCX_SETUP, {})
+        if time.time() - float(last.get("at") or 0) < 24 * 3600:
+            return False
+        ok, out = False, ""
+        try:
+            if semantic._ensure_pip(lambda m: print(m, flush=True)):
+                ok, out = semantic._run([semantic._python(), "-m", "pip", "install", "--disable-pip-version-check",
+                                         "--no-warn-script-location", DOCX_PACKAGE], 600)
+        except Exception as e:
+            out = f"{e.__class__.__name__}: {e}"
+        try:
+            os.makedirs(os.path.dirname(DOCX_SETUP), exist_ok=True)
+            with open(DOCX_SETUP, "w", encoding="utf-8") as f:
+                json.dump({"at": time.time(), "ok": ok, "detail": out[-500:]}, f)
+        except OSError:
+            pass
+        print(f"word layout: python-docx {'installed' if ok else 'not installed'}", flush=True)
+        return bool(_docx())
+
+
+def _read_note_md(text):
+    """(meta, title, lede paragraphs, sections) from the fast lane's note."""
+    meta = {}
+    if text.startswith("---"):
+        head, _, text = text[3:].partition("\n---")
+        for line in head.splitlines():
+            k, sep, v = line.partition(":")
+            if sep:
+                meta[k.strip().lower()] = v.strip().strip("\"'")
+        text = text.split("\n", 1)[1] if "\n" in text else ""
+    title, lede, sections, cur = None, [], [], None
+    for raw in text.splitlines():
+        line = raw.rstrip()
+        if line.startswith("# ") and title is None:
+            title = line[2:].strip()
+        elif line.startswith("## ") or line.startswith("### "):
+            cur = {"name": line.lstrip("#").strip(), "level": 1 if line.startswith("## ") else 2, "blocks": []}
+            sections.append(cur)
+        elif not line.strip():
+            continue
+        elif cur is None:
+            lede.append(line.strip())
+        elif line.lstrip().startswith(("- ", "* ")):
+            item = line.lstrip()[2:].strip()
+            if cur["blocks"] and cur["blocks"][-1][0] == "ul":
+                cur["blocks"][-1][1].append(item)
+            else:
+                cur["blocks"].append(("ul", [item]))
+        elif line.startswith("|"):
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            if set("".join(cells)) <= set("-: "):
+                continue
+            if cur["blocks"] and cur["blocks"][-1][0] == "table":
+                cur["blocks"][-1][1].append(cells)
+            else:
+                cur["blocks"].append(("table", [cells]))
+        else:
+            cur["blocks"].append(("p", line.strip()))
+    return meta, title, lede, sections
+
+
+def render_docx(note_path, out_path):
+    """Lay a fast-lane note out as a clean Word document. True when saved."""
+    docx = _docx()
+    if not docx:
+        return False
+    from docx.enum.section import WD_ORIENT
+    from docx.enum.table import WD_ALIGN_VERTICAL
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+    from docx.shared import Mm, Pt, RGBColor
+
+    with open(note_path, encoding="utf-8") as f:
+        meta, title, lede, sections = _read_note_md(f.read())
+    title = title or os.path.splitext(os.path.basename(note_path))[0].replace("-", " ")
+    ink, muted = RGBColor(0x1F, 0x29, 0x37), RGBColor(0x6B, 0x72, 0x80)
+    tables = [b[1] for s in sections for b in s["blocks"] if b[0] == "table"]
+    landscape = any(t and len(t[0]) >= 5 for t in tables)
+
+    d = docx.Document()
+    sec = d.sections[0]
+    sec.page_width, sec.page_height = (Mm(297), Mm(210)) if landscape else (Mm(210), Mm(297))
+    if landscape:
+        sec.orientation = WD_ORIENT.LANDSCAPE
+    for side in ("left_margin", "right_margin"):
+        setattr(sec, side, Mm(20))
+    sec.top_margin = sec.bottom_margin = Mm(18)
+    width = sec.page_width - sec.left_margin - sec.right_margin
+    normal = d.styles["Normal"]
+    normal.font.name, normal.font.size = "Calibri", Pt(10.5)
+    normal.font.color.rgb = ink
+    d.core_properties.title = title
+
+    def rich(p, text, bold=False, size=None, color=None):
+        for i, part in enumerate(re.split(r"\*\*", text)):
+            if part:
+                r = p.add_run(part)
+                r.bold = bold or bool(i % 2)
+                if size:
+                    r.font.size = Pt(size)
+                if color is not None:
+                    r.font.color.rgb = color
+        return p
+
+    def shade(el, fill):
+        pr = el.get_or_add_tcPr() if hasattr(el, "get_or_add_tcPr") else el.get_or_add_pPr()
+        shd = OxmlElement("w:shd")
+        shd.set(qn("w:val"), "clear")
+        shd.set(qn("w:color"), "auto")
+        shd.set(qn("w:fill"), fill)
+        pr.append(shd)
+
+    # footer: title on the left, page number on the right
+    fp = sec.footer.paragraphs[0]
+    rich(fp, f"{title}    Page ", size=8, color=muted)
+    for kind, text in (("begin", None), (None, "PAGE"), ("end", None)):
+        r = fp.add_run()
+        r.font.size, r.font.color.rgb = Pt(8), muted
+        if kind:
+            fc = OxmlElement("w:fldChar")
+            fc.set(qn("w:fldCharType"), kind)
+            r._r.append(fc)
+        else:
+            it = OxmlElement("w:instrText")
+            it.set(qn("xml:space"), "preserve")
+            it.text = text
+            r._r.append(it)
+    if meta.get("client"):
+        hp = sec.header.paragraphs[0]
+        hp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        rich(hp, meta["client"], size=8, color=muted)
+
+    if meta.get("eyebrow"):
+        p = d.add_paragraph()
+        rich(p, meta["eyebrow"].upper(), bold=True, size=8.5, color=muted)
+        p.paragraph_format.space_after = Pt(2)
+    p = d.add_paragraph()
+    rich(p, title, bold=True, size=22, color=ink)
+    p.paragraph_format.space_after = Pt(8)
+    for para in lede:
+        rich(d.add_paragraph(), para, size=11.5, color=muted)
+
+    for s in sections:
+        h = d.add_paragraph()
+        rich(h, s["name"], bold=True, size=15 if s["level"] == 1 else 12.5, color=ink)
+        h.paragraph_format.space_before, h.paragraph_format.space_after = Pt(12), Pt(4)
+        h.paragraph_format.keep_with_next = True
+        for kind, val in s["blocks"]:
+            if kind == "p" and val.startswith("Summary:"):
+                p = rich(d.add_paragraph(), val, bold=True, size=11)
+                shade(p._p, "F3F4F6")
+            elif kind == "p":
+                rich(d.add_paragraph(), val)
+            elif kind == "ul":
+                for item in val:
+                    rich(d.add_paragraph(style="List Bullet"), item)
+            elif kind == "table" and val:
+                head, *rows = val
+                n = len(head)
+                rows = [(r + [""] * n)[:n] for r in rows]
+
+                def box(c):
+                    c = c.strip().lower()
+                    return "☐" if c in ("[ ]", "[]", "☐") else "☒" if c in ("[x]", "☒", "x", "✓", "✔") else None
+                ticks = [i for i in range(n) if head[i].strip().lower() in TICK_HEADS
+                         or (rows and all(box(r[i]) or not r[i].strip() for r in rows) and any(box(r[i]) for r in rows))]
+                weight = []
+                for i in range(n):
+                    w = max([len(head[i])] + [len(r[i]) for r in rows])
+                    if rows and not any(r[i].strip() for r in rows):
+                        w = 45   # a blank column is for writing in: give it room
+                    weight.append(min(max(w, 8), 60))
+                tick_w = Mm(24)
+                free = width - tick_w * len(ticks)
+                tot = sum(weight[i] for i in range(n) if i not in ticks) or 1
+                t = d.add_table(rows=1 + len(rows), cols=n)
+                t.style = d.styles["Table Grid"]
+                t.autofit = False
+                for i in range(n):
+                    w = tick_w if i in ticks else int(free * weight[i] / tot)
+                    for cell in t.columns[i].cells:
+                        cell.width = w
+                if ticks:   # a form: rows tall enough to tick and write in
+                    from docx.enum.table import WD_ROW_HEIGHT_RULE
+                    for row in t.rows[1:]:
+                        row.height, row.height_rule = Mm(8), WD_ROW_HEIGHT_RULE.AT_LEAST
+                for i, hd in enumerate(head):
+                    c = t.cell(0, i)
+                    shade(c._tc, "E5E7EB")
+                    p = c.paragraphs[0]
+                    rich(p, hd, bold=True, size=9)
+                    if i in ticks:
+                        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                for r, row in enumerate(rows, 1):
+                    for i, txt in enumerate(row):
+                        c = t.cell(r, i)
+                        c.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+                        p = c.paragraphs[0]
+                        if i in ticks:
+                            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                            rich(p, box(txt) or "☐", size=13)
+                        else:
+                            rich(p, txt, bold=(i == 0), size=9.5)
+                d.add_paragraph()
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    d.save(out_path)
+    return True
+
+
+def finish_quick_doc(job, report):
+    """The fast lane's report with a DOCUMENT line: the Word file Halo laid out in the project's
+    outputs folder (or Deliverables), or the note itself when Word layout isn't available."""
+    m = NOTE_LINE.search(report or "")
+    if not m:
+        return report
+    rel = m.group(1).strip().replace("\\", "/")
+    note = os.path.normpath(os.path.join(VAULT, rel))
+    if not note.startswith(os.path.normpath(VAULT)) or not os.path.isfile(note):
+        return report
+    body = NOTE_LINE.sub("", report).rstrip()
+    try:
+        with open(note, encoding="utf-8") as f:
+            head = f.read(2000)
+        name = re.search(r"^deliverable:\s*(.+?)\s*$", head, re.M)
+        name = re.sub(r'[<>:"/\\|?*]', "", name.group(1)).strip() if name else ""
+        if not name:
+            name = time.strftime("%Y%m%d") + "_" + os.path.splitext(os.path.basename(note))[0] + "_v1.0"
+        folder = (f"copilot/projects/{job['project']}/outputs" if job.get("project")
+                  and os.path.isdir(os.path.join(VAULT, "copilot", "projects", job["project"])) else "Deliverables")
+        out_rel = f"{folder}/{name}.docx"
+        while os.path.exists(os.path.join(VAULT, out_rel)):   # never overwrite a version: bump the minor
+            v = re.search(r"_v(\d+)\.(\d+)$", name)
+            name = (name[:v.start()] + f"_v{v.group(1)}.{int(v.group(2)) + 1}") if v else name + "_v1.1"
+            out_rel = f"{folder}/{name}.docx"
+        if render_docx(note, os.path.join(VAULT, out_rel)):
+            return f"{body}\n\nNote: {rel}\nDOCUMENT: {out_rel}"
+    except Exception as e:   # the note stands either way
+        print(f"word layout: {e.__class__.__name__}: {e}", flush=True)
+    threading.Thread(target=ensure_docx, daemon=True).start()
+    return f"{body}\n\nWord layout isn't set up on this computer yet, so here is the note.\nDOCUMENT: {rel}"
+
 
 _jobs = OrderedDict()   # id -> job dict (newest last)
 _jobs_lock = threading.Lock()
@@ -2484,7 +2809,8 @@ same work. Cover it in your final report."""
 def running_user_job():
     """The job Larry is working on for the user right now (newest first), if any."""
     with _jobs_lock:
-        live = [j for j in _jobs.values() if j["status"] == "running" and j.get("origin", "user") == "user"]
+        live = [j for j in _jobs.values() if j["status"] == "running" and j.get("origin", "user") == "user"
+                and j.get("lane") != "quick"]
     return live[-1] if live else None
 
 
@@ -2538,10 +2864,11 @@ def _user_line(text):
 
 
 def start_job(task, question, project=None, origin="user", tools=None, resume=True, quiet=False,
-              session=None, chat=None, where="the main chat"):
+              session=None, chat=None, where="the main chat", lane="team"):
     """Hand work to Larry. Scheduled runs (origin "schedule:<id>") don't resume or overwrite his
     thread with you, and may be given fewer tools. While Larry is already on a job for you, new
-    work joins that job instead of starting a second Larry beside it."""
+    work joins that job instead of starting a second Larry beside it. lane="quick" is the fast lane:
+    Halo writes one short document herself, beside whatever Larry is doing."""
     if origin == "user" and resume:
         live = running_user_job()
         if live:
@@ -2552,12 +2879,16 @@ def start_job(task, question, project=None, origin="user", tools=None, resume=Tr
            "project": project or guess_project(task) or guess_project(question),
            "origin": origin, "tools": tools, "quiet": quiet, "inbox_lock": threading.Lock(),
            # one thread can't run twice at once: a job started while another runs starts fresh
-           "resume": session or (None if (not resume or any(j["status"] == "running" for j in list(_jobs.values())))
+           "resume": session or (None if (not resume or lane == "quick" or any(
+               j["status"] == "running" and j.get("lane") != "quick" for j in list(_jobs.values())))
                                  else desk_session()),
-           "started": time.time(), "finished": None, "report": "", "rebuilt": False,
-           "compactions": 0, "activity": "Larry is reading his brief", "model": load_model("jobs"),
-           "agents": {"main": {"name": "Larry", "used": 0, "peak": 0, "window": CONTEXT_WINDOW,
-                               "calls": 0, "done": False}}}
+           "started": time.time(), "finished": None, "report": "", "rebuilt": False, "lane": lane,
+           "timeout_minutes": 15 if lane == "quick" else None,
+           "compactions": 0,
+           "activity": "Halo is writing it" if lane == "quick" else "Larry is reading his brief",
+           "model": QUICK_MODEL if lane == "quick" else load_model("jobs"),
+           "agents": {"main": {"name": "Halo" if lane == "quick" else "Larry", "used": 0, "peak": 0,
+                               "window": CONTEXT_WINDOW, "calls": 0, "done": False}}}
     if chat:   # carrying on from a job's chat window: the report lands back there
         job["chat"] = chat["id"]
         chat.update(job=job["id"], status="running", activity=job["activity"])
@@ -2576,13 +2907,22 @@ def run_job(job):
     # so the viewer can show each agent's context filling up live.
     # stream-json input keeps Larry's stdin open while he works, so follow-ups (add_to_job) reach
     # him mid-run; it closes at his first result, and anything later waits for the next run.
+    quick = job.get("lane") == "quick"
     cmd = [exe, "-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
-           "--model", load_model("jobs"),
+           "--model", QUICK_MODEL if quick else load_model("jobs"),
            "--permission-mode", PERMISSION_MODES[agent_permissions()],
-           "--allowedTools", ",".join(job.get("tools") or JOB_TOOLS)] + run_flags(f"job:{job['id']}")
+           "--allowedTools", ",".join(QUICK_TOOLS if quick else (job.get("tools") or JOB_TOOLS))]
+    if quick:   # one writer, no team, no shell, no web: the point is speed
+        cmd += ["--disallowedTools", "Bash,PowerShell,Agent,Task,Skill,WebFetch,WebSearch",
+                "--max-turns", QUICK_MAX_TURNS]
+    cmd += run_flags(f"job:{job['id']}")
     if job.get("resume"):
         cmd += ["--resume", job["resume"]]
     env = claude_env()
+    # No background specialists: one launched in the background let Larry end his turn early, which
+    # Halo took as the job being done, and the work stalled. With this off every hand-off waits for its
+    # hand-back; several in one message still run side by side.
+    env["CLAUDE_CODE_DISABLE_BACKGROUND_TASKS"] = "1"
     report, ok, result, replies = "", False, None, []
     user = _user_name()
     timed_out, run_start = threading.Event(), time.time()
@@ -2611,8 +2951,10 @@ def run_job(job):
                     return
                 time.sleep(15)
         threading.Thread(target=watchdog, daemon=True).start()
-        first = (job.get("brief") or JOB_PROMPT.format(question=job["question"], task=job["task"]) +
-                 (SCHEDULED_NOTE if job.get("origin", "user") != "user" else ""))
+        first = (job.get("brief") or
+                 (QUICK_PROMPT.format(question=job["question"], today=time.strftime("%Y%m%d")) if quick else
+                  JOB_PROMPT.format(question=job["question"], task=job["task"]) +
+                  (SCHEDULED_NOTE if job.get("origin", "user") != "user" else "")))
         job["brief"] = first   # a retry (Larry's old thread wouldn't resume) sends the same brief
         with job["inbox_lock"]:
             job["proc"] = proc
@@ -2653,11 +2995,14 @@ def run_job(job):
         if job.get("stop"):
             report = "Stopped by you. Anything already written to the vault stays as it is."
         elif result:
-            log_usage("larry", result, [a["name"] for k, a in job["agents"].items()
-                                        if k == "main" or a.get("calls")])
+            log_usage("halo" if quick else "larry", result, [a["name"] for k, a in job["agents"].items()
+                                                              if k == "main" or a.get("calls")])
             # a follow-up that landed as he finished gets its own answer: keep both
             report, ok = "\n\n---\n\n".join(replies), not result.get("is_error")
             job["agents"]["main"]["window"] = context_of(result)["window"]
+            if quick and ok:   # lay the note out as a Word file (or open the note itself)
+                job["activity"] = "Halo is laying it out in Word"
+                report = finish_quick_doc(job, report)
         elif timed_out.is_set():
             why = (f"nobody on the team had done anything for {JOB_IDLE_MIN} minutes, so it looked stuck"
                    if job.get("stopped_why") == "idle" else f"it reached its time limit of {limit_min:g} minutes")
@@ -2679,7 +3024,8 @@ def run_job(job):
             job["queued"] = [(f["task"], f["question"]) for f in job.get("followups", [])]
         return run_job(job)
     # A job stopped by the watchdog keeps its thread too, so "carry on" resumes it.
-    if (result or timed_out.is_set()) and job.get("session") and job.get("origin", "user") == "user":
+    if ((result or timed_out.is_set()) and job.get("session") and job.get("origin", "user") == "user"
+            and not quick):   # the fast lane never replaces Larry's thread with you
         save_desk(job["session"])
     job["activity"] = ""
     job.pop("proc", None)
@@ -2944,6 +3290,7 @@ def _run_agent_turn(chat, agent_name, message):
     user = (read_config().get("user_name") or "The user")
     prompt = message if chat.get("session") else AGENT_CHAT_PROMPT.format(user=user, message=message)
     env = claude_env()
+    env["CLAUDE_CODE_DISABLE_BACKGROUND_TASKS"] = "1"   # same reason as run_job: no reply before the work is done
     tracker = {"agents": {"main": {"name": chat["agent"], "used": 0, "peak": 0, "window": CONTEXT_WINDOW,
                                    "calls": 0, "done": False, "task": message[:120], "activity": "reading the message",
                                    "project": guess_project(message)}}, "compactions": 0, "activity": ""}
@@ -5691,6 +6038,7 @@ if __name__ == "__main__":
     threading.Thread(target=ensure_icon, daemon=True).start()
     threading.Thread(target=scheduler_loop, daemon=True).start()
     threading.Thread(target=check_tools_background, daemon=True).start()
+    threading.Thread(target=ensure_docx, daemon=True).start()   # Word layout for quick documents
     if brief_enabled() and _read_json(BRIEF_STATE, {}).get("day") != brief_day():   # today's brief not shown yet
         threading.Timer(5, prepare_brief).start()
     try:

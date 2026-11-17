@@ -1,7 +1,9 @@
 {
-  "version": "2026.11.14.1",
+  "version": "2026.11.17.1",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes. 'tour' lists the tutorial step ids (TOUR_STEPS in viewer/index.html) this release added or changed, for the 'what's new' tour; run check_tour.py before pushing.",
   "notes": [
+    "Short documents are much faster. Ask Halo for a checklist, one-pager, short letter or guide and Halo writes it herself in about a minute, then lays it out as a Word file in Deliverables (or the project's outputs folder). Bigger pieces of work still go to Larry and the team. The first time, Halo quietly adds the Word layout add-on; until then you get the note itself.",
+    "Larry now delivers exactly what you asked for and offers any extras instead of making them, keeps reviews in proportion to the job, and no longer reports a job as done while his team is still working on it.",
     "New Mission control: the first card on the top bar opens one board with everything at a glance. AI use as a chart by model; AI cost (your plans plus API spend, with an Anthropic Admin key); clients from your CRM; what needs you; priorities, including every overdue action; your team's work over the last 7 or 30 days; money from Xero; your sales pipeline from monday CRM; today's meetings; and Halo's own health. Anything you haven't connected yet shows a Set up button. The Index list on the right is gone to make room; zoom and View are still there, under the top bar.",
     "The Halo mark on the right now shows what is going on at a glance. Resting: it draws itself and fills, with no pulsing. Speaking: it stays filled and sends out soft sonar rings with the voice. Thinking: it spins. When the team is working on something: a circle draws round the mark clockwise while the leaves fill in anticlockwise. Also fixed: the Current work bar, the Index and the Halo mark no longer overlap on smaller screens; the mark shrinks to fit the space it has.",
     "The sparks between notes are back to plain moving sparks, without the glowing trails, and they are larger in the Logo and Nucleus views so you can still see them. The Frame menu now appears only in the Logo view.",
@@ -93,6 +95,14 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.17.1",
+      "notes": [
+        "Short documents are much faster. Ask Halo for a checklist, one-pager, short letter or guide and Halo writes it herself in about a minute, then lays it out as a Word file in Deliverables (or the project's outputs folder). Bigger pieces of work still go to Larry and the team. The first time, Halo quietly adds the Word layout add-on; until then you get the note itself.",
+        "Larry now delivers exactly what you asked for and offers any extras instead of making them, keeps reviews in proportion to the job, and no longer reports a job as done while his team is still working on it."
+      ],
+      "tour": []
+    },
     {
       "version": "2026.11.14.1",
       "notes": [
