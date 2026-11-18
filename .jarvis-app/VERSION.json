@@ -1,7 +1,8 @@
 {
-  "version": "2026.11.17.1",
+  "version": "2026.11.19.1",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes. 'tour' lists the tutorial step ids (TOUR_STEPS in viewer/index.html) this release added or changed, for the 'what's new' tour; run check_tour.py before pushing.",
   "notes": [
+    "Far fewer approval requests. In Auto mode the team now gets on with the work and only asks you about things that really matter: sending or uploading anything to the internet, publishing or pushing, installing software or changing system settings, deleting or overwriting files outside your notes and temporary folders, throwing away unsaved work, touching passwords or keys, changing Halo's own files, and outside tools that would send, change, delete or pay for something. Reading, web research, scratch work and calls to Halo itself no longer stop to ask.",
     "Short documents are much faster. Ask Halo for a checklist, one-pager, short letter or guide and Halo writes it herself in about a minute, then lays it out as a Word file in Deliverables (or the project's outputs folder). Bigger pieces of work still go to Larry and the team. The first time, Halo quietly adds the Word layout add-on; until then you get the note itself.",
     "Larry now delivers exactly what you asked for and offers any extras instead of making them, keeps reviews in proportion to the job, and no longer reports a job as done while his team is still working on it.",
     "New Mission control: the first card on the top bar opens one board with everything at a glance. AI use as a chart by model; AI cost (your plans plus API spend, with an Anthropic Admin key); clients from your CRM; what needs you; priorities, including every overdue action; your team's work over the last 7 or 30 days; money from Xero; your sales pipeline from monday CRM; today's meetings; and Halo's own health. Anything you haven't connected yet shows a Set up button. The Index list on the right is gone to make room; zoom and View are still there, under the top bar.",
@@ -95,6 +96,13 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.19.1",
+      "notes": [
+        "Far fewer approval requests. In Auto mode the team now gets on with the work and only asks you about things that really matter: sending or uploading anything to the internet, publishing or pushing, installing software or changing system settings, deleting or overwriting files outside your notes and temporary folders, throwing away unsaved work, touching passwords or keys, changing Halo's own files, and outside tools that would send, change, delete or pay for something. Reading, web research, scratch work and calls to Halo itself no longer stop to ask."
+      ],
+      "tour": []
+    },
     {
       "version": "2026.11.17.1",
       "notes": [

@@ -2570,6 +2570,153 @@ def scratch_write_ok(tool, inp):
     return full.startswith(temp + os.sep)
 
 
+# ---- Auto mode: get on with it, ask only about what really matters ---------------------------
+# Nearly every approval asked for before this change was routine and got approved: cd into a temp
+# folder, reading Halo's own files, calls to Halo on this computer, deleting the team's own scratch
+# files, edits to vault scripts. So Auto mode now works like Claude's own: everything goes ahead unless it
+# is one of the few things that need you:
+#   - sending or publishing anything (posting or uploading data to the internet, git push, publish)
+#   - installing or removing software, changing system settings, running as admin, stopping programs
+#   - deleting or overwriting files outside the vault and the temporary folders
+#   - throwing away work (git reset --hard, git clean, git checkout/restore over changes)
+#   - touching secrets (keys, passwords, .ssh, credential stores)
+#   - changing Halo itself (its code or config.json) rather than asking it through its API
+#   - an outside tool that would send, create, change, delete or pay for something
+# Reading anything, web research, scratch work in temp folders, scripts, and calls to Halo on this
+# computer never ask. A fast model looks only at the rare command the rules can't place.
+_HOME = os.path.expanduser("~")
+SAFE_WRITE_ROOTS = [VAULT, tempfile.gettempdir(), "C:/tmp", "C:/temp", "C:/Windows/Temp",
+                    os.path.join(_HOME, ".claude")]
+NEEDS_YOU_ALWAYS = re.compile(
+    r"\bgit\s+(push|reset\s+--hard|clean\s+-\w*f\w*|filter-branch|remote\s+(add|set-url|remove))\b|"
+    r"\bgit\s+(checkout|restore)\s+(--\s|\.\s*$|\.\s*[;&|])|"
+    r"\b(npm|pnpm|yarn)\s+(publish|i|install|add|uninstall|remove)\b|\bnpx\b|\bgh\s+(pr|release|repo|issue)\b|"
+    r"\bpip3?\s+(install|uninstall)\b|\b(python3?|py)\s+-m\s+pip\s+(install|uninstall)\b|"
+    r"\b(winget|choco|scoop|brew|apt|apt-get|msiexec)\b|"
+    r"\breg(\.exe)?\s+(add|delete|import)\b|\b(set|new|remove)-itemproperty\b|\bschtasks(\.exe)?\s+/(create|delete|change)\b|"
+    r"\bsc(\.exe)?\s+(config|create|delete|stop)\b|\b(stop|set|new)-service\b|\bset-executionpolicy\b|"
+    r"\b(shutdown|restart-computer|stop-computer|diskpart|format-volume|bcdedit|netsh|setx)\b|"
+    r"\b(sudo|runas)\b|-verb\s+runas|\b(taskkill|stop-process|kill)\b|"
+    r"\bsend-mailmessage\b|\b(ssh|scp|sftp|rsync|ftp|telnet)\b|"
+    r"[\\/]\.ssh\b|\bid_rsa\b|\bcredentials?\b|\bcmdkey\b|\bsecrets?\b|(^|[\s'\"/\\])\.env\b|\bapi[_-]?keys?\b|"
+    r"\bpasswords?\b|\bconfig\.json\b",
+    re.I)
+WEB_CALL = re.compile(r"\b(curl|wget|invoke-webrequest|iwr|invoke-restmethod|irm)\b[^\n;|&]*", re.I)
+SENDS_DATA = re.compile(
+    r"(?:^|\s)(-d|--data[\w-]*|-F|--form[\w-]*|-T|--upload-file|--json|-Body|-InFile)(?=\s|=|$)|"
+    r"(-X|--request|-Method)\s*['\"]?(POST|PUT|PATCH|DELETE)\b", re.I)
+LOCAL_HOST = re.compile(r"^(https?://)?(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(/|$)", re.I)
+WRITE_VERB = re.compile(
+    r"\b(rm|rmdir|del|erase|rd|mv|move|cp|copy|xcopy|robocopy|ren|rename|mkdir|md|touch|tee|truncate|chmod|"
+    r"remove-item|move-item|copy-item|rename-item|new-item|set-content|add-content|out-file|clear-content)\b|"
+    r"\bsed\s+-i|>{1,2}", re.I)
+OUTSIDE_SYSTEM = """You check one shell command an assistant wants to run on the user's PC while doing \
+work they asked for. The user wants it to get on with the work and be asked only about things that \
+matter. It runs with the user's notes vault as its folder. The vault is {vault}. Temporary folders \
+({temp}, C:/tmp, /tmp, C:/Windows/Temp) are scratch space. Reading anything is fine.
+
+Say ASK only if the command would delete, move over, or overwrite the user's files outside the vault \
+and the temporary folders, or change the Halo app's own files in {app}. Say OK otherwise, including \
+when it only reads, writes in the vault or a temporary folder, or creates new files.
+
+Think in one short sentence, then end with a final line that is exactly VERDICT: OK or VERDICT: ASK."""
+_needs_cache = {}
+
+
+def _norm_path(token):
+    t = token.strip("'\"").replace("\\", "/")
+    m = re.match(r"^/([a-zA-Z])/(.*)$", t)   # Git Bash style: /c/Users/...
+    if m:
+        t = f"{m.group(1)}:/{m.group(2)}"
+    if t == "/tmp" or t.startswith("/tmp/"):
+        return os.path.normcase(os.path.realpath(tempfile.gettempdir()))
+    t = t.replace("$HOME", _HOME).replace("%USERPROFILE%", _HOME).replace("$env:USERPROFILE", _HOME)
+    if t.startswith("~/") or t == "~":
+        t = _HOME + t[1:]
+    return os.path.normcase(os.path.realpath(t))
+
+
+def _under(full, roots):
+    for r in roots:
+        r = os.path.normcase(os.path.realpath(r))
+        if full == r or full.startswith(r + os.sep):
+            return True
+    return False
+
+
+def _web_call_needs_you(command):
+    """A web request that sends data somewhere other than this computer."""
+    for m in WEB_CALL.finditer(command):
+        call = m.group(0)
+        if not SENDS_DATA.search(call):
+            continue   # only reading a page
+        urls = re.findall(r"""(?:https?://)?[\w.-]+(?::\d+)?(?:/[^\s'"]*)?""", call)
+        hosts = [u for u in urls if re.match(r"(https?://|localhost|127\.0\.0\.1)", u, re.I)]
+        if not hosts or any(not LOCAL_HOST.match(h) for h in hosts):
+            return True
+    return False
+
+
+def needs_you(tool, inp):
+    """Auto mode: True only when this step is one of the few that need the user (see above)."""
+    tool = str(tool)
+    inp = inp if isinstance(inp, dict) else {}
+    if tool in ("Bash", "PowerShell"):
+        command = str(inp.get("command", ""))
+        if not command.strip():
+            return False
+        if NEEDS_YOU_ALWAYS.search(command) or _web_call_needs_you(command):
+            return True
+        if not WRITE_VERB.search(command):
+            return False   # only looks, runs scripts, or changes folder
+        app = os.path.normcase(os.path.realpath(HERE))
+        outside = [p for p in (_norm_path(t) for t in ABSOLUTE.findall(command) + re.findall(r"(?:^|\s)(/tmp\S*)", command))
+                   if not _under(p, SAFE_WRITE_ROOTS)]
+        climbs = re.search(r"(^|[\s'\"=/])\.\.([\\/]|$)", command)
+        if not outside and not climbs:
+            return False   # changes only the vault or a temporary folder
+        if outside and all(p == app or p.startswith(app + os.sep) for p in outside) and not re.search(
+                r"\b(rm|del|erase|rd|rmdir|remove-item|mv|move|move-item)\b|>|\bsed\s+-i|set-content|out-file",
+                command, re.I):
+            return False   # copies out of, or makes folders in, Halo's folder
+        key = hashlib.sha256(command.encode("utf-8", "replace")).hexdigest()
+        if key not in _needs_cache:
+            try:
+                reply, _ = call_claude("claude-haiku-5-5", f"Command:\n{command}",
+                                       OUTSIDE_SYSTEM.replace("{vault}", VAULT).replace("{app}", HERE)
+                                       .replace("{temp}", tempfile.gettempdir()))
+            except ChatError:
+                reply = "VERDICT: ASK"
+            _needs_cache[key] = not re.search(r"VERDICT:\s*OK\s*$", reply.strip(), re.I)
+        return _needs_cache[key]
+    if tool in ("Write", "Edit", "MultiEdit", "NotebookEdit"):
+        path = str(inp.get("file_path") or inp.get("notebook_path") or "")
+        if not path:
+            return False
+        if not (os.path.isabs(path) or re.match(r"^/[a-zA-Z]/", path) or path.startswith(("~", "/tmp"))):
+            path = os.path.join(VAULT, path)
+        full = _norm_path(path)
+        if re.search(r"[\\/]\.ssh[\\/]|credential|secret|\.env$", full, re.I):
+            return True
+        return not _under(full, SAFE_WRITE_ROOTS)   # Halo's own files and the rest of the PC ask
+    if tool in ("Read", "Glob", "Grep", "WebFetch", "WebSearch", "TodoWrite", "Agent", "Task", "Skill",
+                "ToolSearch", "ExitPlanMode", "EnterPlanMode"):
+        return False
+    if tool.startswith("mcp__"):
+        if tool in DRAFT_TOOLS:
+            return False
+        words = re.split(r"[_\-]+", tool.split("__")[-1].lower())
+        if words and words[0] in ("get", "list", "search", "read", "show", "fetch", "find", "explore", "check",
+                                  "whoami", "inspect", "estimate", "research", "query", "export", "discover"):
+            return False   # reading
+        return bool(set(words) & {"send", "post", "publish", "create", "add", "update", "delete", "remove",
+                                  "cancel", "archive", "move", "share", "invite", "upload", "pay", "transfer",
+                                  "refund", "merge", "write", "set", "enroll", "activate", "deactivate", "submit",
+                                  "schedule", "change", "run", "execute", "manage", "unshare", "certify",
+                                  "revoke", "forward", "reply", "complete"})
+    return False
+
+
 def _describe(tool, inp):
     """(what, why) for the approval card: the exact command, and the agent's reason."""
     if tool == "Bash":
@@ -2664,10 +2811,8 @@ def request_approval(run_key, token, tool, inp, use_id):
                 "message": "Halo never lets an agent send, forward, delete or file email. Put it in Drafts instead."}
     if str(tool) == "Bash" and vault_file_work(str(inp.get("command", ""))):
         return {"ticket": None, "decision": "approve"}   # vault file work: no need to ask
-    if str(tool) == "Bash" and agent_permissions() == "auto" and vault_only_by_check(str(inp.get("command", ""))):
-        return {"ticket": None, "decision": "approve"}   # Auto mode: clearly stays in the vault
-    if agent_permissions() == "auto" and (scratch_write_ok(str(tool), inp) or web_read_ok(asker, str(tool), inp)):
-        return {"ticket": None, "decision": "approve"}   # Auto mode: scratch files, or research reading the web
+    if agent_permissions() == "auto" and str(tool) != "AskUserQuestion" and not needs_you(str(tool), inp):
+        return {"ticket": None, "decision": "approve"}   # Auto mode: only what really matters asks you
     question = str(tool) == "AskUserQuestion"
     if kind == "job" and str(job.get("origin", "user")).startswith("schedule:"):
         # A scheduled run: it never stops to ask a question, and asks for approval only while you're here.
