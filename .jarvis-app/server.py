@@ -2028,6 +2028,9 @@ deliverable route: one review pass at most, and nothing cosmetic blocks it.
 - Specialists run in the foreground. When two pieces of work don't depend on each other, hand them \
 out in the same message so they run at the same time. Never end your turn while a specialist is \
 still working: your last message is the report, written once the work is filed.
+- Never sleep, wait or poll for a scheduled job to run. Scheduled team runs are held back while \
+your job is running, so waiting for one only stalls both. If the ask involves a scheduled run, say \
+when it is due, finish your report, and let it run after you.
 
 Finish with a short plain-English report: what you did, then the vault-relative paths of the files \
 you created or changed, one per line."""
@@ -5085,7 +5088,7 @@ DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 BRIEF_DAY_STARTS = 4          # a "day" for the brief starts at 4am, so late-night work doesn't use it up
 SCHED_DAILY_CAP = 8           # scheduled runs a day (manual Run now doesn't count)
-SCHED_TEAM_WAIT = 2 * 60 * 60 # a team run waits this long for your own jobs to finish
+SCHED_TEAM_WAIT = 10 * 60     # a team run waits this long for your own jobs, then runs alongside them
 SCHED_START_DELAY = 120       # catch-ups wait this long after the server starts
 AWAY_AFTER = 120              # no page poll for this long: you're away
 CATCH_UP = {"daily": 12 * 3600, "weekdays": 12 * 3600, "weekly": 3 * 86400, "brief": 12 * 3600}
@@ -5579,13 +5582,12 @@ def scheduler_tick(now=None):
                 continue
             if s["runner"] == "larry" and any(j["status"] == "running" and j.get("origin", "user") == "user"
                                               for j in list(_jobs.values())):
+                # Wait a short while so it doesn't crowd your work, then run alongside it. Never wait
+                # longer: your job may itself be waiting on this run (19 Nov: Larry polled 20 minutes
+                # for a triage that his own job was holding back).
                 first = _sched_state["waiting"].setdefault(s["id"], now)
-                if now - first > SCHED_TEAM_WAIT:
-                    s.update(last_status="skipped", last_result="Skipped: the team was busy with your work for 2 hours.",
-                             next_run=next_due(s["schedule"], now, s.get("last_run") or 0))
-                    _sched_state["waiting"].pop(s["id"], None)
-                    changed, did = True, did + [("skipped", s["id"])]
-                continue
+                if now - first <= SCHED_TEAM_WAIT:
+                    continue
             _sched_state["waiting"].pop(s["id"], None)
             s["next_run"] = next_due(s["schedule"], now, now)   # set first, so a crash can't loop it
             changed = True

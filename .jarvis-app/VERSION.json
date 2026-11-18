@@ -1,7 +1,8 @@
 {
-  "version": "2026.11.19.1",
+  "version": "2026.11.19.2",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes. 'tour' lists the tutorial step ids (TOUR_STEPS in viewer/index.html) this release added or changed, for the 'what's new' tour; run check_tour.py before pushing.",
   "notes": [
+    "Jobs no longer stall waiting on each other. A scheduled team job now waits at most 10 minutes for your own work before running alongside it, instead of up to 2 hours, and Larry no longer sits waiting for a scheduled job to run.",
     "Far fewer approval requests. In Auto mode the team now gets on with the work and only asks you about things that really matter: sending or uploading anything to the internet, publishing or pushing, installing software or changing system settings, deleting or overwriting files outside your notes and temporary folders, throwing away unsaved work, touching passwords or keys, changing Halo's own files, and outside tools that would send, change, delete or pay for something. Reading, web research, scratch work and calls to Halo itself no longer stop to ask.",
     "Short documents are much faster. Ask Halo for a checklist, one-pager, short letter or guide and Halo writes it herself in about a minute, then lays it out as a Word file in Deliverables (or the project's outputs folder). Bigger pieces of work still go to Larry and the team. The first time, Halo quietly adds the Word layout add-on; until then you get the note itself.",
     "Larry now delivers exactly what you asked for and offers any extras instead of making them, keeps reviews in proportion to the job, and no longer reports a job as done while his team is still working on it.",
@@ -96,6 +97,13 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.19.2",
+      "notes": [
+        "Jobs no longer stall waiting on each other. A scheduled team job now waits at most 10 minutes for your own work before running alongside it, instead of up to 2 hours, and Larry no longer sits waiting for a scheduled job to run."
+      ],
+      "tour": []
+    },
     {
       "version": "2026.11.19.1",
       "notes": [
