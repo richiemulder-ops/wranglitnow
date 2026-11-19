@@ -3104,17 +3104,23 @@ def run_job(job):
                   JOB_PROMPT.format(question=job["question"], task=job["task"]) +
                   (SCHEDULED_NOTE if job.get("origin", "user") != "user" else "")))
         job["brief"] = first   # a retry (Larry's old thread wouldn't resume) sends the same brief
-        with job["inbox_lock"]:
-            job["proc"] = proc
-            try:
-                proc.stdin.write(_user_line(first))
-                for t, q in job.pop("queued", []):   # follow-ups that came before he started
-                    proc.stdin.write(_user_line(FOLLOWUP_PROMPT.format(user=user, where="the main chat",
-                                                                       question=q, task=t)))
-                proc.stdin.flush()
-                job["accepting"] = True
-            except (OSError, ValueError):
-                pass
+
+        # The brief goes in on its own thread while this one reads his output. Writing it first and reading
+        # after can deadlock: at start-up claude prints its SessionStart hooks' output before it reads its
+        # input; if that fills the output pipe with nobody reading, claude stops and the write waits for good.
+        def send_brief():
+            with job["inbox_lock"]:
+                job["proc"] = proc
+                try:
+                    proc.stdin.write(_user_line(first))
+                    for t, q in job.pop("queued", []):   # follow-ups that came before he started
+                        proc.stdin.write(_user_line(FOLLOWUP_PROMPT.format(user=user, where="the main chat",
+                                                                           question=q, task=t)))
+                    proc.stdin.flush()
+                    job["accepting"] = True
+                except (OSError, ValueError):
+                    pass
+        threading.Thread(target=send_brief, daemon=True).start()
         other = []   # non-JSON lines (errors), kept for the report
         for line in proc.stdout:
             job["last_seen"] = time.time()
@@ -3453,8 +3459,13 @@ def _run_agent_turn(chat, agent_name, message):
             kill_tree(proc)
         timer = threading.Timer(AGENT_TURN_TIMEOUT, lambda: kill_tree(proc))
         timer.start()
-        proc.stdin.write(prompt)
-        proc.stdin.close()
+        def send_prompt():   # on its own thread while this one reads, as in run_job (a pipe deadlock otherwise)
+            try:
+                proc.stdin.write(prompt)
+                proc.stdin.close()
+            except (OSError, ValueError):
+                pass
+        threading.Thread(target=send_prompt, daemon=True).start()
         other = []
         for line in proc.stdout:
             try:
