@@ -369,9 +369,22 @@ Larry, a clear instruction that keeps everything the user asked for, in their wo
 When the user names a team member or the team for the work ("have Silas...", "get the team to..."), \
 always delegate, even if you could do it yourself: they chose who does it. A quick lookup they ask \
 of you directly is yours. Larry keeps one running thread with you, so "that", "the same for Jayco" or "carry on" can refer to \
-earlier work: pass it on as said. Your reply is then your acknowledgement that the matter is in hand, \
+earlier work: pass it on as said. If he is already on a job, new work goes straight to him and he \
+picks it up at his next step. Your reply is then your acknowledgement that the matter is in hand, \
 with the two remarks, and SOURCES: none. Questions (what does Wren do, what's in this note, what's on \
-today) are just questions: answer them and don't delegate."""
+today) are just questions: answer them and don't delegate.
+
+Write each acknowledgement for this request, never a stock line. In a sentence or two say: what you \
+asked Larry for, in a short phrase of your own (the bills filed under the client's project, the \
+October invoice added to the workbook); what happens next, read from <team_now> (a correction to the \
+job he is on changes that work; anything else he takes up at his next step, inside the same job; \
+with nobody working, the team starts now); and when or how the user will hear back. Vary your \
+wording from one reply to the next, and never repeat the phrasing of your earlier acknowledgements \
+in the conversation.
+
+When the team's work is finished and the user asks about it or looks at the result, end with the \
+next best step: one or two concrete things worth doing next (check a flagged figure, send the draft \
+to the client, file what is left in Team Inbox), offered as a question, never done unasked."""
 
 
 def load_team():
@@ -1478,6 +1491,8 @@ def answer(sid, question, project=None, history=None, on_event=None, tour=False)
                               "emails": [{k: m.get(k) for k in ("from", "subject", "received", "unread")}
                                          for m in snapshot["emails"]]}, ensure_ascii=False) +
                   "\n</outlook_today>\n\n" + prompt)
+    if not fast:
+        prompt = team_now() + "\n\n" + prompt
     prompt = f"Now: {now_local()}.\n\n" + prompt
     system = (persona(style=False) + ("" if fast else VAULT_PROMPT.replace("{vault}", VAULT)) +
               ACTION_PROMPT.replace("{projects}", ", ".join(sorted(PROJECTS)) or "none yet")
@@ -1518,9 +1533,14 @@ def answer(sid, question, project=None, history=None, on_event=None, tour=False)
     if task and (team_asked or not project):   # in a project chat, only when the team is named
         job = start_job(task, question, project["name"] if project else None)
         cited = []
-        if job.get("joined"):   # Larry was already on a job: this went into it, not a second one
-            text = spoken = ("Larry's already working on something for you, so I've passed that to him; "
-                             "he'll fold it into the job in hand and cover it in his report.")
+        # Halo's own words acknowledge the hand-off: she writes them for this request from <team_now>
+        # (a stock line here read as "it waits its turn"). Only the rare case she can't know about,
+        # or a blank reply, gets a line from here.
+        if job.get("joined") and not job.get("delivered"):
+            note = "Larry's finishing his last run as we speak, so this starts the moment it ends."
+            text, spoken = (f"{text}\n\n{note}" if text else note), (f"{spoken} {note}" if spoken else note)
+        elif not (text or "").strip():
+            text = spoken = "That's with Larry now; his report will come back to you here."
 
     # Only trust indexes that were actually shown to the model (this turn or earlier ones).
     allowed = set(hits) | {i for t in history for i in t.get("nodes") or []}
@@ -2033,7 +2053,10 @@ your job is running, so waiting for one only stalls both. If the ask involves a 
 when it is due, finish your report, and let it run after you.
 
 Finish with a short plain-English report: what you did, then the vault-relative paths of the files \
-you created or changed, one per line."""
+you created or changed, one per line. End it with a heading "Next steps" and the two or three best \
+things to do next, most useful first, one line each: what was flagged and needs the user's call, \
+what the work now makes possible (send it, review it, the next period's data), and anything left \
+over (files still in Team Inbox). Each is an offer the user can say yes to; don't do any of them now."""
 
 # ---- the fast lane: one short document, written by one model call, laid out by Halo ------------
 # Larry's team route (specialists, review passes) suits big pieces of work; for a checklist or a
@@ -2962,6 +2985,18 @@ def running_user_job():
     return live[-1] if live else None
 
 
+def team_now():
+    """What the team is doing this moment, for Halo's prompt, so a hand-off reply can say what happens next."""
+    job = running_user_job()
+    if not job:
+        return "<team_now>\nNobody is working: work you delegate now starts straight away.\n</team_now>"
+    mins = int((time.time() - job["started"]) // 60)
+    return ("<team_now>\n"
+            f"Larry is on a job for the user, started {mins} min ago: {job['task'][:300]}\n"
+            "Anything you delegate now goes straight to Larry, inside this job: he takes it up at his next "
+            "step.\n</team_now>")
+
+
 def add_to_job(job, task, question, where="the main chat"):
     """Pass a follow-up to a running job. Larry gets it at his next step, inside the same run, so
     a correction or a "save it in Deliverables" changes the work in hand rather than starting a
@@ -2993,9 +3028,12 @@ def add_to_job(job, task, question, where="the main chat"):
             if not sent:   # not started yet, or wrapping up: runs as soon as this run ends
                 job.setdefault("queued", []).append((task, question))
     if finished:   # it ended a moment ago: carry on from where it got to
-        return start_job(task, question, job.get("project"), session=job.get("session"), chat=chat, where=where)
+        return dict(start_job(task, question, job.get("project"), session=job.get("session"), chat=chat, where=where),
+                    delivered=True)
     job["activity"] = "Larry has your follow-up; he'll pick it up at his next step"
-    return public_job(job)
+    out = public_job(job)
+    out["delivered"] = sent   # in Larry's hands now, or waiting for this run to end
+    return out
 
 
 def _user_name():
