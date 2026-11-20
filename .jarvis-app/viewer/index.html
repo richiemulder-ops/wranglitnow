@@ -6911,6 +6911,10 @@ const tc = THEME.colour;
   let msOpen = false, msXero = null, msXeroErr = '', msXeroBusy = false, msToday = null, msTodayErr = '';
   let msPipe = null, msPipeErr = '', msPipeBusy = false, msFleetPeriod = 7;
   try { msFleetPeriod = +localStorage.getItem('halo-fleet-period') === 30 ? 30 : 7; } catch (_) {}
+  // AI usage and AI cost have their own 7 / 30 days switches, like Agent fleet.
+  let msUsagePeriod = 30, msCostPeriod = 30;
+  try { msUsagePeriod = +localStorage.getItem('halo-usage-period') === 7 ? 7 : 30; } catch (_) {}
+  try { msCostPeriod = +localStorage.getItem('halo-cost-period') === 7 ? 7 : 30; } catch (_) {}
   // A small bar chart: one bar per value, scaled to the largest.
   function sparkBars(vals, colour, label) {
     const max = Math.max(1, ...vals), n = Math.max(1, vals.length), w = 100 / n;
@@ -6968,9 +6972,13 @@ const tc = THEME.colour;
   // Where each tile sits (CSS order): four rows, wide tiles down the left, Clients tall in the third column.
   const MC_ORDER = ['AI usage', 'Clients · summary', 'Needs you', 'AI cost', 'Priorities', 'Agent fleet', 'Money · Xero',
     "Today's meetings", 'Pipeline &amp; leads', 'Client progress', 'System health'];
-  function mcTile(cls, key, note, inner) {
-    return `<section class="mc ${cls}" style="order:${MC_ORDER.indexOf(key)}"><div class="th"><div class="k">${key}</div>${note ? `<span class="note">${note}</span>` : ''}</div>${inner}</section>`;
+  function mcTile(cls, key, note, inner, extra) {
+    return `<section class="mc ${cls}" style="order:${MC_ORDER.indexOf(key)}"><div class="th"><div class="k">${key}</div>` +
+      `<span style="display:inline-flex;gap:8px;align-items:center;min-width:0">${note ? `<span class="note">${note}</span>` : ''}${extra || ''}</span></div>${inner}</section>`;
   }
+  // A 7 / 30 days switch for a tile's header (data-period="<tile>:<days>").
+  const periodSeg = (which, cur) => `<span class="seg" style="flex:none">${[7, 30].map(p =>
+    `<button type="button" data-period="${which}:${p}" class="${cur === p ? 'on' : ''}">${p} days</button>`).join('')}</span>`;
 
   function openMission() {
     msEl.hidden = false; msOpen = true;
@@ -6990,7 +6998,7 @@ const tc = THEME.colour;
     // Each tile fills in as its data lands, rather than all waiting for the slowest.
     const show = () => { if (msOpen) renderMission(); };
     const get = async (path, key) => { try { msData[key] = await api(path); } catch (err) { msData[key] = { error: err.message }; } show(); };
-    Promise.all([get(`/api/metrics?period=${metricPeriod}`, 'metrics'), get('/api/models', 'models'),
+    Promise.all([get(`/api/metrics?period=${msUsagePeriod}`, 'metrics'), get('/api/models', 'models'),
       get('/api/approvals', 'approvals'), get('/api/hires', 'hires'), get('/api/actions', 'actions'),
       get('/api/crm?kind=organizations', 'crm'), get('/api/mission', 'mission'), get(`/api/fleet?period=${msFleetPeriod}`, 'fleet'),
       get('/api/costs' + (fresh ? '?refresh=1' : ''), 'costs'), pollCrew().then(show)]);
@@ -7038,7 +7046,7 @@ const tc = THEME.colour;
       }
       const md = d.models;
       const note = md && !md.error ? `Halo: ${esc(modelName(md.chat, md.models))} · team: ${esc(modelName(md.jobs, md.models))}` : '';
-      tiles.push(mcTile('wide', 'AI usage', note, inner));
+      tiles.push(mcTile('wide', 'AI usage', note, inner, periodSeg('usage', msUsagePeriod)));
     }
 
     // Clients: your CRM's organisations (those marked client first). Set up when there are none yet.
@@ -7145,10 +7153,15 @@ const tc = THEME.colour;
         // Every API key together; the busiest key is named underneath.
         const app = api && { name: api.keys.length ? `All API keys (busiest: ${api.keys[0].name})` : 'All API keys', usd: api.total,
           tokens: api.keys.reduce((n, k) => n + (k.tokens || 0), 0), daily: Object.fromEntries(api.daily.map(x => [x.day, x.usd])) };
-        const days = lastDays(30);
+        const P = msCostPeriod, days = lastDays(P);
+        // Totals for the chosen period, summed from the daily figures (older servers send only 30-day totals).
+        const sumDays = obj => days.reduce((s, dd) => s + (+(obj || {})[dd] || 0), 0);
+        const hasTokDays = api && api.keys.some(k => k.daily_tokens);
+        const appUsd = app ? (P === 30 ? app.usd : sumDays(app.daily)) : 0;
+        const appTok = app ? (P === 30 || !hasTokDays ? app.tokens : api.keys.reduce((n, k) => n + sumDays(k.daily_tokens), 0)) : 0;
         const plans = c.plans.length ? c.plans.map(p => `${esc(p.name)} ${money(p.monthly, cur)}/mo`).join(' · ') : 'No plans entered yet';
-        const apiBig = app ? usd(app.usd) : '—';
-        const apiSub = app ? `${esc(app.name)} · ${fmtTokens(app.tokens)} tokens · 30 days (USD)`
+        const apiBig = app ? usd(appUsd) : '—';
+        const apiSub = app ? `${esc(app.name)} · ${fmtTokens(appTok)} tokens · ${P} days (USD)`
           : c.apiProblem ? esc(c.apiProblem) : 'API cost needs an Anthropic Admin API key: click Set up';
         // One compact row of totals, then the daily chart filling the rest of the tile.
         const top = `<div class="nums" style="flex:none;flex-wrap:nowrap"><div style="min-width:0"><div class="big">${money(c.plan_monthly, cur)}</div>` +
@@ -7159,7 +7172,7 @@ const tc = THEME.colour;
         inner = top + chart +
           (api ? `<div style="flex:none;font-size:10px;color:var(--dim)">Anthropic data to ${esc(String(api.refreshed || '').slice(0, 16).replace('T', ' '))} UTC, 4 to 24 h behind</div>` : '');
       }
-      tiles.push(mcTile('wide', 'AI cost', '<button type="button" class="link" data-open="costs">Set up</button>', inner));
+      tiles.push(mcTile('wide', 'AI cost', '<button type="button" class="link" data-open="costs">Set up</button>', inner, periodSeg('cost', msCostPeriod)));
     }
 
     // Client progress comes with the client tracker, which isn't in this Halo yet.
@@ -7232,6 +7245,19 @@ const tc = THEME.colour;
     msGrid.querySelectorAll('[data-open="crew"]').forEach(b => { b.onclick = () => { closeMission(); openCrew(); }; });
     msGrid.querySelectorAll('[data-open="actions"]').forEach(b => { b.onclick = () => { closeMission(); showActions(); }; });
     msGrid.querySelectorAll('[data-open="costs"]').forEach(b => { b.onclick = openCostSetup; });
+    msGrid.querySelectorAll('[data-period]').forEach(b => { b.onclick = async () => {
+      const [which, p] = b.dataset.period.split(':');
+      if (which === 'cost') {   // the cost data already holds 30 days a day at a time, so no new fetch
+        msCostPeriod = +p;
+        try { localStorage.setItem('halo-cost-period', msCostPeriod); } catch (_) {}
+        renderMission(); return;
+      }
+      msUsagePeriod = +p;
+      try { localStorage.setItem('halo-usage-period', msUsagePeriod); } catch (_) {}
+      msData.metrics = null; renderMission();
+      try { msData.metrics = await api(`/api/metrics?period=${msUsagePeriod}`); } catch (err) { msData.metrics = { error: err.message }; }
+      if (msOpen) renderMission();
+    }; });
     msGrid.querySelectorAll('[data-fleet]').forEach(b => { b.onclick = async () => {
       msFleetPeriod = +b.dataset.fleet;
       try { localStorage.setItem('halo-fleet-period', msFleetPeriod); } catch (_) {}

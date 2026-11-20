@@ -1,7 +1,8 @@
 {
-  "version": "2026.11.19.4",
+  "version": "2026.11.20.1",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes. 'tour' lists the tutorial step ids (TOUR_STEPS in viewer/index.html) this release added or changed, for the 'what's new' tour; run check_tour.py before pushing.",
   "notes": [
+    "Mission control: the AI usage and AI cost cards now have a 7 days / 30 days switch at the top right, like the Agent fleet card. Each card remembers your choice.",
     "Halo now answers in her own words when you hand work to the team: what she asked Larry for, what happens next and when you'll hear back, worded for that request instead of one stock line. Larry's reports end with Next steps (the two or three best things to do next, offered, not done), and Halo suggests the next best step when you look at finished work.",
     "Fixed Larry sometimes never starting a job. Halo and Larry could end up waiting on each other at start-up, so the job sat on \"reading his brief\" until Halo gave up after 4 minutes. Jobs and team chats now start within seconds.",
     "Jobs no longer stall waiting on each other. A scheduled team job now waits at most 10 minutes for your own work before running alongside it, instead of up to 2 hours, and Larry no longer sits waiting for a scheduled job to run.",
@@ -99,6 +100,13 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.20.1",
+      "notes": [
+        "Mission control: the AI usage and AI cost cards now have a 7 days / 30 days switch at the top right, like the Agent fleet card. Each card remembers your choice."
+      ],
+      "tour": []
+    },
     {
       "version": "2026.11.19.4",
       "notes": [

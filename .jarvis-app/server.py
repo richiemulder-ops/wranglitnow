@@ -4468,7 +4468,8 @@ def api_costs(refresh=False, key=None):
         span = {"starting_at": start.strftime("%Y-%m-%dT%H:%M:%SZ"), "ending_at": now.strftime("%Y-%m-%dT%H:%M:%SZ")}
         cost_rows, refreshed = _admin_rows("/analytics/cost", {**span, "time_bucket_width": "1d",
                                            "group_by[]": ["api_key_id", "model"], "limit": 1000}, key)
-        use_rows, _ = _admin_rows("/analytics/usage", {**span, "group_by[]": ["api_key_id"], "limit": 1000}, key)
+        use_rows, _ = _admin_rows("/analytics/usage", {**span, "time_bucket_width": "1d",
+                                  "group_by[]": ["api_key_id"], "limit": 1000}, key)
         names = {}
         try:
             after = None
@@ -4492,15 +4493,21 @@ def api_costs(refresh=False, key=None):
             by_day[day] = by_day.get(day, 0) + cents(r)
             kd = key_day.setdefault(k, {})
             kd[day] = kd.get(day, 0) + cents(r)
-        tokens = {}
+        tokens, tok_day = {}, {}
         for r in use_rows:
             k = (r.get("group") or {}).get("api_key_id") or "other"
-            tokens[k] = tokens.get(k, 0) + int((r.get("usage") or {}).get("total_tokens") or 0)
+            n = int((r.get("usage") or {}).get("total_tokens") or 0)
+            tokens[k] = tokens.get(k, 0) + n
+            day = str(r.get("starting_at") or "")[:10]
+            if day:   # a day at a time, so the board can show 7 days as well as 30
+                td = tok_day.setdefault(k, {})
+                td[day] = td.get(day, 0) + n
         keys = sorted(set(by_key) | set(tokens), key=lambda k: -by_key.get(k, 0))
         data = {"currency": "USD", "total": round(sum(by_key.values()) / 100, 2),
                 "keys": [{"id": k, "name": names.get(k, "Console / other" if k == "other" else k),
                           "usd": round(by_key.get(k, 0) / 100, 2), "tokens": tokens.get(k, 0),
-                          "daily": {d: round(c / 100, 2) for d, c in key_day.get(k, {}).items()}} for k in keys],
+                          "daily": {d: round(c / 100, 2) for d, c in key_day.get(k, {}).items()},
+                          "daily_tokens": tok_day.get(k, {})} for k in keys],
                 "models": [{"model": m, "usd": round(c / 100, 2)} for m, c in sorted(by_model.items(), key=lambda x: -x[1])],
                 "daily": [{"day": d, "usd": round(by_day[d] / 100, 2)} for d in sorted(by_day)],
                 "refreshed": refreshed, "fetched": time.strftime("%H:%M")}
