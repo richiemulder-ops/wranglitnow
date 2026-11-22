@@ -265,9 +265,18 @@ talk, or a task you have just confirmed.
 
 What you can and can't reach, for questions about yourself: the vault (read only, and the folders \
 filed into it), their Outlook calendar and email (read only), email drafts placed by the team (never sent), \
-and the team's background jobs. Their wider OneDrive and SharePoint files outside the vault are not \
+and the team's work. Their wider OneDrive and SharePoint files outside the vault are not \
 connected; the Microsoft 365 connector could search them (read only), but that needs adding to Halo's setup \
 when it is next built on, not a switch you or they can flip from the chat, so never offer to switch it on.
+
+You see the team live. <team_status> comes from your own job runner and scheduler, refreshed for every \
+question: every job running now (theirs and scheduled), which agent is on it and what each is doing \
+this minute, anything waiting for their OK, each scheduled job's last run, result and next run, and \
+what finished in the last day. So "where are the agents at", "did the inbox sweep run", "what's Penn \
+doing", "why did the SEO scan fail" are yours to answer at once, from it: say who is doing what, how \
+long it has been going, and what comes next. Never say you lack visibility, can't check, or need to \
+ask Larry: you and he are one desk and this is his board. If they want more than the status holds, \
+such as the full report, open the note it was saved to or show the job (ACTION: show | jobs | <name>).
 
 Small talk, greetings, thanks and jokes: answer in character, briefly, with a remark or two, \
 without consulting the notes, and with no follow-up question. Don't steer the conversation back to the vault.
@@ -372,7 +381,8 @@ of you directly is yours. Larry keeps one running thread with you, so "that", "t
 earlier work: pass it on as said. If he is already on a job, new work goes straight to him and he \
 picks it up at his next step. Your reply is then your acknowledgement that the matter is in hand, \
 with the two remarks, and SOURCES: none. Questions (what does Wren do, what's in this note, what's on \
-today) are just questions: answer them and don't delegate.
+today) are just questions: answer them and don't delegate. So is asking how a job is going, whether \
+a scheduled job ran or what an agent is doing: answer from <team_status>, never DELEGATE a status check.
 
 Write each acknowledgement for this request, never a stock line. In a sentence or two say: what you \
 asked Larry for, in a short phrase of your own (the bills filed under the client's project, the \
@@ -1492,7 +1502,7 @@ def answer(sid, question, project=None, history=None, on_event=None, tour=False)
                                          for m in snapshot["emails"]]}, ensure_ascii=False) +
                   "\n</outlook_today>\n\n" + prompt)
     if not fast:
-        prompt = team_now() + "\n\n" + prompt
+        prompt = team_now() + "\n\n" + team_status() + "\n\n" + prompt
     prompt = f"Now: {now_local()}.\n\n" + prompt
     system = (persona(style=False) + ("" if fast else VAULT_PROMPT.replace("{vault}", VAULT)) +
               ACTION_PROMPT.replace("{projects}", ", ".join(sorted(PROJECTS)) or "none yet")
@@ -2995,6 +3005,107 @@ def team_now():
             f"Larry is on a job for the user, started {mins} min ago: {job['task'][:300]}\n"
             "Anything you delegate now goes straight to Larry, inside this job: he takes it up at his next "
             "step.\n</team_now>")
+
+
+def _headline(text, n=240):
+    """A report's first real words, for a one-line status."""
+    name = re.escape(_user_name().split()[0]) if _user_name() != "The user" else "the user"
+    fluff = re.compile(r"^(#+\s*result\s*$|i'?m larry[,.]?\s*|" + name + r"[,.]\s*)+", re.I | re.M)
+    t = fluff.sub("", str(text or "")).replace("**", "")
+    t = " ".join(t.split())
+    return (t[:n].rsplit(" ", 1)[0] + "...") if len(t) > n else t
+
+
+def _ago(ts, now):
+    m = int((now - ts) // 60)
+    return f"{m} min" if m < 90 else f"{m // 60} h {m % 60} min"
+
+
+def team_status(now=None):
+    """Everything the team is doing and has done, live from the job runner and the scheduler, so Halo
+    can say where any agent or scheduled job is at without asking Larry (23 Nov: she kept saying she
+    had no visibility, because team_now() leaves scheduled runs out)."""
+    now = now or time.time()
+    out = [f'<team_status note="live from your own job runner and scheduler as of '
+           f'{time.strftime("%H:%M", time.localtime(now))}: this IS the team\'s state, so answer status '
+           'questions straight from it">']
+    with _jobs_lock:
+        jobs = list(_jobs.values())
+    waiting = {}
+    try:
+        waiting = {r["ticket"]: r for r in pending_approvals()}
+    except Exception:
+        pass
+    sched_names = {}
+    try:
+        with _sched_lock:
+            scheds = load_schedules()
+        sched_names = {s["id"]: s["name"] for s in scheds}
+    except Exception:
+        scheds = []
+
+    live = [j for j in jobs if j["status"] == "running"]
+    out.append("Running now:" if live else "Running now: nothing. Every agent is idle.")
+    for j in live:
+        origin = str(j.get("origin", "user"))
+        what = (f"scheduled job \"{sched_names.get(origin[9:], origin[9:])}\"" if origin.startswith("schedule:")
+                else "quick document job" if j.get("lane") == "quick" else "your request")
+        out.append(f"- {what}, started {_ago(j['started'], now)} ago: {_headline(j.get('task'), 200)}")
+        if j.get("activity"):
+            out.append(f"  Latest step: {j['activity']}.")
+        for key, a in list(j["agents"].items()):
+            if key != "main" and not a.get("task") and not a.get("calls"):
+                continue
+            state = "finished, reported back" if a.get("done") else (a.get("activity") or "working")
+            task = f" on \"{a['task']}\"" if a.get("task") else ""
+            out.append(f"  {a['name']}{task}: {state}.")
+        for t in list((j.get("bg") or {}).values()):
+            if t.get("kind") == "local_agent":
+                out.append(f"  {t['name']} working in the background for {_ago(t['since'], now)}"
+                           + (" (running long)" if t.get("overdue") else "") + f": {t.get('task') or ''}")
+    for r in waiting.values():
+        out.append(f"- Waiting on your OK: {r.get('agent') or r.get('asker') or 'an agent'} wants to "
+                   f"{_headline(r.get('plain') or r.get('what'), 160)}")
+    with _agent_lock:
+        chats = [c for c in _agent_chats.values() if c.get("status") == "running" and not c.get("job")]
+    for c in chats:
+        out.append(f"- {c.get('agent') or 'An agent'} is answering you in team chat: {c.get('activity') or 'thinking'}.")
+    for sid, since in list(_sched_state.get("waiting", {}).items()):
+        out.append(f"- Held back: \"{sched_names.get(sid, sid)}\" is due and waits up to "
+                   f"{SCHED_TEAM_WAIT // 60} min for your own job (held {_ago(since, now)}), then runs alongside it.")
+
+    if scheds:
+        out.append("\nScheduled jobs (when it runs; last run and how it went; next run):")
+        for s in scheds:
+            busy = _sched_state.get("busy") == s["id"]
+            last = (f"last ran {_sched_ts_label(s['last_run'])}, {s.get('last_status') or 'unknown'}"
+                    if s.get("last_run") else "never run yet")
+            if s.get("last_status") == "missed":
+                last += " (the PC was off or asleep when it was due)"
+            if s.get("last_status") == "running":   # set at the start of a run; last_run is the run before
+                prev = f"previous run {_sched_ts_label(s['last_run'])}" if s.get("last_run") else "first run"
+                last = (f"running now ({prev})" if busy else
+                        f"marked running, but no run is going (Halo restarted mid-run; {prev})")
+            head = _headline(s.get("last_result"), 220) if s.get("last_run") else ""
+            nxt = ("RUNNING NOW" if busy else "paused" if not s.get("enabled") else
+                   f"next {_sched_ts_label(s.get('next_run'))}" if (s.get("next_run") or 0) > now else
+                   "due now, starts within a minute or two")
+            out.append(f"- {s['name']} ({describe_schedule(s.get('schedule') or {})}, "
+                       f"{'quick' if s.get('runner') == 'quick' else 'brief' if s.get('runner') == 'brief' else 'team'}): "
+                       f"{last}; {nxt}." + (f" Last result: {head}" if head else ""))
+
+    done = [r for r in _read_jsonl(JOBS_LOG, now - 24 * 3600, limit=40) if r.get("status")][-10:]
+    if done:
+        out.append("\nFinished in the last 24 hours (newest last):")
+        for r in done:
+            origin = str(r.get("origin", "user"))
+            what = sched_names.get(origin[9:], "scheduled job") if origin.startswith("schedule:") else "your request"
+            who = ", ".join(r.get("agents") or []) or "Larry"
+            doc = f" Saved: {r['document']}." if r.get("document") else ""
+            out.append(f"- {_sched_ts_label(r.get('at'))}, {what} ({who}): {r['status']}. "
+                       f"{_headline(r.get('report') or r.get('task'), 200)}{doc}")
+    out.append("</team_status>")
+    return "\n".join(out)
 
 
 def add_to_job(job, task, question, where="the main chat"):
