@@ -3399,7 +3399,7 @@ const tc = THEME.colour;
             if (data.context) { jarvisContext = data.context; renderContext(); }
             if (data.job) trackJob(data.job);
             setStatus('');
-            if (data.spokenEarly !== data.speech) speak(data.speech || data.answer);
+            speakRest(data.speech || data.answer, data.spokenEarly);
             actionsOf(data).forEach(handleAction);
             loadList();   // new chat appears, question counts update
           } catch (err) {
@@ -4311,7 +4311,7 @@ const tc = THEME.colour;
 
   // Light the project up across the galaxy, frame it, and show its summary in the side panel.
   function showProject(p) {
-    stopSpeaking();
+    // No stopSpeaking here: Halo often opens a project as part of an answer, and must finish the sentence.
     focusNodes(p.nodes);
     setActiveProject(p);
     openProjectPanel(p);
@@ -4665,7 +4665,7 @@ const tc = THEME.colour;
       proveAnswer(used);
       qEl.value = '';
       setStatus('');
-      if (!actionsOf(data).some(a => a.listen) && data.spokenEarly !== data.speech) speak(data.speech || data.answer);   // only the spoken line: the answer and notes are on screen
+      if (!actionsOf(data).some(a => a.listen)) speakRest(data.speech || data.answer, data.spokenEarly);   // only the spoken line: the answer and notes are on screen
       if (data.context) { jarvisContext = data.context; renderContext(); }
       if (data.job) trackJob(data.job);
       actionsOf(data).forEach(handleAction);
@@ -5345,6 +5345,7 @@ const tc = THEME.colour;
 
   function stopSpeaking() {
     speakToken++;
+    speechQueue = []; talking = false;
     if (synth) synth.cancel();
     if (statusEl.classList.contains('speaking')) setStatus('');
     releaseMics();
@@ -5360,8 +5361,13 @@ const tc = THEME.colour;
   window.addEventListener('focus', claimVoice);
   claimVoice();
 
+  // Halo finishes what he is saying: a new line (a job done, an approval, a reply) waits its turn
+  // instead of cutting him off mid-sentence. Only the user (a new question, the mic, Stop, Esc, ✕,
+  // voice off) or { replace: true } interrupts. A short queue: stale news isn't worth a backlog.
+  var speechQueue = [], talking = false;
+  const MAX_QUEUED = 4;
   let lastSaid = { text: '', at: 0 };
-  function speak(text, maxSentences = MAX_SPOKEN_SENTENCES) {
+  function speak(text, maxSentences = MAX_SPOKEN_SENTENCES, opts = {}) {
     if (!synth || !voiceOn || !text || !ownsVoice()) return;
     // Two triggers for one event (or two Halo tabs) would say the same line twice: skip a repeat
     // within ten seconds.
@@ -5370,16 +5376,44 @@ const tc = THEME.colour;
     if (lastSaid.text === text && now - lastSaid.at < 10000) return;
     lastSaid = { text, at: now };
     try { localStorage.setItem('jarvis-last-said', JSON.stringify(lastSaid)); } catch (_) {}
-    stopSpeaking();
-    const token = speakToken;
-    const clean = text.replace(/[`*_#>|]/g, '').replace(/\s+/g, ' ').trim();
+    if (opts.replace) stopSpeaking();
+    if (speechQueue.length >= MAX_QUEUED) speechQueue.shift();
+    speechQueue.push({ text, maxSentences });
+    if (!talking) nextSpeech();
+  }
+  // The answer's spoken line, after its first words were already said while it streamed in:
+  // carry on from where he got to rather than starting over (or cutting himself off).
+  function speakRest(full, early) {
+    if (!full || full === early) return;
+    const norm = s => String(s || '').replace(/\s+/g, ' ').trim();
+    const f = norm(full), e = norm(early);
+    if (e && f.startsWith(e)) { const rest = f.slice(e.length).trim(); if (rest) speak(rest); return; }
+    speak(full, MAX_SPOKEN_SENTENCES, { replace: !!e });   // a different line altogether: say the final one
+  }
+  function nextSpeech() {
+    const item = speechQueue.shift();
+    if (!item) { talking = false; return; }
+    talking = true;
+    const token = ++speakToken;
+    const done = () => { if (token === speakToken) nextSpeech(); };
+    const clean = item.text.replace(/[`*_#>|]/g, '').replace(/\s+/g, ' ').trim();
     // Chrome cuts off long utterances, so speak sentence-sized chunks back to back.
     // Only the answer itself is spoken, capped at a few sentences: the note is on screen.
-    const chunks = (clean.match(/[^.!?]+[.!?]*\s*/g) || [clean]).slice(0, maxSentences);
+    const chunks = (clean.match(/[^.!?]+[.!?]*\s*/g) || [clean]).slice(0, item.maxSentences);
+    speakSynth(chunks, token, done);
+  }
+
+  function speakSynth(chunks, token, done = () => {}) {
     setTimeout(() => {               // let cancel() settle before queueing (Chrome quirk)
       if (token !== speakToken) return;
       holdMics();                    // no mic hears what he says
       synth.resume();
+      let finished = false, watch = 0;
+      const finish = () => {
+        if (finished) return; finished = true; clearInterval(watch);
+        if (token === speakToken && statusEl.classList.contains('speaking')) setStatus('');
+        if (token === speakToken) { releaseMics(); done(); }
+      };
       chunks.forEach((chunk, i) => {
         const u = new SpeechSynthesisUtterance(chunk.trim());
         if (voice) { u.voice = voice; u.lang = voice.lang; } else { u.lang = 'en-GB'; }
@@ -5387,12 +5421,15 @@ const tc = THEME.colour;
         u.pitch = voiceIsMale ? 0.92 : 0.7;   // a lower register if no male voice is installed
         u.onboundary = () => { voiceKick = 1; };   // each word gives the emblem a kick
         if (i === 0) u.onstart = () => { if (token === speakToken) setStatus('speaking', 'speaking…'); };
-        if (i === chunks.length - 1) u.onend = u.onerror = () => {
-          if (token === speakToken && statusEl.classList.contains('speaking')) setStatus('');
-          if (token === speakToken) releaseMics();
-        };
+        if (i === chunks.length - 1) u.onend = u.onerror = finish;
         synth.speak(u);
       });
+      // Chrome sometimes never fires onend: once nothing is speaking or queued, call it finished,
+      // so the next line in the queue isn't stuck behind it.
+      watch = setInterval(() => {
+        if (token !== speakToken) { clearInterval(watch); return; }
+        if (!synth.speaking && !synth.pending) finish();
+      }, 1000);
     }, 60);
   }
 
