@@ -212,6 +212,13 @@ CHITCHAT = re.compile(r"^\W*(thanks?( you)?|thank you|cheers|ta|hi|hello|hey|hiy
                       r"bye|goodbye|see you|well done|good job|nice one|never ?mind|that'?s (all|it|fine))"
                       r"\b[\w\s,'!.]{0,40}$", re.I)
 SCREEN_COMMAND = re.compile(r"^\W*(please\s+)?(show|close|hide|clear|bring up|pull up|put up)\b", re.I)
+# A screen command that names a file or asks to search leaves the no-tools fast lane, so
+# "pull up last Friday's forecast dashboard" can find and open it first time.
+FILE_ASK = re.compile(r"\b(open|opens|opening|search|find|check|look (it |that |this )?up|look (in|through|for)|"
+                      r"get me|grab|fetch|load|file|files|folder|dashboards?|reports?|forecasts?|documents?|docs?|"
+                      r"spreadsheets?|workbooks?|sheets?|decks?|slides?|pdfs?|html|versions?|drafts?|templates?|"
+                      r"proposals?|invoices?|deliverables?|attachments?|latest|newest|last (week|friday|monday|"
+                      r"tuesday|wednesday|thursday|month|run))\b", re.I)
 TODAY_TTL = 10 * 60
 
 TOP_K = 6
@@ -262,6 +269,11 @@ options, or have it done ("Shall I have the team pull the actions from that meet
 open ones only, or everything since July?"). Make it one a simple yes or no can answer where you can. \
 Leave the question off when the answer is complete and nothing follows from it: a plain fact, small \
 talk, or a task you have just confirmed.
+
+Never answer that you can't do something "from here", can't search, can't open or can't check. \
+Files in the vault you find and open yourself (ACTION: open). Real work you can't do yourself you \
+hand to the team in the same reply (DELEGATE) and say it's in hand: never send the user off to \
+arrange it, and never stop at what you can't do.
 
 What you can and can't reach, for questions about yourself: the vault (read only, and the folders \
 filed into it), their Outlook calendar and email (read only), email drafts placed by the team (never sent), \
@@ -1451,7 +1463,8 @@ def answer(sid, question, project=None, history=None, on_event=None, tour=False)
     team_asked = bool(TEAM_MENTION and TEAM_MENTION.search(question))
     # Small talk and screen commands: Haiku, no notes, no tools, one turn (CR-008).
     fast = (not project and not team_asked and not chat_choice().startswith("openai:")
-            and (CHITCHAT.match(question) or (SCREEN_COMMAND.match(question) and len(question.split()) <= 10)))
+            and (CHITCHAT.match(question) or (SCREEN_COMMAND.match(question) and len(question.split()) <= 10
+                                              and not FILE_ASK.search(question))))
     scope = set(project["nodes"]) if project else None
     found = [] if fast else INDEX.hits(question, allowed=scope)
     hits = [i for i, _ in found]
