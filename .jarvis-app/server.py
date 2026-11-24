@@ -4964,6 +4964,46 @@ def reveal_in_os(key, sub=""):
 TRASH_DIR = ".trash"   # Obsidian's own vault trash: hidden from the galaxy and the folder cards
 
 
+MAX_DOWNLOAD_ZIP = 1024 * 1024 * 1024   # a folder bigger than 1 GB stays in File Explorer
+
+
+def download_target(key, sub=""):
+    """The file (or folder) to hand the browser for a right-click Download. key "vault" takes a
+    vault-relative path (meeting notes and other notes); any other key is a folder card."""
+    if key == "vault":
+        return vault_file(sub)
+    root, path = folder_path(key, sub)
+    if path == root:
+        raise ChatError(403, "That's the whole folder. Download what's inside it instead.")
+    return path
+
+
+def zip_folder(path):
+    """A folder as a zip in a temp file (hidden and _ entries left out, as in the listings)."""
+    import zipfile
+    total = 0
+    files = []
+    for dirpath, dirnames, filenames in os.walk(path):
+        dirnames[:] = [d for d in dirnames if not d.startswith((".", "_"))]
+        for name in filenames:
+            if name.startswith((".", "_")):
+                continue
+            full = os.path.join(dirpath, name)
+            total += os.path.getsize(full)
+            if total > MAX_DOWNLOAD_ZIP:
+                raise ChatError(413, "That folder is over 1 GB. Use Show in File Explorer instead.")
+            files.append(full)
+    tmp = tempfile.TemporaryFile()
+    base = os.path.basename(path)
+    with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as z:
+        for full in files:
+            z.write(full, os.path.join(base, os.path.relpath(full, path)))
+    tmp.seek(0, os.SEEK_END)
+    size = tmp.tell()
+    tmp.seek(0)
+    return tmp, size
+
+
 def trash_item(key, sub=""):
     """Delete a file or folder from a folder card, the Obsidian way: it moves to the vault's
     .trash folder (keeping its path there), so a mistake can be undone from File Explorer."""
@@ -6080,6 +6120,8 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
         try:
             if url.path == "/api/folder":
                 self._json(200, list_folder(q.get("name", ""), q.get("path", "")))
+            elif url.path == "/api/download":
+                self._send_download(q.get("name", ""), q.get("path", ""))
             elif url.path == "/api/today":
                 self._json(200, today(q.get("refresh") == "1"))
             elif url.path == "/api/setup":
@@ -6319,6 +6361,25 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
         except ChatError as e:
             result, status = {"error": str(e)}, e.status
         self._json(status, result, new_sid)
+
+    def _send_download(self, key, sub):
+        """Stream a file (a folder goes as a .zip) with an attachment header, so the browser
+        saves it to Downloads and shows it in its downloads list."""
+        path = download_target(key, sub)
+        if os.path.isdir(path):
+            f, size = zip_folder(path)
+            name = os.path.basename(path) + ".zip"
+        else:
+            f, size, name = open(path, "rb"), os.path.getsize(path), os.path.basename(path)
+        with f:
+            ascii_name = re.sub(r'[^\x20-\x7e]|["\\]', "_", name)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Length", str(size))
+            self.send_header("Content-Disposition",
+                             f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{urllib.parse.quote(name)}")
+            self.end_headers()
+            shutil.copyfileobj(f, self.wfile, 1024 * 1024)
 
     def _json(self, status, payload, new_sid=None):
         body = json.dumps(payload).encode("utf-8")

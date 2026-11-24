@@ -1,7 +1,8 @@
 {
-  "version": "2026.11.23.3",
+  "version": "2026.11.24.1",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes. 'tour' lists the tutorial step ids (TOUR_STEPS in viewer/index.html) this release added or changed, for the 'what's new' tour; run check_tour.py before pushing.",
   "notes": [
+    "Right-click any file in Halo's file windows (Team Inbox, Deliverables, a project's files) and choose Download: it saves to your Downloads folder and shows in your browser's downloads list, ready to drag into an email or Teams. Folders download as a .zip. Meetings have a right-click Download too, and any note you open has a Download button at the top.",
     "Halo now goes and gets your files herself. Ask her to open or pull up something the team made, like \"pull up last Friday's forecast dashboard\", and she finds the newest version and opens it, instead of replying that she can't open or search files from there.",
     "Halo now finishes what she is saying. A new announcement (a job done, an approval, a reply) waits until she has finished instead of cutting her off mid-sentence, and opening a project panel no longer stops her talking. A new question, the mic, Stop, Esc or the close button still interrupt her.",
     "Halo now sees the team live: ask \"where are the agents at?\", \"did the inbox sweep run?\" or \"what's Penn doing?\" and she answers straight away from the job runner and scheduler (running jobs, scheduled ones included, who is on what, anything waiting for your OK, each scheduled job's last result and next run) instead of saying she can't check or offering to ask Larry.",
@@ -103,6 +104,13 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.24.1",
+      "notes": [
+        "Right-click any file in Halo's file windows (Team Inbox, Deliverables, a project's files) and choose Download: it saves to your Downloads folder and shows in your browser's downloads list, ready to drag into an email or Teams. Folders download as a .zip. Meetings have a right-click Download too, and any note you open has a Download button at the top."
+      ],
+      "tour": []
+    },
     {
       "version": "2026.11.23.3",
       "notes": [

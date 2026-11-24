@@ -2496,6 +2496,7 @@ const tc = THEME.colour;
       accent: node ? groupColor[node.group] : tc('#cfe49a'),
       render: async (bar, content, tools) => {
         linkButton(bar, 'Open on desktop ↗', () => openOnDesktop(path));
+        linkButton(bar, '⬇ Download', () => downloadFile('vault', path), 'Save a copy to your Downloads folder');
         if (node) linkButton(bar, '✦ Show in galaxy', () => { closeWork(); select(node); });
         loadingInto(content, 'Opening…');
         let note;
@@ -2620,10 +2621,22 @@ const tc = THEME.colour;
   }
 
   const meetingMatch = m => `${m.title} ${m.org} ${m.date}`;
-  const meetingRow = m => rowEl('', `<div class="when">${escapeHtml(prettyDate(m.date))}</div><div class="main">` +
+  const meetingRow = m => noteMenu(rowEl('', `<div class="when">${escapeHtml(prettyDate(m.date))}</div><div class="main">` +
     `<div class="t">${escapeHtml(m.title)}</div><div class="m">${[m.org && crmLink(m.org, 'PKM/CRM/Organizations'),
       m.attendees && `${m.attendees} attendees`, m.fireflies && '🎙 Fireflies'].filter(Boolean).join(' · ')}</div></div>`,
-    () => openDoc(m.path, true));
+    () => openDoc(m.path, true)), m.path);
+  // Right-click a note's row (a meeting, say): read it, open it on the desktop, or download it.
+  function noteMenu(el, path) {
+    el.oncontextmenu = ev => {
+      ev.preventDefault();
+      contextMenu(ev.clientX, ev.clientY, [
+        { label: 'Read note', run: () => openDoc(path, true) },
+        { label: 'Open on desktop', run: () => openOnDesktop(path) },
+        { label: 'Download', run: () => downloadFile('vault', path) },
+      ]);
+    };
+    return el;
+  }
   function showMeetings(start) {
     listView({
       kicker: 'Meetings', title: 'Meeting history', accent: tc('#ff9f43'), empty: 'No meetings match.',
@@ -3833,6 +3846,7 @@ const tc = THEME.colour;
         { label: e.dir ? 'Open folder' : ext === 'md' ? 'Read note' : 'Open', run: open },
         ...(e.dir || ext === 'md' ? [{ label: 'Open on desktop', run: () => openInDesktop(key, e.path) }] : []),
         { label: 'Show in File Explorer', run: () => api('/api/reveal', { name: key, path: e.path }).catch(err => setStatus('error', err.message, 4000)) },
+        { label: e.dir ? 'Download as .zip' : 'Download', run: () => downloadFile(key, e.path) },
         null,
         { label: e.dir ? 'Delete folder…' : 'Delete…', danger: true, run: () => trashEntry(key, root, e, refresh) },
       ]);
@@ -3912,6 +3926,25 @@ const tc = THEME.colour;
   window.addEventListener('pointerdown', ev => { if (!ctxEl.hidden && !ctxEl.contains(ev.target)) closeContextMenu(); }, true);
   window.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !ctxEl.hidden) { ev.stopPropagation(); closeContextMenu(); } }, true);
   window.addEventListener('scroll', closeContextMenu, true);
+  // Right-click → Download: the browser saves it to Downloads and lists it in its downloads bar,
+  // ready to drag into an email or Teams. A folder comes down as a .zip. key "vault" = a note path.
+  async function downloadFile(key, path) {
+    if (tourOn) { setStatus('error', 'Not while the tutorial is playing.', 3000); return; }
+    const name = path.split('/').pop();
+    setStatus('thinking', `Downloading ${name}…`);
+    try {
+      const res = await fetch(`/api/download?name=${encodeURIComponent(key)}&path=${encodeURIComponent(path)}`,
+                              { credentials: 'same-origin', headers: { 'X-Galaxy': '1' } });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || `Server error ${res.status}`); }
+      const cd = res.headers.get('Content-Disposition') || '';
+      const m = cd.match(/filename\*=UTF-8''([^;]+)/);
+      const url = URL.createObjectURL(await res.blob());
+      const a = Object.assign(document.createElement('a'), { href: url, download: m ? decodeURIComponent(m[1]) : name });
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      setStatus('thinking', `${a.download} is in your Downloads`, 4000);
+    } catch (err) { setStatus('error', err.message, 5000); }
+  }
   async function openInDesktop(key, path) {
     try { await api('/api/open', { name: key, path }); }
     catch (err) { setStatus('error', err.message, 4000); }
