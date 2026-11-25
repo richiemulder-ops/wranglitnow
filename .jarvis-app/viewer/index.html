@@ -3422,9 +3422,14 @@ const tc = THEME.colour;
             sendBtn.innerHTML = ICON.send; sendBtn.title = 'Send (Enter)'; sendBtn.classList.remove('stopper');
           }
         }
-        let micOff = () => {};
-        sendBtn.onclick = () => busy ? api('/api/stop-answer', {}).catch(() => {}) : (micOff(), send());
-        input.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); micOff(); send(); } };
+        let micOff = async () => false, catching = false;
+        const sendFromBox = async () => {   // the arrow or Enter: catch the mic's last words, then send
+          if (catching) return;
+          const wasOn = await micOff(true);
+          if (micHandedOver(input.value.trim(), wasOn)) send();
+        };
+        sendBtn.onclick = () => busy ? api('/api/stop-answer', {}).catch(() => {}) : sendFromBox();
+        input.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!busy) sendFromBox(); } };
         input.oninput = () => { input.style.height = 'auto'; input.style.height = Math.min(160, input.scrollHeight) + 'px'; };
 
         // Talk: tap the mic to talk, tap again to pause (the words stay in the box); only the arrow
@@ -3438,14 +3443,19 @@ const tc = THEME.colour;
             if (listening) { base = input.value.trim(); try { rec.start(); } catch (_) {} }
           },
         };
-        micOff = () => {
-          if (!listening && !held) return;
+        // `forSend`: the arrow or Enter, so wait for the last words first (lastWords). True if it was on.
+        micOff = async forSend => {
+          if (!listening && !held) return false;
+          const live = listening && !held;
           listening = false; held = false; micHolds.delete(micHold);
           micBtn.classList.remove('on', 'held');
-          try { rec.abort(); } catch (_) {}
+          if (forSend && live) { catching = true; setStatus('thinking', 'sending…'); await lastWords(rec); catching = false; }
+          else try { rec.abort(); } catch (_) {}
+          return true;
         };
         micBtn.onclick = () => {
           if (!Recognition) { setStatus('error', 'voice input needs Chrome or Edge', 4000); return; }
+          if (catching) return;                  // sending: the last words are still landing
           if (listening) {                       // second tap: pause, keep the words, send nothing
             listening = false; micHolds.delete(micHold);
             if (held) { held = false; micBtn.classList.remove('on', 'held'); setStatus(input.value.trim() ? 'paused' : '', PAUSED_TEXT); }
@@ -3457,7 +3467,7 @@ const tc = THEME.colour;
           rec = rec || new Recognition();
           Object.assign(rec, { lang: navigator.language || 'en-GB', interimResults: true, continuous: true });
           base = input.value.trim();
-          rec.onresult = e => { if (!listening || held) return; let t = ''; for (const r of e.results) t += r[0].transcript; input.value = (base ? base + ' ' : '') + t.trim(); };
+          rec.onresult = e => { if ((!listening && !catching) || held) return; let t = ''; for (const r of e.results) t += r[0].transcript; input.value = (base ? base + ' ' : '') + t.trim(); };
           rec.onerror = e => { if (FATAL_REC_ERRORS.has(e.error)) { listening = false; micHolds.delete(micHold); setStatus('error', REC_ERRORS[e.error] || e.error, 4000); } };
           rec.onend = () => {
             if (listening && held) { base = input.value.trim(); return; }   // Halo is talking: resume() restarts it
@@ -3748,9 +3758,17 @@ const tc = THEME.colour;
             setStatus('error', err.message, 5000);
           }
         }
-        let micOff = () => {};
-        sendBtn.onclick = () => busy && !(jobChat && input.value.trim()) ? stopAgent() : (micOff(), send());
-        input.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); micOff(); send(); } };
+        let micOff = async () => false, catching = false;
+        const sendFromBox = async () => {   // the arrow or Enter: catch the mic's last words, then send
+          if (catching) return;
+          const wasOn = await micOff(true);
+          if (micHandedOver(input.value.trim(), wasOn)) {
+            if (wasOn) setStatus('');   // the team chat doesn't set its own status: clear "sending…"
+            send();
+          }
+        };
+        sendBtn.onclick = () => busy && !(jobChat && input.value.trim()) && !listening ? stopAgent() : sendFromBox();
+        input.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendFromBox(); } };
         input.oninput = () => { input.style.height = 'auto'; input.style.height = Math.min(160, input.scrollHeight) + 'px'; };
 
         // Talk: tap the mic to talk, tap again to pause (the words stay in the box); only the arrow
@@ -3764,14 +3782,19 @@ const tc = THEME.colour;
             if (listening) { base = input.value.trim(); try { rec.start(); } catch (_) {} }
           },
         };
-        micOff = () => {
-          if (!listening && !held) return;
+        // `forSend`: the arrow or Enter, so wait for the last words first (lastWords). True if it was on.
+        micOff = async forSend => {
+          if (!listening && !held) return false;
+          const live = listening && !held;
           listening = false; held = false; micHolds.delete(micHold);
           micBtn.classList.remove('on', 'held');
-          try { rec.abort(); } catch (_) {}
+          if (forSend && live) { catching = true; setStatus('thinking', 'sending…'); await lastWords(rec); catching = false; }
+          else try { rec.abort(); } catch (_) {}
+          return true;
         };
         micBtn.onclick = () => {
           if (!Recognition) { setStatus('error', 'voice input needs Chrome or Edge', 4000); return; }
+          if (catching) return;                  // sending: the last words are still landing
           if (listening) {                       // second tap: pause, keep the words, send nothing
             listening = false; micHolds.delete(micHold);
             if (held) { held = false; micBtn.classList.remove('on', 'held'); setStatus(input.value.trim() ? 'paused' : '', PAUSED_TEXT); }
@@ -3783,7 +3806,7 @@ const tc = THEME.colour;
           rec = rec || new Recognition();
           Object.assign(rec, { lang: navigator.language || 'en-GB', interimResults: true, continuous: true });
           base = input.value.trim();
-          rec.onresult = e => { if (!listening || held) return; let t = ''; for (const r of e.results) t += r[0].transcript; input.value = (base ? base + ' ' : '') + t.trim(); };
+          rec.onresult = e => { if ((!listening && !catching) || held) return; let t = ''; for (const r of e.results) t += r[0].transcript; input.value = (base ? base + ' ' : '') + t.trim(); };
           rec.onerror = e => { if (FATAL_REC_ERRORS.has(e.error)) { listening = false; micHolds.delete(micHold); setStatus('error', REC_ERRORS[e.error] || e.error, 4000); } };
           rec.onend = () => {
             if (listening && held) { base = input.value.trim(); return; }   // Halo is talking: resume() restarts it
@@ -4507,10 +4530,19 @@ const tc = THEME.colour;
     setStatus('thinking', running.length ? `stopped ${running.length === 1 ? "the team's job" : running.length + ' jobs'}` : 'stopped', 3000);
   };
 
-  document.getElementById('ask-form').addEventListener('submit', e => {
+  // Only the arrow (or Enter) sends what the mic heard. If the mic is on, its last words land first
+  // (lastWords); an empty box says "didn't catch that"; mid-answer it says so rather than doing nothing.
+  var voiceSending = false;
+  document.getElementById('ask-form').addEventListener('submit', async e => {
     e.preventDefault();
-    micOffForSend();                             // only the arrow (or Enter) sends what the mic heard
-    ask(qEl.value.trim());
+    if (voiceSending) return;
+    voiceSending = true;
+    let wasOn = false;
+    try { wasOn = await micOffForSend(); } finally { voiceSending = false; }
+    const question = qEl.value.trim();
+    if (!micHandedOver(question, wasOn)) return;
+    if (askEl.classList.contains('busy')) { setStatus('thinking', 'still working on your last question…', 3000); return; }
+    ask(question);
   });
 
   // CR-017: attach (📎), paste (Ctrl+V) or drop a file on the chat box and it goes straight into
@@ -5360,6 +5392,35 @@ const tc = THEME.colour;
   // words so far kept in the box) and picks up again a moment after he finishes. Each mic adds a
   // { hold, resume } pair to micHolds while it's on. (var, not const: safe if called early.)
   var micHolds = new Set(), micsHeld = false, releaseTimer = null;
+  // The arrow (or Enter) while a mic is listening: the speech service is often a second or two
+  // behind, so cutting it off (abort) threw away the words still on their way and an empty box sent
+  // nothing, leaving "listening…" on screen. Stop it gently instead, let the last words land (up to
+  // LAST_WORDS_MS), then the caller sends what's in the box. Its own onend is skipped meanwhile, so
+  // it doesn't restart or say "paused".
+  var LAST_WORDS_MS = 1500;
+  function lastWords(r) {
+    return new Promise(resolve => {
+      const own = r.onend;
+      let over = false;
+      const finish = () => {
+        if (over) return; over = true; clearTimeout(timer);
+        r.onend = own;
+        try { r.abort(); } catch (_) {}
+        resolve();
+      };
+      const timer = setTimeout(finish, LAST_WORDS_MS);
+      r.onend = finish;
+      try { r.stop(); } catch (_) { finish(); }
+    });
+  }
+  // After a mic hands over to the arrow: the box is sent, or, if it's empty, say so instead of
+  // leaving "listening…" up as if it were still on.
+  function micHandedOver(text, wasOn) {
+    if (text) return true;
+    if (wasOn) setStatus('error', "didn't catch that, try again", 4000);
+    else if (statusEl.classList.contains('listening') || /sending/.test(statusEl.textContent)) setStatus('');
+    return false;
+  }
   function holdMics() {
     clearTimeout(releaseTimer);
     if (micsHeld) return;
@@ -5476,7 +5537,7 @@ const tc = THEME.colour;
   let rec = null, listening = false, wantOn = false, kept = '', session = '', recError = null, heldForSpeech = false;
   // Each tap-on is one listening stretch. A tap-off can land while Chrome is between sessions (a
   // restart already queued): the turn counter stops that late session switching the mic back on.
-  let turn = 0, sentTurn = 0, finishTurn = () => {}, micOffForSend = () => {};
+  let turn = 0, sentTurn = 0, finishTurn = () => {}, micOffForSend = async () => false;
   const FATAL_REC_ERRORS = new Set(['not-allowed', 'service-not-allowed', 'audio-capture']);
 
   const REC_ERRORS = {
@@ -5552,17 +5613,22 @@ const tc = THEME.colour;
       else if (recError === 'network') setStatus('error', REC_ERRORS.network, 5000);
       else setStatus('');
     };
-    // The arrow or Enter while the mic is on: switch it off now and send what's in the box.
-    micOffForSend = () => {
-      if (!wantOn && !heldForSpeech) return;
-      sentTurn = turn;
+    // The arrow or Enter while the mic is on: switch it off, let the words still on their way land in
+    // the box (lastWords), then the caller sends what's there. True if the mic was on.
+    micOffForSend = async () => {
+      if (!wantOn && !heldForSpeech) return false;
+      const live = listening && !heldForSpeech;
       wantOn = false; heldForSpeech = false; micHolds.delete(mainHold);
-      kept = ''; session = '';
-      try { rec.abort(); } catch (_) {}
       micLook(false);
+      if (live) { setStatus('thinking', 'sending…'); await lastWords(rec); }
+      else try { rec.abort(); } catch (_) {}
+      sentTurn = turn; listening = false;
+      kept = ''; session = '';
+      return true;
     };
     micEl.onclick = () => {
       unlockSpeech();
+      if (voiceSending) return;                  // sending: the last words are still landing
       if (wantOn) {                              // second tap: pause, keep the words, send nothing
         wantOn = false;
         if (listening) rec.stop();               // its onend finishes the turn once the last words land

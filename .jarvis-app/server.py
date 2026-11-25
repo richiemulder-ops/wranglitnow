@@ -205,6 +205,43 @@ CONNECTORS = {"mcp__claude_ai_" + n for n in (
     "Claude_Docs", "Slack", "Calendly", "monday_com", "Apollo_io", "Gmail", "Google_Drive",
     "Google_Calendar", "Google_Docs", "Google_Sheets", "Google_Slides", "Notion", "Linear",
     "Intercom", "HubSpot", "Figma", "Box", "Atlassian", "Asana", "Microsoft_365")}
+# Blocking a connector's tools doesn't stop it starting: every Outlook question waited for all the
+# claude.ai connectors to connect (about 5 s with 25 of them). The ones a call doesn't use are now
+# denied by server name (deniedMcpServers), so they never start. Names are learned from each run's
+# init event and kept on disk, so a restart starts out knowing them all.
+CONNECTOR_NAMES_FILE = os.path.join(HERE, "data", "connectors.json")
+CONNECTOR_NAMES = {"claude.ai " + n for n in (
+    "Claude Docs", "Slack", "Calendly", "monday.com", "Apollo.io", "Gmail", "Google Drive",
+    "Google Calendar", "Google Docs", "Google Sheets", "Google Slides", "Notion", "Linear",
+    "Intercom", "HubSpot", "Figma", "Box", "Atlassian", "Asana", "Microsoft 365")}
+try:
+    with open(CONNECTOR_NAMES_FILE, encoding="utf-8") as _f:
+        CONNECTOR_NAMES |= {n for n in json.load(_f) if isinstance(n, str) and n.startswith("claude.ai ")}
+except (OSError, ValueError):
+    pass
+
+
+def connector_id(name):
+    """'claude.ai Microsoft 365' -> 'claude_ai_Microsoft_365', the middle part of its tool names."""
+    return "claude_ai_" + re.sub(r"[^A-Za-z0-9_-]", "_", name[10:])
+
+
+CONNECTORS |= {"mcp__" + connector_id(n) for n in CONNECTOR_NAMES}
+
+
+def learn_connector(name):
+    if name in CONNECTOR_NAMES:
+        return
+    CONNECTOR_NAMES.add(name)
+    CONNECTORS.add("mcp__" + connector_id(name))
+    try:
+        os.makedirs(os.path.dirname(CONNECTOR_NAMES_FILE), exist_ok=True)
+        with open(CONNECTOR_NAMES_FILE, "w", encoding="utf-8") as f:
+            json.dump(sorted(CONNECTOR_NAMES), f, indent=1)
+    except OSError:
+        pass
+
+
 FAST_MODEL = "claude-haiku-5-5"
 # Small talk and screen commands need no notes and no tools: Haiku answers in one quick turn.
 CHITCHAT = re.compile(r"^\W*(thanks?( you)?|thank you|cheers|ta|hi|hello|hey|hiya|morning|good (morning|afternoon|"
@@ -1353,9 +1390,11 @@ def call_claude(model, prompt, system=None, tools=None, mcp_config=None, vault=F
         used = {t.split("__")[1] for t in allowed if t.startswith("mcp__")}
         blocked = sorted(c for c in CONNECTORS if c.split("__")[1] not in used) + \
                   [t for t in M365_ALL if t not in allowed]
+        # Connectors it doesn't use don't start at all (blocking their tools alone still waited for them).
+        denied = [{"serverName": n} for n in sorted(CONNECTOR_NAMES) if connector_id(n) not in used]
         cmd += ["--tools", ",".join(allowed), "--allowedTools", ",".join(allowed),
                 "--disallowedTools", ",".join(blocked),
-                "--settings", '{"disableAllHooks": true}']
+                "--settings", json.dumps({"disableAllHooks": True, "deniedMcpServers": denied})]
         if mcp_config:
             cmd += ["--mcp-config", mcp_config]
     else:
@@ -1414,8 +1453,8 @@ def call_claude(model, prompt, system=None, tools=None, mcp_config=None, vault=F
                 for srv in ev.get("mcp_servers") or []:   # learn newly added claude.ai connectors
                     name = str(srv.get("name") or "")
                     if name.startswith("claude.ai "):
-                        CONNECTORS.add("mcp__claude_ai_" + re.sub(r"[^A-Za-z0-9_-]", "_", name[10:]))
-                        if "claude_ai_" + re.sub(r"[^A-Za-z0-9_-]", "_", name[10:]) + "__" in ",".join(allowed):
+                        learn_connector(name)
+                        if connector_id(name) + "__" in ",".join(allowed):
                             note_connector(name[10:], str(srv.get("status") or ""))
             elif ev.get("type") == "assistant":
                 m = ev.get("message") or {}
