@@ -9072,7 +9072,22 @@ const tc = THEME.colour;
   let tour = null;   // { steps, i, token }
   let pointerAt = { x: innerWidth / 2, y: innerHeight / 2 };
   const visible = el => { if (!el || !el.getBoundingClientRect) return false; const r = el.getBoundingClientRect(); return r.width > 2 && r.height > 2 && getComputedStyle(el).visibility !== 'hidden'; };
-  const targetsOf = st => { let t = st.hold ? st.hold() : st.target ? st.target() : null; t = Array.isArray(t) ? t : [t]; return t.filter(visible); };
+  // A target mostly covered by another one (the menu item under the window it just opened) is
+  // dropped, so no ring or pointer is left over the top of the window. Parts inside a window stay.
+  const covered = (el, all) => {
+    const r = el.getBoundingClientRect(), area = r.width * r.height;
+    return all.some(o => {
+      if (o === el || o.contains(el) || el.contains(o)) return false;
+      const q = o.getBoundingClientRect();
+      const w = Math.min(r.right, q.right) - Math.max(r.left, q.left), h = Math.min(r.bottom, q.bottom) - Math.max(r.top, q.top);
+      return w > 0 && h > 0 && w * h > area * 0.5;
+    });
+  };
+  const targetsOf = st => {
+    let t = st.hold ? st.hold() : st.target ? st.target() : null;
+    t = (Array.isArray(t) ? t : [t]).filter(visible);
+    return t.filter(el => !covered(el, t));
+  };
   function drawShade(st) {
     const holes = shade.querySelector('.holes'), rings = shade.querySelector('.rings');
     holes.innerHTML = ''; rings.innerHTML = '';
@@ -9191,6 +9206,7 @@ const tc = THEME.colour;
     if (st.do) { try { st.do(); } catch (e) { console.warn('tour step', st.id, e); } await sleep(450); }
     if (!tour || tour.token !== token) return;
     drawShade(st);
+    if (first && !targetsOf(st).includes(first)) pointer.hidden = true;   // what it clicked is now under the window it opened
     const spoken = tourSay(say);
     back.disabled = tour.i === 0;
     const ex = typeof st.example === 'function' ? st.example() : st.example;

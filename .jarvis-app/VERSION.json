@@ -1,7 +1,8 @@
 {
-  "version": "2026.11.25.2",
+  "version": "2026.11.25.3",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes. 'tour' lists the tutorial step ids (TOUR_STEPS in viewer/index.html) this release added or changed, for the 'what's new' tour; run check_tour.py before pushing.",
   "notes": [
+    "The tutorial no longer leaves a highlight box from the left menu sitting over the window it is showing you. Once a window opens on top of the menu item, only the window is highlighted, and the pointer moves out of the way.",
     "Talking to Halo is more reliable: when you click the arrow (or press Enter) straight after speaking, Halo now waits a moment for your last words to come through and then sends them. Before, if you were quick, your question could vanish and the screen stayed on \"listening\". If nothing was heard, she now says \"didn't catch that\" instead of looking stuck. Same in project and team chats.",
     "Calendar and email questions start faster: Halo now opens only your Microsoft 365 connection for them, instead of waiting for every connector you have (Slack, monday and the rest) to start up first.",
     "Ask Halo to introduce herself or \"what can you do for me?\" and she now tells you, out loud: what she can do, plus a few honest limits, and then offers the tutorial. The tutorial only starts if you say yes (it used to start on its own). \"Give me a tour\" still starts it straight away.",
@@ -107,6 +108,13 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.25.3",
+      "notes": [
+        "The tutorial no longer leaves a highlight box from the left menu sitting over the window it is showing you. Once a window opens on top of the menu item, only the window is highlighted, and the pointer moves out of the way."
+      ],
+      "tour": []
+    },
     {
       "version": "2026.11.25.2",
       "notes": [
