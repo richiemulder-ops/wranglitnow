@@ -313,6 +313,43 @@ SOURCES: the index numbers of the notes you actually drew facts from, most impor
 comma-separated (e.g. SOURCES: 551, 807). For small talk, or when no note supports the answer, \
 write SOURCES: none."""
 
+# "Introduce yourself" / "what can you do for me?": a spoken overview, ending with an offer of the
+# tutorial. The tutorial only plays when they say yes (it used to start on its own).
+INTRO_ASK = re.compile(r"\b(introduce yourself|(an? |your )?introduction|intro\b|who are you\b(?! (meeting|seeing|with))|"
+                       r"what (can|could|do|will) you (do|help)|what('s| is| are) you(r)? (for|good at|capable|able)|"
+                       r"what are you (capable|able|good)|how (can|could|do|will) you help|what do you offer)", re.I)
+INTRO_NOT = re.compile(r"\b(write|draft|email|letter|send|make|prepare|for (him|her|them|the|a|an))\b", re.I)
+INTRO_YES = re.compile(r"^\W*(yes|yeah|yep|yup|sure|ok(ay)?|please|go (on|ahead)|do it|go for it)\b", re.I)
+INTRO_OFFER = "bring up the tutorial"
+INTRO_TEXT = (
+    "I'm Halo, your front door to the whole AI team. Here's what I can do for you.\n\n"
+    "I answer questions, and I find things: documents, actions, clients, people, meetings, whatever's in your vault. "
+    "I coordinate your AI agents, handing work to the right specialist and bringing their answers back to you. "
+    "I can schedule routine jobs for the team to run on their own, every morning or every Monday, "
+    "so you never have to remember them, because we all know how painful that is.\n\n"
+    "I can check your Outlook calendar, triage your emails, and draft replies, with your approval, of course. "
+    "I write documents, presentations, dashboards, analysis, cash flow forecasts, "
+    "and pretty much anything else you're too lazy to do. Except make your bed.\n\n"
+    "A few honest limits. I never send an email without your OK; drafts wait in Outlook for you. "
+    "I only see what I'm connected to: your vault, your Outlook and the tools you've switched on. "
+    "Quick questions take seconds, but email and calendar take a little longer, and big team jobs can take minutes. "
+    "And I can get things wrong, so check the numbers before they go to a client.\n\n"
+    "Would you like me to " + INTRO_OFFER + "?")
+
+
+def intro_asked(question):
+    return (bool(INTRO_ASK.search(question)) and len(question.split()) <= 14 and not FILE_ASK.search(question)
+            and not INTRO_NOT.search(question))
+
+
+def tutorial_accepted(question):
+    """A short yes to Halo's introduction, which ends by offering the tutorial."""
+    if not (INTRO_YES.match(question) and len(question.split()) <= 6):
+        return False
+    rows = chat_rows()
+    return bool(rows) and INTRO_OFFER in str(rows[-1].get("a", "")).lower()
+
+
 VAULT_PROMPT = """
 
 You can read the vault itself (read only) with Read, Glob and Grep; it is at {vault}. The notes \
@@ -362,7 +399,7 @@ Doing things:
 - Talk to one team member: ACTION: chat | <their name> | <the message to pass on, in their words, or empty just to open the chat>. Use this rather than DELEGATE whenever they want to talk to or ask one person.
 - Set up a scheduled or repeat job ("every Monday, check...", "set up a job to...", "each morning send me..."): first make sure you know three things: what it should do, when it runs, and what happens with the result (shown in their tray, said out loud, saved as a note in Team Inbox). If any is missing or vague, ask about it with no ACTION line: one short question per reply, offering a sensible default they can just say yes to ("Weekdays at 7:30, shown in your tray and saved as a note in Team Inbox?"). The team does it unless it only needs a quick read-only answer. Once you have all three, create it: ACTION: job | <a short name> | <team or quick> | <daily, weekdays, weekly <day>, or every <n> hours> | <the time as HH:MM, 24-hour, or empty for every few hours> | <tools it needs, comma-separated ids from: {tools}; empty for notes only> | <any of tray, speak, note, comma-separated> | <what to do: complete instructions in plain English, as you would brief the team, including what to look at and what to write>. Ready-made jobs ({templates}): give that name and leave what-to-do empty. Then confirm in a line that it's on and when it first runs; its page opens on screen, and they can change it from the Jobs card on the left. To change a job (one you just set up, or any listed in Settings > Jobs), write the whole job line again with exactly the same name: it replaces that job. Never create a job they haven't asked for.
 - Update Halo itself ("update yourself", "check for updates", "is there a new version?"): ACTION: update. The page says whether there is a new version and offers to install it; say you're checking.
-- Show them how Halo works ("give me a tour", "how do I use you?", "show me how Deliverables works", "what's new?"): ACTION: tour | <one of: all, welcome, menu, top bar, team, talking, getting around, what's new, or the part of the screen they asked about>. A guided tour plays on screen; say it's starting, in a few words.
+- Show them how Halo works, only when they ask for a tour, tutorial or walkthrough by name ("give me a tour", "play the tutorial", "show me how Deliverables works", "what's new?"): ACTION: tour | <one of: all, welcome, menu, top bar, team, talking, getting around, what's new, or the part of the screen they asked about>. A guided tour plays on screen; say it's starting, in a few words.
 Anything else that is real work goes to the team with DELEGATE.
 Their projects: {projects}. The team: {team}."""
 
@@ -1459,6 +1496,17 @@ def answer(sid, question, project=None, history=None, on_event=None, tour=False)
     """Answer a question. With `project`, only that project's notes are searched and the chat is
     framed around it; with `history` (a saved project chat), those turns are the memory instead
     of the in-browser session."""
+    if not project and not tour and history is None:
+        canned = None
+        if tutorial_accepted(question):        # "yes" to the intro's offer: now the tutorial plays
+            canned = ("Here it comes.", [run_action("tour | all")])
+        elif intro_asked(question):            # spoken overview; the tutorial waits for a yes
+            canned = (INTRO_TEXT, [])
+        if canned:
+            text, actions = canned
+            log_chat_turn(sid, question, text, [])
+            return {"answer": text, "speech": text, "nodes": [], "job": None, "context": "",
+                    "action": actions[0] if actions else None, "actions": actions}
     model = load_model()
     team_asked = bool(TEAM_MENTION and TEAM_MENTION.search(question))
     # Small talk and screen commands: Haiku, no notes, no tools, one turn (CR-008).
