@@ -3415,7 +3415,7 @@ const tc = THEME.colour;
             if (data.context) { jarvisContext = data.context; renderContext(); }
             if (data.job) trackJob(data.job);
             setStatus('');
-            speakRest(data.speech || data.answer, data.spokenEarly);
+            speakRest(data.speech || data.answer, data.spokenEarly, data.speak_all);
             actionsOf(data).forEach(handleAction);
             loadList();   // new chat appears, question counts update
           } catch (err) {
@@ -4195,7 +4195,7 @@ const tc = THEME.colour;
     };
     tourRefreshers.push(() => { data = null; if (body.parentElement.classList.contains('open')) paintRail(body); });
     const dot = s => {
-      const bad = ['failed', 'skipped', 'missed'].includes(s.last_status);
+      const bad = ['failed', 'skipped', 'missed', 'interrupted'].includes(s.last_status);
       const [c, tip] = s.running ? ['#ffb347', 'Running now'] : !s.enabled ? ['#6b7088', 'Paused'] : bad ? ['#ff7a6b', 'On, but the last run went wrong'] : [accent, 'On'];
       return `<i class="jobdot" style="--dot:${c}" title="${escapeHtml(tip)}"></i>`;
     };
@@ -4757,7 +4757,7 @@ const tc = THEME.colour;
       proveAnswer(used);
       qEl.value = '';
       setStatus('');
-      if (!actionsOf(data).some(a => a.listen)) speakRest(data.speech || data.answer, data.spokenEarly);   // only the spoken line: the answer and notes are on screen
+      if (!actionsOf(data).some(a => a.listen)) speakRest(data.speech || data.answer, data.spokenEarly, data.speak_all);   // only the spoken line: the answer and notes are on screen
       if (data.context) { jarvisContext = data.context; renderContext(); }
       if (data.job) trackJob(data.job);
       actionsOf(data).forEach(handleAction);
@@ -5504,12 +5504,14 @@ const tc = THEME.colour;
   }
   // The answer's spoken line, after its first words were already said while it streamed in:
   // carry on from where he got to rather than starting over (or cutting himself off).
-  function speakRest(full, early) {
+  // all: say every sentence (the introduction, whose last line offers the tutorial), not the usual few.
+  function speakRest(full, early, all) {
     if (!full || full === early) return;
+    const max = all ? 1000 : MAX_SPOKEN_SENTENCES;
     const norm = s => String(s || '').replace(/\s+/g, ' ').trim();
     const f = norm(full), e = norm(early);
-    if (e && f.startsWith(e)) { const rest = f.slice(e.length).trim(); if (rest) speak(rest); return; }
-    speak(full, MAX_SPOKEN_SENTENCES, { replace: !!e });   // a different line altogether: say the final one
+    if (e && f.startsWith(e)) { const rest = f.slice(e.length).trim(); if (rest) speak(rest, max); return; }
+    speak(full, max, { replace: !!e });   // a different line altogether: say the final one
   }
   function nextSpeech() {
     const item = speechQueue.shift();
@@ -5987,6 +5989,18 @@ const tc = THEME.colour;
         stop.innerHTML = label;
         stop.classList.add('stop'); stop.title = 'Stop the team now';
       } else {
+        if (j.rerun) {   // a scheduled run a restart cut off: offered, never rerun by itself
+          const again = btn('↻ Run again', async () => {
+            again.disabled = true; again.textContent = 'Starting…';
+            try {
+              jobsChanged(await api('/api/schedules', { op: 'run', id: j.rerun }));
+              dismissed.add(j.id);
+              try { localStorage.setItem('galaxy-dismissed-jobs', JSON.stringify([...dismissed].slice(-50))); } catch (_) {}
+              renderJobs();
+            } catch (err) { setStatus('error', err.message, 4000); again.disabled = false; again.textContent = '↻ Run again'; }
+          });
+          again.title = 'Start this scheduled job again from the beginning';
+        }
         btn('Read report', () => showAnswer(`The team's report · ${j.task}`, j.report, []));
         if (j.rebuilt) btn('↻ Reload galaxy', () => {
           try { sessionStorage.setItem('jarvis-skip-wake', '1'); } catch (_) {}   // no wake screen or greeting

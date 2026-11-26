@@ -1544,8 +1544,10 @@ def answer(sid, question, project=None, history=None, on_event=None, tour=False)
         if canned:
             text, actions = canned
             log_chat_turn(sid, question, text, [])
+            # speak_all: the introduction is said in full, past the usual few-sentence cap, or its
+            # closing offer of the tutorial is never heard (F21).
             return {"answer": text, "speech": text, "nodes": [], "job": None, "context": "",
-                    "action": actions[0] if actions else None, "actions": actions}
+                    "action": actions[0] if actions else None, "actions": actions, "speak_all": True}
     model = load_model()
     team_asked = bool(TEAM_MENTION and TEAM_MENTION.search(question))
     # Small talk and screen commands: Haiku, no notes, no tools, one turn (CR-008).
@@ -2984,6 +2986,41 @@ def request_approval(run_key, token, tool, inp, use_id):
     return {"ticket": ticket}
 
 
+APPROVAL_EXPIRE = 31 * 60   # the helper gives up at 30 minutes; a minute's grace so a late click still counts
+
+
+def expire_approvals():
+    """Close requests nobody answered in time, or whose helper died or gave up without saying so.
+    Left open they kept the job's idle clock stopped, so one stale card held a run for an hour (V33)."""
+    now, gone = time.time(), []
+    with _approval_lock:
+        for req in _approvals.values():
+            if not req["decision"] and now - req.get("asked", now) > APPROVAL_EXPIRE:
+                req.update(decision="deny", message="No answer in 30 minutes, so this was not approved.")
+                gone.append(req)
+    for req in gone:
+        print(f"approval {req['ticket']} ({req['run']}, {req['tool']}) expired unanswered", flush=True)
+        try:
+            chat = _load_chat(req["chat"])
+            chat["messages"].append({"who": "you", "time": time.strftime("%Y-%m-%d %H:%M"), "approval": "deny",
+                                     "text": "✗ No answer in 30 minutes, so not approved"})
+            chat["activity"] = f"{req['asker']} is carrying on without it"
+            _save_chat(chat)
+        except (ChatError, OSError, KeyError):
+            pass
+
+
+def cancel_approval(ticket, token):
+    """The helper stopped waiting (it timed out): close the request so the run isn't held open."""
+    with _approval_lock:
+        req = _approvals.get(str(ticket))
+        if not req or _runs.get(req["run"]) != token:
+            return {"ok": False}
+        if not req["decision"]:
+            req.update(decision="deny", message="No answer in 30 minutes, so this was not approved.")
+    return {"ok": True}
+
+
 def approval_state(ticket, token):
     with _approval_lock:
         req = _approvals.get(str(ticket))
@@ -3027,6 +3064,7 @@ def decide_approval(ticket, decision, answers=None):
 
 
 def pending_approvals(chat_id=None):
+    expire_approvals()
     with _approval_lock:
         return [{k: r.get(k) for k in ("ticket", "chat", "agent", "asker", "tool", "what", "why", "asked", "kind",
                                        "questions", "plain")}
@@ -5914,6 +5952,13 @@ def scheduler_loop():
         for s in items:
             if s.get("last_status") == "running":
                 s["last_status"] = "interrupted"
+                # Logged, so the brief and the job's history show it. Not rerun by itself: it may have
+                # done half its work already, so the tray card and the Jobs page offer Run again (M31).
+                _append_jsonl(SCHEDULE_LOG, {"id": s["id"], "name": s["name"], "at": time.time(),
+                                             "trigger": "restart", "runner": s.get("runner"),
+                                             "status": "interrupted", "secs": 0, "job": s.get("last_job"),
+                                             "result_head": "Halo restarted while this was running. "
+                                                            "Open the job and click Run now to run it again."})
         save_schedules(items)
     time.sleep(SCHED_START_DELAY)
     while True:
@@ -5993,7 +6038,7 @@ def build_brief(since):
     out["jobs"] = [{k: j.get(k) for k in ("id", "task", "status", "origin", "report", "agents", "document", "at")}
                    for j in _read_jsonl(JOBS_LOG, since)][-10:][::-1]
     out["schedule_events"] = [r for r in _read_jsonl(SCHEDULE_LOG, since)
-                              if r.get("status") in ("missed", "failed", "skipped")][-8:]
+                              if r.get("status") in ("missed", "failed", "skipped", "interrupted")][-8:]
     changed, by_top = [], {}
     for root, dirs, files in os.walk(VAULT):
         dirs[:] = [d for d in dirs if not d.startswith((".", "_")) and d not in ("node_modules", CHATS_SUBDIR)]
@@ -6188,6 +6233,19 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         super().end_headers()
 
+    def _host_ok(self):
+        """The request was addressed to this computer by name. A web page that points its own
+        domain at 127.0.0.1 (DNS rebinding) counts as same-origin to the browser, so Origin alone
+        can't stop it; its Host header still names that domain, so it is refused here (V27)."""
+        if self.headers.get("Host", "").lower() in (f"localhost:{PORT}", f"127.0.0.1:{PORT}"):
+            return True
+        self.send_error(403)
+        return False
+
+    def do_HEAD(self):
+        if self._host_ok():
+            super().do_HEAD()
+
     def _trusted(self):
         """Only the viewer itself may call the API: same origin, plus a header other sites can't
         send without a preflight we never answer."""
@@ -6197,6 +6255,8 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
         return self.headers.get("X-Galaxy") == "1"
 
     def do_GET(self):
+        if not self._host_ok():
+            return
         url = urllib.parse.urlsplit(self.path)
         if not url.path.startswith("/api/"):
             return super().do_GET()
@@ -6301,6 +6361,8 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
         return body
 
     def do_POST(self):
+        if not self._host_ok():
+            return
         path = self.path.split("?")[0]
         if path == "/api/upload":   # raw file body; the name and folder ride in the query
             if not self._trusted():
@@ -6319,7 +6381,7 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
                 self._json(400, {"error": "Bad request."})
             return
         if path in ("/api/open", "/api/reveal", "/api/trash", "/api/action", "/api/fleeting", "/api/note-tidy", "/api/models", "/api/projects", "/api/agent-chat",
-                    "/api/agent-chat/stop", "/api/jobs/stop", "/api/stop-answer", "/api/approval", "/api/approval/decide", "/api/hires/approve", "/api/hires/decline", "/api/setup", "/api/logo",
+                    "/api/agent-chat/stop", "/api/jobs/stop", "/api/stop-answer", "/api/approval", "/api/approval/cancel", "/api/approval/decide", "/api/hires/approve", "/api/hires/decline", "/api/setup", "/api/logo",
                     "/api/update", "/api/claude-auth/login", "/api/claude-auth/code", "/api/settings", "/api/tools", "/api/schedules", "/api/brief",
                     "/api/costs", "/api/mission"):
             if not self._trusted():
@@ -6344,6 +6406,8 @@ class GalaxyHandler(http.server.SimpleHTTPRequestHandler):
                 elif path == "/api/approval":   # the helper, asking on an agent's behalf
                     self._json(200, request_approval(str(body.get("run", "")), self.headers.get("X-Jarvis-Token", ""),
                                                      body.get("tool", ""), body.get("input") or {}, body.get("id", "")))
+                elif path == "/api/approval/cancel":   # the helper gave up waiting
+                    self._json(200, cancel_approval(body.get("ticket", ""), self.headers.get("X-Jarvis-Token", "")))
                 elif path == "/api/approval/decide":
                     self._json(200, decide_approval(body.get("ticket", ""), body.get("decision", ""), body.get("answers")))
                 elif path == "/api/agent-chat/stop":
@@ -6507,8 +6571,15 @@ def _restart():
 
 
 if __name__ == "__main__":
-    refresh_meaning()
     handler = functools.partial(GalaxyHandler, directory=ROOT)
+    server_cls = http.server.ThreadingHTTPServer
+    if os.name == "nt":   # on Windows "reuse address" lets a second copy share the port with the first,
+        # so both answer at random and an old one can hide a new one. Refuse instead: the second exits.
+        server_cls = type("SoloServer", (server_cls,), {"allow_reuse_address": False})
+    # Take the port before anything else, so a second copy that loses it exits having touched nothing
+    # (it used to mark running schedules interrupted in the first copy's files).
+    httpd = server_cls(("127.0.0.1", PORT), handler)
+    refresh_meaning()
     threading.Thread(target=watch_vault, daemon=True).start()
     threading.Thread(target=ensure_icon, daemon=True).start()
     threading.Thread(target=scheduler_loop, daemon=True).start()
@@ -6521,6 +6592,6 @@ if __name__ == "__main__":
             write_theme_file(read_config().get("theme"))
     except (ChatError, OSError):
         pass
-    with http.server.ThreadingHTTPServer(("127.0.0.1", PORT), handler) as httpd:
+    with httpd:
         print(f"Knowledge Galaxy: http://localhost:{PORT}/  (serving {ROOT}, {len(INDEX.notes)} notes indexed)")
         httpd.serve_forever()

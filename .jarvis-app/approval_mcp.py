@@ -52,6 +52,10 @@ def decide(tool_name, tool_input, tool_use_id):
             return {"behavior": "allow", "updatedInput": dict(tool_input, answers=state.get("answers") or {})}
         if state.get("decision") == "deny":
             return {"behavior": "deny", "message": state.get("message") or "The user said no. Don't try it another way; carry on without it."}
+    try:   # tell Halo we stopped waiting, so the card closes and the run isn't held open
+        call("/api/approval/cancel", {"ticket": ticket["ticket"]})
+    except (OSError, ValueError, urllib.error.URLError):
+        pass   # Halo closes it itself a minute later
     return {"behavior": "deny", "message": "No answer from the user in 30 minutes, so this was not approved."}
 
 
