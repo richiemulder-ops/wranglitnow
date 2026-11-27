@@ -1,0 +1,81 @@
+name: Mac install test
+on:
+  push:
+    branches: [mac-test]
+  workflow_dispatch:
+jobs:
+  mac:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, macos-15-intel]   # Apple Silicon, Intel
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Step 2 - private Python (as in INSTALL-JARVIS.md)
+        run: |
+          ROOT="$HOME/Jarvis"
+          mkdir -p "$ROOT"
+          if [ ! -x "$ROOT/python/bin/python3" ]; then
+            case "$(uname -m)" in arm64) ARCH=aarch64 ;; *) ARCH=x86_64 ;; esac
+            curl -fL "https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.12.16%2B20261026-${ARCH}-apple-darwin-install_only.tar.gz" -o "$ROOT/python.tar.gz"
+            tar -xzf "$ROOT/python.tar.gz" -C "$ROOT"
+            rm "$ROOT/python.tar.gz"
+          fi
+          "$ROOT/python/bin/python3" --version
+          uname -m
+      - name: Step 4 - knowledge folder (new, then existing-notes copy)
+        run: |
+          K="$HOME/Documents/My Knowledge"
+          mkdir -p "$K"
+          rsync -a --exclude .git --exclude .github "$GITHUB_WORKSPACE/" "$K/"
+          echo "mine" > "$K/README.md.mine"; cp "$K/README.md" /tmp/readme.before
+          echo "changed" >> "$K/README.md"
+          rsync -a --ignore-existing --exclude .git --exclude .github "$GITHUB_WORKSPACE/" "$K/"
+          tail -1 "$K/README.md" | grep -q changed && echo "existing file kept"
+      - name: Step 5 - setup.py (shortcut, no start)
+        run: |
+          PY="$HOME/Jarvis/python/bin/python3"
+          "$PY" "$HOME/Documents/My Knowledge/.jarvis-app/setup.py" --name "Test Friend" --install "$HOME/Jarvis" --no-start
+          cat "$HOME/Jarvis/app/config.json"
+          grep -q '"platform": "mac"' "$HOME/Jarvis/app/config.json"
+          ls -la "$HOME/Applications/Halo.app/Contents" "$HOME/Applications/Halo.app/Contents/MacOS" "$HOME/Applications/Halo.app/Contents/Resources"
+          plutil -lint "$HOME/Applications/Halo.app/Contents/Info.plist"
+          cat "$HOME/Applications/Halo.app/Contents/MacOS/Halo"
+          test -x "$HOME/Applications/Halo.app/Contents/MacOS/Halo"
+          file "$HOME/Applications/Halo.app/Contents/Resources/halo.icns"
+          "$PY" -c "import fastembed; print('fastembed ok')" || echo "fastembed not installed yet"
+      - name: Start Halo from the app bundle
+        run: |
+          env -i HOME="$HOME" PATH=/usr/bin:/bin "$HOME/Applications/Halo.app/Contents/MacOS/Halo" || true
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://127.0.0.1:4700/ && break; sleep 1; done
+          curl -sf -o /dev/null -w "page %{http_code}\n" http://127.0.0.1:4700/
+          curl -sf -H "X-Galaxy: 1" http://127.0.0.1:4700/api/setup | head -c 400; echo
+      - name: Open and Show in Finder (the os.startfile fix)
+        run: |
+          H=(-H "X-Galaxy: 1" -H "Content-Type: application/json")
+          curl -s "${H[@]}" -d '{"name":"inbox","path":""}' http://127.0.0.1:4700/api/reveal; echo
+          F=$(ls "$HOME/Documents/My Knowledge/Team Inbox" | head -1)
+          [ -n "$F" ] && curl -s "${H[@]}" -d "{\"name\":\"inbox\",\"path\":\"$F\"}" http://127.0.0.1:4700/api/reveal; echo
+          curl -s "${H[@]}" -d '{"name":"vault","path":"README.md"}' http://127.0.0.1:4700/api/open; echo
+          curl -s "${H[@]}" -d '{"name":"vault","path":"README.md"}' http://127.0.0.1:4700/api/open | grep -q '"ok": true'
+      - name: Mac icon refresh and second-copy guard
+        run: |
+          cd "$HOME/Jarvis/app"
+          rm "$HOME/Applications/Halo.app/Contents/Resources/halo.icns"
+          "$HOME/Jarvis/python/bin/python3" -c "import sys; sys.argv=['server.py']; import importlib.util as u; s=u.spec_from_file_location('srv','server.py'); m=u.module_from_spec(s); s.loader.exec_module(m); m.ensure_icon()"
+          test -f "$HOME/Applications/Halo.app/Contents/Resources/halo.icns" && echo "icon restored"
+          "$HOME/Jarvis/python/bin/python3" server.py > /tmp/second.log 2>&1 &
+          P=$!; sleep 15
+          if kill $P 2>/dev/null; then echo "second copy still running (BAD)"; exit 1; else echo "second copy exited"; fi
+          tail -3 /tmp/second.log
+          curl -sf -o /dev/null -w "first still answers %{http_code}\n" http://127.0.0.1:4700/
+      - name: Update check and stop
+        run: |
+          cd "$HOME/Jarvis/app"
+          "$HOME/Jarvis/python/bin/python3" -c "import update; print(update.status(True) if hasattr(update,'status') else 'update module ok')" || true
+          "$HOME/Jarvis/python/bin/python3" launch.py --stop
+          sleep 2
+          curl -s -o /dev/null -w "after stop %{http_code}\n" http://127.0.0.1:4700/ || true
+          cat data/server.log | tail -20

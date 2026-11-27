@@ -1268,9 +1268,34 @@ foreach ($d in $dirs) {
 if ($env:J_FORCE -eq '1' -or $renamed) { & (Join-Path $env:SystemRoot 'System32\ie4uinit.exe') -show }"""
 
 
+MAC_APP = os.path.join(os.path.expanduser("~"), "Applications", "Halo.app")
+
+
+def ensure_mac_icon():
+    """Mac: keep Halo.app's icon in step with viewer/halo.icns (an update may bring a new one).
+    Only touches the app that starts this install."""
+    src = os.path.join(HERE, "viewer", "halo.icns")
+    script = os.path.join(MAC_APP, "Contents", "MacOS", "Halo")
+    dest = os.path.join(MAC_APP, "Contents", "Resources", "halo.icns")
+    try:
+        if not os.path.isfile(src) or HERE not in open(script, encoding="utf-8").read():
+            return
+        want = open(src, "rb").read()
+        if os.path.isfile(dest) and open(dest, "rb").read() == want:
+            return
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        with open(dest, "wb") as f:
+            f.write(want)
+        subprocess.run(["touch", MAC_APP], capture_output=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        return
+
+
 def ensure_icon():
     """Put the Halo icon on this install's shortcuts. Updates bring the icon into the knowledge
     folder's .jarvis-app copy, so take it from there if the app folder lacks it."""
+    if sys.platform == "darwin":
+        return ensure_mac_icon()
     if os.name != "nt":
         return
     if not os.path.isfile(ICON_SOURCE):
@@ -5062,27 +5087,42 @@ def save_upload(key, sub, name, stream, length):
             "path": os.path.relpath(target, root).replace("\\", "/")}
 
 
+FILE_APP = "Finder" if sys.platform == "darwin" else "File Explorer"
+
+
+def os_open(path):
+    """Open a file with its default app, or a folder in File Explorer / Finder."""
+    if os.name == "nt":
+        os.startfile(path)
+    else:
+        subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", path],
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
 def open_in_os(key, sub=""):
-    """Open the folder in Explorer, or a document with its default app (documents only).
+    """Open the folder in Explorer / Finder, or a document with its default app (documents only).
     key "vault" opens any note or document by its vault-relative path."""
     path = vault_file(sub, must_exist=False) if key == "vault" else folder_path(key, sub)[1]
     if not os.path.exists(path):
         raise ChatError(404, "Not found.")
     if os.path.isfile(path) and os.path.splitext(path)[1].lower() not in OPENABLE:
         raise ChatError(403, "That file type isn't opened from the galaxy.")
-    os.startfile(path)
+    os_open(path)
     return {"ok": True}
 
 
 def reveal_in_os(key, sub=""):
-    """Open File Explorer at the item's folder, with the item selected."""
+    """Open File Explorer / Finder at the item's folder, with the item selected."""
     root, path = folder_path(key, sub)
     if path == root:
-        os.startfile(path)
+        os_open(path)
     elif os.name == "nt":
         subprocess.Popen(["explorer", "/select,", os.path.normpath(path)])
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", "-R", path], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL)
     else:
-        subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", os.path.dirname(path)])
+        subprocess.Popen(["xdg-open", os.path.dirname(path)])
     return {"ok": True}
 
 
@@ -5116,7 +5156,7 @@ def zip_folder(path):
             full = os.path.join(dirpath, name)
             total += os.path.getsize(full)
             if total > MAX_DOWNLOAD_ZIP:
-                raise ChatError(413, "That folder is over 1 GB. Use Show in File Explorer instead.")
+                raise ChatError(413, f"That folder is over 1 GB. Use Show in {FILE_APP} instead.")
             files.append(full)
     tmp = tempfile.TemporaryFile()
     base = os.path.basename(path)
