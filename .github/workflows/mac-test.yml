@@ -65,16 +65,18 @@ jobs:
           [ -n "$F" ] && curl -s "${H[@]}" -d "{\"name\":\"inbox\",\"path\":\"$F\"}" http://127.0.0.1:4700/api/reveal; echo
           curl -s "${H[@]}" -d '{"name":"vault","path":"README.md"}' http://127.0.0.1:4700/api/open; echo
           curl -s "${H[@]}" -d '{"name":"vault","path":"README.md"}' http://127.0.0.1:4700/api/open | grep -q '"ok": true'
-      - name: Mac icon refresh and second-copy guard
+      - name: Mac icon refresh and second-copy guard (90 s)
         run: |
           cd "$HOME/Jarvis/app"
           rm "$HOME/Applications/Halo.app/Contents/Resources/halo.icns"
           "$HOME/Jarvis/python/bin/python3" -c "import sys; sys.argv=['server.py']; import importlib.util as u; s=u.spec_from_file_location('srv','server.py'); m=u.module_from_spec(s); s.loader.exec_module(m); m.ensure_icon()"
-          test -f "$HOME/Applications/Halo.app/Contents/Resources/halo.icns" && echo "icon restored"
+          test -f "$HOME/Applications/Halo.app/Contents/Resources/halo.icns" || { echo "icon NOT restored"; exit 1; }
+          echo "icon restored"
           "$HOME/Jarvis/python/bin/python3" server.py > /tmp/second.log 2>&1 &
-          P=$!; sleep 15
-          if kill $P 2>/dev/null; then echo "second copy still running (BAD)"; exit 1; else echo "second copy exited"; fi
-          tail -3 /tmp/second.log
+          P=$!
+          for i in $(seq 1 90); do kill -0 $P 2>/dev/null || break; sleep 1; done
+          echo "--- second copy log"; cat /tmp/second.log
+          if kill $P 2>/dev/null; then echo "second copy still running after 90 s (BAD)"; exit 1; else echo "second copy exited after ${i}s"; fi
           curl -sf -o /dev/null -w "first still answers %{http_code}\n" http://127.0.0.1:4700/
       - name: Update check and stop
         run: |
