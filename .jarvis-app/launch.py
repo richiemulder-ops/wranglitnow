@@ -125,6 +125,10 @@ def main():
         if os.name == "nt":
             import ctypes
             ctypes.windll.user32.MessageBoxW(0, msg, "Halo", 0x10)
+        elif sys.platform == "darwin":   # started from Halo.app there is no terminal to print to
+            text = msg.replace("\\", "\\\\").replace('"', '\\"')
+            subprocess.run(["osascript", "-e", f'display alert "Halo" message "{text}" as critical'],
+                           capture_output=True, timeout=120)
         sys.exit(1)
     webbrowser.open(URL)
 

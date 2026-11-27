@@ -1,7 +1,9 @@
 {
-  "version": "2026.11.26.1",
+  "version": "2026.11.27.1",
   "_how": "Every push: bump version, add a new entry at the top of history. 'notes' is for installs older than 2026.11.05.9, whose updater only reads this list; keep it as all history notes. 'tour' lists the tutorial step ids (TOUR_STEPS in viewer/index.html) this release added or changed, for the 'what's new' tour; run check_tour.py before pushing.",
   "notes": [
+    "Halo now installs on a Mac as well as a Windows PC. The installer asks which computer you're on and sets up the right pieces: on a Mac, Halo appears in your Applications folder, ready for the Dock.",
+    "On a Mac, Open and Show in folder use Finder.",
     "Safer approvals: a card nobody answers now closes after 30 minutes, so a job is never left waiting on it for an hour.",
     "If Jarvis is started twice, the second copy now stops straight away without touching the first one's schedules. A scheduled job that a restart cut off is marked Interrupted in Jobs and the morning brief; click Run now to run it again.",
     "Halo's introduction is now spoken all the way through, including her offer to show you the tutorial.",
@@ -113,6 +115,14 @@
     "The welcome screen no longer fails after Jarvis reloads itself."
   ],
   "history": [
+    {
+      "version": "2026.11.27.1",
+      "notes": [
+        "Halo now installs on a Mac as well as a Windows PC. The installer asks which computer you're on and sets up the right pieces: on a Mac, Halo appears in your Applications folder, ready for the Dock.",
+        "On a Mac, Open and Show in folder use Finder."
+      ],
+      "tour": []
+    },
     {
       "version": "2026.11.26.1",
       "notes": [

@@ -14,7 +14,8 @@ Run from the vault's hidden `.jarvis-app` folder. It:
   4. builds the note index and the galaxy from the vault
      (and installs the meaning-search add-on, fastembed, when it can)
   5. records the user's first name in the vault (PKM/.user.yaml) when --name is given
-  6. puts a "Jarvis" shortcut on the desktop and in the Start menu
+  6. puts a "Halo" shortcut on the desktop and in the Start menu (Windows),
+     or Halo.app in ~/Applications (Mac)
   7. starts Jarvis and opens it in the browser (unless --no-start)
 
 Safe to run again: it updates the app files and keeps config.json and data/.
@@ -24,6 +25,8 @@ import argparse
 import glob
 import json
 import os
+import plistlib
+import shlex
 import shutil
 import subprocess
 import sys
@@ -35,7 +38,9 @@ APP = os.path.join(INSTALL, "app")
 WHERE = "install.json"   # in <vault>/.jarvis-app: the Jarvis folder this vault was set up with
 APP_FILES = ["server.py", "build.py", "semantic.py", "approval_mcp.py", "launch.py", "setup.py", "update.py", "VERSION.json",
              os.path.join("viewer", "index.html"),
-             os.path.join("viewer", "jarvis.ico"), os.path.join("viewer", "halo.ico")]
+             os.path.join("viewer", "jarvis.ico"), os.path.join("viewer", "halo.ico"), os.path.join("viewer", "halo.icns")]
+PLATFORM = "windows" if os.name == "nt" else "mac" if sys.platform == "darwin" else "linux"
+MAC_APP = os.path.join(os.path.expanduser("~"), "Applications", "Halo.app")
 DEFAULT_CONFIG = {"model": "claude-sonnet-5-5", "job_model": "claude-opus-5-5", "agent_permissions": "auto"}
 
 
@@ -91,6 +96,7 @@ def write_config():
     for k, v in DEFAULT_CONFIG.items():
         cfg.setdefault(k, v)
     cfg["vault"] = VAULT
+    cfg["platform"] = PLATFORM
     with open(path, "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=2)
     say("Settings saved (no keys stored).")
@@ -152,9 +158,40 @@ def pythonw():
     return w if os.path.isfile(w) else sys.executable
 
 
+def make_mac_app():
+    """~/Applications/Halo.app: a tiny app bundle that starts Halo, so it opens from Launchpad,
+    Spotlight or the Dock. Built on this Mac, so it carries no download quarantine flag.
+    Apps started from Finder get a bare PATH, so the script adds where the claude CLI lives."""
+    contents = os.path.join(MAC_APP, "Contents")
+    shutil.rmtree(MAC_APP, ignore_errors=True)
+    os.makedirs(os.path.join(contents, "MacOS"))
+    os.makedirs(os.path.join(contents, "Resources"))
+    with open(os.path.join(contents, "Info.plist"), "wb") as f:
+        plistlib.dump({"CFBundleName": "Halo", "CFBundleDisplayName": "Halo", "CFBundleExecutable": "Halo",
+                       "CFBundleIdentifier": "com.carbonhalo.halo", "CFBundlePackageType": "APPL",
+                       "CFBundleIconFile": "halo", "CFBundleShortVersionString": "1.0",
+                       "LSMinimumSystemVersion": "11.0"}, f)
+    script = os.path.join(contents, "MacOS", "Halo")
+    lines = ["#!/bin/bash",
+             "# Starts Halo (" + APP + ")",
+             'export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"',
+             "cd " + shlex.quote(APP),
+             "exec " + shlex.quote(sys.executable) + " " + shlex.quote(os.path.join(APP, "launch.py"))]
+    with open(script, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
+    os.chmod(script, 0o755)
+    icon = os.path.join(APP, "viewer", "halo.icns")
+    if os.path.isfile(icon):
+        shutil.copy2(icon, os.path.join(contents, "Resources", "halo.icns"))
+    subprocess.run(["touch", MAC_APP], capture_output=True)   # Finder picks up the icon straight away
+    say("Halo added to your Applications folder (drag it to the Dock to keep it there).")
+
+
 def make_shortcuts():
+    if PLATFORM == "mac":
+        return make_mac_app()
     if os.name != "nt":
-        say("Not Windows: start Jarvis with  python app/launch.py")
+        say("Start Halo with  python3 app/launch.py")
         return
     ps = r"""
 $s = New-Object -ComObject WScript.Shell

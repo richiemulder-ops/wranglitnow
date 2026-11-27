@@ -58,14 +58,16 @@ The installer copies it into place for you.
 
    > Install Jarvis for me from github.com/richiemulder-ops/wranglitnow
 
-3. Answer three questions: your first name, where to put the Jarvis folder, and
-   where your knowledge folder should be (a new folder, or one you already have, for
-   example in OneDrive). Claude does the rest, including installing Python if your PC
-   doesn't have it, and opens Jarvis in your browser.
+3. Answer four questions: your first name, whether you're on a Windows PC or a Mac,
+   where to put the Jarvis folder, and where your knowledge folder should be (a new
+   folder, or one you already have, for example in OneDrive). Claude does the rest,
+   including installing Python if your computer doesn't have it, and opens Jarvis in
+   your browser.
 4. Click to wake Jarvis. A short welcome sets your name, voice, colours and Outlook.
 
-After that, double-click **Jarvis** on your desktop. Claude follows
-[INSTALL-JARVIS.md](INSTALL-JARVIS.md). Windows is tested; Mac follows the same steps.
+After that, double-click **Halo** on your desktop (Windows), or click **Halo** in
+your Dock or Launchpad (Mac). Claude follows [INSTALL-JARVIS.md](INSTALL-JARVIS.md),
+which has a Windows part and a Mac part for each step.
 
 If you point it at a folder that already has your notes, nothing in it is
 overwritten. The starter folders are added beside your files, and your existing
