@@ -46,6 +46,11 @@ jobs:
           test -x "$HOME/Applications/Halo.app/Contents/MacOS/Halo"
           file "$HOME/Applications/Halo.app/Contents/Resources/halo.icns"
           "$PY" -c "import fastembed; print('fastembed ok')" || echo "fastembed not installed yet"
+      - name: Meaning search and Word add-ons install on Mac
+        run: |
+          PY="$HOME/Jarvis/python/bin/python3"
+          "$PY" -c "import fastembed; print('fastembed', fastembed.__version__)"
+          "$PY" -m pip install -q python-docx && "$PY" -c "import docx; print('python-docx ok')"
       - name: Start Halo from the app bundle
         run: |
           env -i HOME="$HOME" PATH=/usr/bin:/bin "$HOME/Applications/Halo.app/Contents/MacOS/Halo" || true
